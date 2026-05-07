@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        0.9.0
+// @version        0.9.1
 // ==/UserScript==
 
 (() => {
@@ -113,10 +113,11 @@
       : (themeOrSource?.source || '');
     return {
       'dark-reader': 5,
+      'top-visible': 6,
       'theme-color': 5,
       body: 3,
       html: 3,
-      'document-canvas': 3,
+      'document-canvas': 2,
       sampler: 1,
       'chrome-contrast-fallback': 1,
       'toolbar-fallback': 0
@@ -821,13 +822,21 @@
     return null;
   }
 
+  function getTopVisibleTheme(doc, view) {
+    if (!doc || !view) return null;
+
+    const element = getTopVisibleElement(view, doc);
+    if (!element || element === doc.body || element === doc.documentElement) return null;
+
+    return getThemeFromElement(view, element, 'top-visible', false);
+  }
+
   function getDocumentCanvasTheme(doc, view) {
     const root = doc?.documentElement;
     if (!doc || !view || !root) return null;
 
     const rootStyle = view.getComputedStyle(root);
     const bodyStyle = doc.body ? view.getComputedStyle(doc.body) : null;
-    let canvasBg = '';
     let canvasFg = '';
     let probe = null;
 
@@ -836,7 +845,6 @@
       probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;background-color:Canvas;color:CanvasText;';
       root.appendChild(probe);
       const probeStyle = view.getComputedStyle(probe);
-      canvasBg = probeStyle.backgroundColor;
       canvasFg = probeStyle.color;
     } catch {
     } finally {
@@ -845,8 +853,7 @@
 
     const bg = [
       bodyStyle ? getStyleBackground(bodyStyle) : null,
-      getStyleBackground(rootStyle),
-      canvasBg
+      getStyleBackground(rootStyle)
     ].find(hasVisibleColor);
 
     if (!bg) return null;
@@ -886,6 +893,7 @@
       });
 
       return withMeta(getDarkReaderTheme(doc, view))
+        || withMeta(getTopVisibleTheme(doc, view))
         || withMeta(getThemeColorTheme(doc, view))
         || withMeta(getThemeFromElement(view, doc.body, 'body'))
         || withMeta(getThemeFromElement(view, root, 'html'))
@@ -1310,13 +1318,21 @@
           return null;
         };
 
+        const getTopVisibleTheme = (doc, view) => {
+          if (!doc || !view) return null;
+
+          const element = getTopVisibleElement(view, doc);
+          if (!element || element === doc.body || element === doc.documentElement) return null;
+
+          return getThemeFromElement(view, element, 'top-visible', false);
+        };
+
         const getDocumentCanvasTheme = (doc, view) => {
           const root = doc?.documentElement;
           if (!doc || !view || !root) return null;
 
           const rootStyle = view.getComputedStyle(root);
           const bodyStyle = doc.body ? view.getComputedStyle(doc.body) : null;
-          let canvasBg = '';
           let canvasFg = '';
           let probe = null;
 
@@ -1325,7 +1341,6 @@
             probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;background-color:Canvas;color:CanvasText;';
             root.appendChild(probe);
             const probeStyle = view.getComputedStyle(probe);
-            canvasBg = probeStyle.backgroundColor;
             canvasFg = probeStyle.color;
           } catch {
           } finally {
@@ -1334,8 +1349,7 @@
 
           const bg = [
             bodyStyle ? getStyleBackground(bodyStyle) : null,
-            getStyleBackground(rootStyle),
-            canvasBg
+            getStyleBackground(rootStyle)
           ].find(hasVisibleColor);
 
           if (!bg) return null;
@@ -1376,6 +1390,7 @@
 
           const href = content.location.href;
           const theme = withMeta(getDarkReaderTheme(doc, view), href, candidates)
+            || withMeta(getTopVisibleTheme(doc, view), href, candidates)
             || withMeta(getThemeColorTheme(doc, view), href, candidates)
             || withMeta(getThemeFromElement(view, doc.body, 'body'), href, candidates)
             || withMeta(getThemeFromElement(view, root, 'html'), href, candidates)
@@ -1868,13 +1883,21 @@
           return null;
         };
 
+        const getTopVisibleTheme = (doc, view) => {
+          if (!doc || !view) return null;
+
+          const element = getTopVisibleElement(view, doc);
+          if (!element || element === doc.body || element === doc.documentElement) return null;
+
+          return getThemeFromElement(view, element, 'top-visible', false);
+        };
+
         const getDocumentCanvasTheme = (doc, view) => {
           const root = doc?.documentElement;
           if (!doc || !view || !root) return null;
 
           const rootStyle = view.getComputedStyle(root);
           const bodyStyle = doc.body ? view.getComputedStyle(doc.body) : null;
-          let canvasBg = '';
           let canvasFg = '';
           let probe = null;
 
@@ -1883,7 +1906,6 @@
             probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;background-color:Canvas;color:CanvasText;';
             root.appendChild(probe);
             const probeStyle = view.getComputedStyle(probe);
-            canvasBg = probeStyle.backgroundColor;
             canvasFg = probeStyle.color;
           } catch {
           } finally {
@@ -1892,8 +1914,7 @@
 
           const bg = [
             bodyStyle ? getStyleBackground(bodyStyle) : null,
-            getStyleBackground(rootStyle),
-            canvasBg
+            getStyleBackground(rootStyle)
           ].find(hasVisibleColor);
 
           if (!bg) return null;
@@ -1929,6 +1950,7 @@
 
           const href = content.location.href;
           return withMeta(getDarkReaderTheme(doc, view), href, candidates)
+            || withMeta(getTopVisibleTheme(doc, view), href, candidates)
             || withMeta(getThemeColorTheme(doc, view), href, candidates)
             || withMeta(getThemeFromElement(view, doc.body, 'body'), href, candidates)
             || withMeta(getThemeFromElement(view, root, 'html'), href, candidates)
