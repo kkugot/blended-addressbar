@@ -35,6 +35,7 @@
   const loadbarOpacityPref = `${loadbarPrefBranch}opacity`;
   const loadbarColorPref = `${loadbarPrefBranch}color`;
   const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
+  const selectorRulePref = 'uc.blended-addressbar.selector-rule';
   const chromeDoc = document;
   const themeCache = new WeakMap();
   let themeRequestSeq = 0;
@@ -112,6 +113,7 @@
       ? themeOrSource
       : (themeOrSource?.source || '');
     return {
+      'selector-rule': 7,
       'dark-reader': 5,
       'top-visible': 6,
       'theme-color': 5,
@@ -822,6 +824,78 @@
     return null;
   }
 
+  function parseSelectorRule(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+
+    try {
+      const rule = JSON.parse(raw);
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return null;
+
+      const url = String(rule.url || '').trim();
+      const bg = String(rule.bg || '').trim();
+      const fg = String(rule.fg || '').trim();
+      return url && bg ? { url, bg, fg } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function wildcardMatches(pattern, value) {
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp(`^${escaped}$`).test(value);
+  }
+
+  function selectorRuleMatchesUrl(pattern, href) {
+    const ruleUrl = String(pattern || '').trim();
+    if (!ruleUrl || !href) return false;
+    if (ruleUrl.includes('*')) return wildcardMatches(ruleUrl, href);
+
+    try {
+      if (ruleUrl.includes('://')) return href.startsWith(ruleUrl);
+      return new URL(href).hostname === ruleUrl;
+    } catch {
+      return href.startsWith(ruleUrl);
+    }
+  }
+
+  function getSelectorRuleElement(view, doc, selector) {
+    const raw = String(selector || '').trim();
+    if (!raw) return null;
+
+    try {
+      return getFirstRenderedElement(view, doc, raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function getSelectorRuleTheme(doc, view, href, value) {
+    if (!doc || !view) return null;
+
+    const rule = parseSelectorRule(value);
+    if (!rule || !selectorRuleMatchesUrl(rule.url, href || doc.location?.href || '')) return null;
+
+    const bgElement = getSelectorRuleElement(view, doc, rule.bg);
+    const bgTheme = getThemeFromElement(view, bgElement, 'selector-rule', false);
+    if (!bgTheme?.bg) return null;
+
+    const foregroundCandidates = [];
+    const fgElement = getSelectorRuleElement(view, doc, rule.fg);
+    if (fgElement) {
+      foregroundCandidates.push(...collectForegroundCandidates(view, fgElement, false));
+    }
+    foregroundCandidates.push(...collectForegroundCandidates(view, bgElement, false));
+    foregroundCandidates.push(bgTheme.fg);
+
+    return {
+      bg: bgTheme.bg,
+      fg: getReadableForeground(bgTheme.bg, foregroundCandidates),
+      source: 'selector-rule',
+      selectorRule: rule
+    };
+  }
+
   function getTopVisibleTheme(doc, view) {
     if (!doc || !view) return null;
 
@@ -892,7 +966,9 @@
         candidates
       });
 
-      return withMeta(getDarkReaderTheme(doc, view))
+      const selectorRuleValue = readStringPref(selectorRulePref, '');
+      return withMeta(getSelectorRuleTheme(doc, view, href, selectorRuleValue))
+        || withMeta(getDarkReaderTheme(doc, view))
         || withMeta(getTopVisibleTheme(doc, view))
         || withMeta(getThemeColorTheme(doc, view))
         || withMeta(getThemeFromElement(view, doc.body, 'body'))
@@ -913,6 +989,7 @@
       (() => {
         const requestId = ${JSON.stringify(requestId)};
         const messageName = ${JSON.stringify(themeMessageName)};
+        const selectorRuleValue = ${JSON.stringify(readStringPref(selectorRulePref, ''))};
 
         const send = (payload) => {
           sendAsyncMessage(messageName, { requestId, ...payload });
@@ -1318,6 +1395,78 @@
           return null;
         };
 
+        const parseSelectorRule = (value) => {
+          const raw = String(value || '').trim();
+          if (!raw) return null;
+
+          try {
+            const rule = JSON.parse(raw);
+            if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return null;
+
+            const url = String(rule.url || '').trim();
+            const bg = String(rule.bg || '').trim();
+            const fg = String(rule.fg || '').trim();
+            return url && bg ? { url, bg, fg } : null;
+          } catch {
+            return null;
+          }
+        };
+
+        const wildcardMatches = (pattern, value) => {
+          const escaped = pattern.replace(/[|\\{}()[\\]^$+*?.]/g, '\\$&').replace(/\\\*/g, '.*');
+          return new RegExp('^' + escaped + '$').test(value);
+        };
+
+        const selectorRuleMatchesUrl = (pattern, href) => {
+          const ruleUrl = String(pattern || '').trim();
+          if (!ruleUrl || !href) return false;
+          if (ruleUrl.includes('*')) return wildcardMatches(ruleUrl, href);
+
+          try {
+            if (ruleUrl.includes('://')) return href.startsWith(ruleUrl);
+            return new URL(href).hostname === ruleUrl;
+          } catch {
+            return href.startsWith(ruleUrl);
+          }
+        };
+
+        const getSelectorRuleElement = (view, doc, selector) => {
+          const raw = String(selector || '').trim();
+          if (!raw) return null;
+
+          try {
+            return getFirstRenderedElement(view, doc, raw);
+          } catch {
+            return null;
+          }
+        };
+
+        const getSelectorRuleTheme = (doc, view, href, value) => {
+          if (!doc || !view) return null;
+
+          const rule = parseSelectorRule(value);
+          if (!rule || !selectorRuleMatchesUrl(rule.url, href || doc.location?.href || '')) return null;
+
+          const bgElement = getSelectorRuleElement(view, doc, rule.bg);
+          const bgTheme = getThemeFromElement(view, bgElement, 'selector-rule', false);
+          if (!bgTheme?.bg) return null;
+
+          const foregroundCandidates = [];
+          const fgElement = getSelectorRuleElement(view, doc, rule.fg);
+          if (fgElement) {
+            foregroundCandidates.push(...collectForegroundCandidates(view, fgElement, false));
+          }
+          foregroundCandidates.push(...collectForegroundCandidates(view, bgElement, false));
+          foregroundCandidates.push(bgTheme.fg);
+
+          return {
+            bg: bgTheme.bg,
+            fg: getReadableForeground(bgTheme.bg, foregroundCandidates),
+            source: 'selector-rule',
+            selectorRule: rule
+          };
+        };
+
         const getTopVisibleTheme = (doc, view) => {
           if (!doc || !view) return null;
 
@@ -1389,7 +1538,8 @@
           };
 
           const href = content.location.href;
-          const theme = withMeta(getDarkReaderTheme(doc, view), href, candidates)
+          const theme = withMeta(getSelectorRuleTheme(doc, view, href, selectorRuleValue), href, candidates)
+            || withMeta(getDarkReaderTheme(doc, view), href, candidates)
             || withMeta(getTopVisibleTheme(doc, view), href, candidates)
             || withMeta(getThemeColorTheme(doc, view), href, candidates)
             || withMeta(getThemeFromElement(view, doc.body, 'body'), href, candidates)
@@ -1481,8 +1631,10 @@
       return null;
     }
 
+    const selectorRuleValue = readStringPref(selectorRulePref, '');
+
     try {
-      return await ContentTask.spawn(browser, null, () => {
+      return await ContentTask.spawn(browser, selectorRuleValue, (selectorRuleValue) => {
         const describeElementTheme = (view, element) => {
           if (!view || !element) {
             return { found: false, bg: null, fg: null };
@@ -1883,6 +2035,78 @@
           return null;
         };
 
+        const parseSelectorRule = (value) => {
+          const raw = String(value || '').trim();
+          if (!raw) return null;
+
+          try {
+            const rule = JSON.parse(raw);
+            if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return null;
+
+            const url = String(rule.url || '').trim();
+            const bg = String(rule.bg || '').trim();
+            const fg = String(rule.fg || '').trim();
+            return url && bg ? { url, bg, fg } : null;
+          } catch {
+            return null;
+          }
+        };
+
+        const wildcardMatches = (pattern, value) => {
+          const escaped = pattern.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/\\\*/g, '.*');
+          return new RegExp('^' + escaped + '$').test(value);
+        };
+
+        const selectorRuleMatchesUrl = (pattern, href) => {
+          const ruleUrl = String(pattern || '').trim();
+          if (!ruleUrl || !href) return false;
+          if (ruleUrl.includes('*')) return wildcardMatches(ruleUrl, href);
+
+          try {
+            if (ruleUrl.includes('://')) return href.startsWith(ruleUrl);
+            return new URL(href).hostname === ruleUrl;
+          } catch {
+            return href.startsWith(ruleUrl);
+          }
+        };
+
+        const getSelectorRuleElement = (view, doc, selector) => {
+          const raw = String(selector || '').trim();
+          if (!raw) return null;
+
+          try {
+            return getFirstRenderedElement(view, doc, raw);
+          } catch {
+            return null;
+          }
+        };
+
+        const getSelectorRuleTheme = (doc, view, href, value) => {
+          if (!doc || !view) return null;
+
+          const rule = parseSelectorRule(value);
+          if (!rule || !selectorRuleMatchesUrl(rule.url, href || doc.location?.href || '')) return null;
+
+          const bgElement = getSelectorRuleElement(view, doc, rule.bg);
+          const bgTheme = getThemeFromElement(view, bgElement, 'selector-rule', false);
+          if (!bgTheme?.bg) return null;
+
+          const foregroundCandidates = [];
+          const fgElement = getSelectorRuleElement(view, doc, rule.fg);
+          if (fgElement) {
+            foregroundCandidates.push(...collectForegroundCandidates(view, fgElement, false));
+          }
+          foregroundCandidates.push(...collectForegroundCandidates(view, bgElement, false));
+          foregroundCandidates.push(bgTheme.fg);
+
+          return {
+            bg: bgTheme.bg,
+            fg: getReadableForeground(bgTheme.bg, foregroundCandidates),
+            source: 'selector-rule',
+            selectorRule: rule
+          };
+        };
+
         const getTopVisibleTheme = (doc, view) => {
           if (!doc || !view) return null;
 
@@ -1949,7 +2173,8 @@
           };
 
           const href = content.location.href;
-          return withMeta(getDarkReaderTheme(doc, view), href, candidates)
+          return withMeta(getSelectorRuleTheme(doc, view, href, selectorRuleValue), href, candidates)
+            || withMeta(getDarkReaderTheme(doc, view), href, candidates)
             || withMeta(getTopVisibleTheme(doc, view), href, candidates)
             || withMeta(getThemeColorTheme(doc, view), href, candidates)
             || withMeta(getThemeFromElement(view, doc.body, 'body'), href, candidates)

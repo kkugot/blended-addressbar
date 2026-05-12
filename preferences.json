@@ -1,6 +1,18 @@
 [
   {
     "type": "text",
+    "label": "Custom Page Selector",
+    "margin": "20px 0 12px 0",
+    "size": "16px"
+  },
+  {
+    "property": "uc.blended-addressbar.selector-rule",
+    "label": "Selector rule JSON",
+    "type": "string",
+    "defaultValue": "{\"url\":\"\",\"bg\":\"\",\"fg\":\"\"}"
+  },
+  {
+    "type": "text",
     "label": "Loader Bar",
     "margin": "20px 0 12px 0",
     "size": "16px"
