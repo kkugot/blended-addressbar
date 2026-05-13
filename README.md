@@ -4,11 +4,7 @@ An addressbar that belongs to the page.
 
 Blended Addressbar is a Zen Browser mod that reshapes the dual-toolbar addressbar into a page-aware browser frame with adaptive colors.
 
-![Blended Addressbar preview](blended-addressbar.png)
-
-## Demo
-
-![Blended Addressbar demo](video-demo.gif)
+![Blended Addressbar preview](marketplace-preview.png)
 
 ## Features
 
