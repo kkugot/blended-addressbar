@@ -13,13 +13,40 @@
   },
   {
     "type": "text",
-    "label": "Loader Bar",
+    "label": "Sidebar",
     "margin": "20px 0 12px 0",
     "size": "16px"
   },
   {
+    "property": "uc.blended-addressbar.sidebar.enabled",
+    "label": "Blend sidebar with page colors",
+    "type": "checkbox"
+  },
+  {
+    "type": "separator",
+    "label": "Loading Bar",
+    "margin": "20px 0 12px 0"
+  },
+  {
+    "property": "uc.loadbar.position",
+    "label": "Loading bar layout",
+    "type": "dropdown",
+    "placeholder": "Full width",
+    "defaultValue": "full",
+    "options": [
+      {
+        "label": "Full width",
+        "value": "full"
+      },
+      {
+        "label": "Centered",
+        "value": "center"
+      }
+    ]
+  },
+  {
     "property": "uc.loadbar.color-source",
-    "label": "Loader bar color source",
+    "label": "Color source",
     "type": "dropdown",
     "placeholder": "Zen Primary",
     "defaultValue": "zen",
@@ -44,35 +71,30 @@
   },
   {
     "property": "uc.loadbar.color",
-    "label": "Custom loader bar color",
+    "label": "Custom color",
     "type": "string",
     "defaultValue": "#3b82f6"
   },
   {
     "property": "uc.loadbar.height",
-    "label": "Loader bar height",
+    "label": "Height",
     "type": "string",
     "defaultValue": "2px"
   },
   {
     "property": "uc.loadbar.opacity",
-    "label": "Loader bar opacity (%)",
+    "label": "Opacity (%)",
     "type": "string",
     "defaultValue": "85"
   },
   {
-    "property": "uc.loadbar.centerbar",
-    "label": "Center Bar with Fading animation",
-    "type": "checkbox"
-  },
-  {
     "property": "uc.loadbar.roundedcorner",
-    "label": "Whether use rounded corner for load bar or not",
+    "label": "Rounded corners",
     "type": "checkbox"
   },
   {
     "property": "uc.loadbar.shadow",
-    "label": "Whether use shadow for load bar or not",
+    "label": "Shadow",
     "type": "checkbox"
   }
 ]

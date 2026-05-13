@@ -133,3 +133,93 @@
         border-radius: 0 !important;
     }
 }
+
+@media (-moz-bool-pref: "uc.blended-addressbar.sidebar.enabled") {
+    :root:not([zen-single-toolbar="true"]) {
+        --blended-addressbar-sidebar-sync-speed: 100ms;
+        --blended-addressbar-sidebar-sync-curve: linear;
+    }
+
+    :root:not([zen-single-toolbar="true"]) :is(
+        #navigator-toolbox:has(:is(#zen-sidebar-top-buttons, #zen-sidebar-foot-buttons, .zen-workspace-tabs-section)),
+        #zen-sidebar-top-buttons,
+        #zen-sidebar-foot-buttons,
+        #sidebar-box,
+        #sidebar-main,
+        .zen-workspace-tabs-section
+    ) {
+        appearance: none !important;
+        -moz-appearance: none !important;
+        background-image: none !important;
+        background-color: var(--zen-tab-header-background, var(--zen-main-browser-background)) !important;
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        fill: currentColor !important;
+        --toolbox-textcolor: currentColor;
+        --toolbarbutton-icon-fill: currentColor;
+        --toolbar-color: currentColor;
+        transition-property: background-color, color, fill !important;
+        transition-duration: var(--blended-addressbar-sidebar-sync-speed) !important;
+        transition-timing-function: var(--blended-addressbar-sidebar-sync-curve) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) :is(#zen-sidebar-splitter, #sidebar-splitter) {
+        appearance: none !important;
+        -moz-appearance: none !important;
+        background-image: none !important;
+        background-color: var(--zen-tab-header-background, var(--zen-main-browser-background)) !important;
+        border-color: transparent !important;
+        opacity: 1 !important;
+        transition-property: background-color !important;
+        transition-duration: var(--blended-addressbar-sidebar-sync-speed) !important;
+        transition-timing-function: var(--blended-addressbar-sidebar-sync-curve) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) :is(#zen-sidebar-splitter, #sidebar-splitter):is(:hover, :active) {
+        background-color: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 20%, transparent) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) :is(#zen-sidebar-top-buttons, #zen-sidebar-foot-buttons) :is(
+        toolbarbutton,
+        .toolbarbutton-1,
+        .toolbarbutton-icon,
+        image
+    ),
+    :root:not([zen-single-toolbar="true"]) #navigator-toolbox:has(:is(
+        #zen-sidebar-top-buttons,
+        #zen-sidebar-foot-buttons,
+        .zen-workspace-tabs-section
+    )) :is(
+        .tabbrowser-tab,
+        .tab-content,
+        .tab-label,
+        .tab-icon-image,
+        .zen-current-workspace-indicator-name
+    ) {
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        fill: currentColor !important;
+        --toolbarbutton-icon-fill: currentColor;
+        transition-property: color, fill, background-color !important;
+        transition-duration: var(--blended-addressbar-sidebar-sync-speed) !important;
+        transition-timing-function: var(--blended-addressbar-sidebar-sync-curve) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) :is(#zen-sidebar-top-buttons, #zen-sidebar-foot-buttons) toolbarbutton:hover {
+        background-color: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 12%, transparent) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) #zen-sidebar-top-buttons toolbarbutton:is([selected="true"], [open="true"]) {
+        background-color: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 18%, transparent) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) #zen-sidebar-top-buttons-separator {
+        background-color: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 20%, transparent) !important;
+        transition-property: background-color !important;
+        transition-duration: var(--blended-addressbar-sidebar-sync-speed) !important;
+        transition-timing-function: var(--blended-addressbar-sidebar-sync-curve) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]) .zen-workspace-empty-space {
+        border-color: transparent !important;
+        outline-color: transparent !important;
+    }
+}

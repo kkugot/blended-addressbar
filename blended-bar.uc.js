@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        0.9.1
+// @version        0.9.2
 // ==/UserScript==
 
 (() => {
@@ -2257,7 +2257,7 @@
     const target = shouldLighten
       ? { r: 255, g: 255, b: 255 }
       : { r: 0, g: 0, b: 0 };
-    const amount = 0.1;
+    const amount = 0.3;
 
     return {
       bg: rgbaToCss({ ...target, a: amount }),

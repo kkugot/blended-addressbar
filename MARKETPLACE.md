@@ -3,7 +3,7 @@
 ## Ready
 
 - Name: `Blended Addressbar` (18 characters).
-- Version: `0.9.0`.
+- Version: `0.9.2`.
 - Description: `A page-aware addressbar that blends Zen chrome with the active website.` (71 characters).
 - Metadata: `theme.json`.
 - Preferences: `preferences.json`.
@@ -29,8 +29,8 @@
   "readme": "https://raw.githubusercontent.com/kkugot/blended-addressbar/main/README.md",
   "image": "https://raw.githubusercontent.com/kkugot/blended-addressbar/main/blended-addressbar.png",
   "author": "Kostiantyn Kugot",
-  "version": "0.9.0",
-  "updatedAt": "2026-05-03",
+  "version": "0.9.2",
+  "updatedAt": "2026-05-13",
   "style": {
     "chrome": "style.css",
     "content": ""
@@ -46,6 +46,7 @@
   "tags": [
     "addressbar",
     "urlbar",
+    "sidebar",
     "adaptive",
     "theming",
     "zen browser"

@@ -6,8 +6,9 @@
   .browserSidebarContainer.deck-selected::before {
     content: "" !important;
     position: absolute !important;
-    top: 0px !important; /* This will get overriden if the toolbar is showing */
+    top: 0px !important; /* This will get overridden if the toolbar is showing */
     left: 0px !important;
+    transform: none !important;
     height: var(--blended-addressbar-loadbar-height, 2px) !important; /* Height of the top background */
     max-width: 100% !important;
     width: var(--bar-pcent) !important; /* Ensure full width or customizable width */
@@ -21,14 +22,14 @@
        border-radius: 0 !important; /* Adjust this value to control the roundness of the ends */
     }
     z-index: 1 !important;
-    /* Apply smooth transition on width, top and background */
-    transition: width 0.5s ease-in-out, top 0.1s ease-in-out, background 0.2s ease !important;
+    /* Apply smooth transition on width, top, opacity and background */
+    transition: width 0.5s ease-in-out, top 0.1s ease-in-out, left 0.2s ease-in-out, transform 0.2s ease-in-out, opacity 0.2s ease-in-out, background 0.2s ease !important;
   }
 
   /* When the toolbar is permanently showing, we move the loading bar under it */
   @media not (-moz-bool-pref: "zen.view.compact.hide-toolbar") and not (-moz-bool-pref: "zen.view.use-single-toolbar") {
     .browserSidebarContainer.deck-selected::before {
-      top: 40px !important;
+      top: 39px !important;
     }
   }
   
@@ -37,6 +38,16 @@
     max-width: calc(85%) !important;
     left: calc(15%/2) !important;
     border-radius: 6px !important;
+  }
+
+  @media (-moz-pref("uc.loadbar.position", "center")) {
+    .browserSidebarContainer.deck-selected::before,
+    .browserSidebarContainer.deck-selected:has([zen-glance-selected])::before,
+    .browserSidebarContainer.deck-selected.zen-glance-overlay::before {
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      width: var(--bar-pcent) !important;
+    }
   }
   
   .browserSidebarContainer.deck-selected.zen-glance-background::before {
@@ -73,7 +84,7 @@
 
   /* 
      When we are in compact mode, but not in single-toolbar mode,
-     we want to move the loading bar under the toolbar if it is currently showing.
+     hide the loading bar while the toolbar or URL bubble is currently showing.
 
      This uses the conditionals found in /src/zen/compact-mode/zen-compact-mode.css
      to detect if the toolbar is showing.
@@ -90,7 +101,8 @@
             :not(.zen-compact-mode-ignore)
       ) {
         .browserSidebarContainer.deck-selected::before {
-          top: 39px !important;
+          opacity: 0 !important;
+          top: 0px !important;
         }
       }
     }
