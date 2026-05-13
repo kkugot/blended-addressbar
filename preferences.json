@@ -11,6 +11,11 @@
     "defaultValue": "14px"
   },
   {
+    "property": "uc.blended-addressbar.frame-padding.disabled",
+    "label": "Remove browser frame padding",
+    "type": "checkbox"
+  },
+  {
     "type": "text",
     "label": "Sidebar",
     "margin": "20px 0 12px 0",

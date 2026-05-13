@@ -8,6 +8,12 @@
         0 1px 4px rgba(0, 0, 0, 0.10);
 }
 
+@media (-moz-bool-pref: "uc.blended-addressbar.frame-padding.disabled") {
+    :root {
+        --blended-addressbar-frame-gap: 0px;
+    }
+}
+
 @media (prefers-color-scheme: dark) {
     :root {
         --blended-addressbar-frame-shadow:

@@ -22,6 +22,7 @@ The mod exposes its settings through `preferences.json`.
 
 - `uc.blended-addressbar.sidebar.enabled`: blend Zen sidebar controls with the active page colors.
 - `uc.blended-addressbar.frame-radius`: browser frame corner radius as a CSS length, such as `8px` or `0`.
+- `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
 - `uc.loadbar.position`: choose a full-width left-to-right loading bar or a centered loading bar.
 - `uc.loadbar.color-source`: choose Zen primary color, page foreground, page background, or a custom color.
 - `uc.loadbar.color`: custom loading bar color.
