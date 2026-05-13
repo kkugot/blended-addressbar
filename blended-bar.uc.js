@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        0.9.2
+// @version        0.9.4
 // ==/UserScript==
 
 (() => {
@@ -35,7 +35,9 @@
   const loadbarOpacityPref = `${loadbarPrefBranch}opacity`;
   const loadbarColorPref = `${loadbarPrefBranch}color`;
   const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
-  const selectorRulePref = 'uc.blended-addressbar.selector-rule';
+  const addressbarPrefBranch = 'uc.blended-addressbar.';
+  const frameRadiusPref = `${addressbarPrefBranch}frame-radius`;
+  const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
   const chromeDoc = document;
   const themeCache = new WeakMap();
   let themeRequestSeq = 0;
@@ -364,6 +366,41 @@
     } else {
       root.style.removeProperty('--blended-addressbar-page-loadbar-foreground');
     }
+  }
+
+  function applyFramePrefs() {
+    const root = chromeDoc.documentElement;
+    const radius = normalizeCssLength(readStringPref(frameRadiusPref, '14px'), '14px');
+
+    root.style.setProperty('--blended-addressbar-frame-radius', radius);
+
+    if (DEBUG_THEME) {
+      root.setAttribute('data-blended-addressbar-frame-radius', radius);
+    }
+  }
+
+  function observeFramePrefs() {
+    const prefs = getPrefs();
+    if (!prefs?.addObserver) return;
+
+    const observer = {
+      observe(_subject, topic, prefName) {
+        if (topic === 'nsPref:changed' && String(prefName || '') === frameRadiusPref) {
+          applyFramePrefs();
+        }
+      }
+    };
+
+    try {
+      prefs.addObserver(addressbarPrefBranch, observer);
+      if (typeof addUnloadListener === 'function') {
+        addUnloadListener(() => {
+          try {
+            prefs.removeObserver(addressbarPrefBranch, observer);
+          } catch {}
+        });
+      }
+    } catch {}
   }
 
   function applyLoadbarPrefs() {
@@ -2734,6 +2771,8 @@
       return;
     }
 
+    applyFramePrefs();
+    observeFramePrefs();
     applyLoadbarPrefs();
     observeLoadbarPrefs();
 

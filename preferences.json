@@ -1,15 +1,14 @@
 [
   {
-    "type": "text",
-    "label": "Custom Page Selector",
-    "margin": "20px 0 12px 0",
-    "size": "16px"
+    "type": "separator",
+    "label": "Browser Frame",
+    "margin": "20px 0 12px 0"
   },
   {
-    "property": "uc.blended-addressbar.selector-rule",
-    "label": "Selector rule JSON",
+    "property": "uc.blended-addressbar.frame-radius",
+    "label": "Corner radius",
     "type": "string",
-    "defaultValue": "{\"url\":\"\",\"bg\":\"\",\"fg\":\"\"}"
+    "defaultValue": "14px"
   },
   {
     "type": "text",
@@ -31,7 +30,6 @@
     "property": "uc.loadbar.position",
     "label": "Loading bar layout",
     "type": "dropdown",
-    "placeholder": "Full width",
     "defaultValue": "full",
     "options": [
       {
@@ -96,5 +94,17 @@
     "property": "uc.loadbar.shadow",
     "label": "Shadow",
     "type": "checkbox"
+  },
+  {
+    "type": "separator",
+    "label": "Custom Page Selector",
+    "margin": "20px 0 12px 0"
+  },
+  {
+    "property": "uc.blended-addressbar.selector-rule",
+    "label": "Selector rule JSON",
+    "type": "string",
+    "fontFamily": "monospace",
+    "defaultValue": "{\"url\":\"\",\"bg\":\"\",\"fg\":\"\"}"
   }
 ]
