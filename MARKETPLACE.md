@@ -30,6 +30,7 @@
   "image": "https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png",
   "author": "Kostiantyn Kugot",
   "version": "1.0.0",
+  "ai": "partial",
   "updatedAt": "2026-05-13",
   "style": {
     "chrome": "style.css",
@@ -53,7 +54,6 @@
   ],
   "fork": [
     "zen"
-  ],
-  "js": true
+  ]
 }
 ```
