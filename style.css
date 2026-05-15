@@ -141,7 +141,7 @@
 
     .titlebar-button.titlebar-close  {
         border-top-right-radius: var(--blended-addressbar-frame-radius);
-        padding-right: 25px;
+        padding-inline-end: 22px !important;
     }
 }
 
