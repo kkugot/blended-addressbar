@@ -101,7 +101,7 @@
     #nav-bar {
         margin-inline-end: 0 !important;
         padding-inline-start: var(--zen-element-separation) !important;
-        padding-inline-end: var(--zen-element-separation) !important;
+        padding-inline-end: 0 !important;
     }
     #nav-bar,
     #PersonalToolbar {
@@ -137,6 +137,11 @@
     /* Sidebar */
     #sidebar-box {
         border-radius: 0 !important;
+    }
+
+    .titlebar-button.titlebar-close  {
+        border-top-right-radius: var(--blended-addressbar-frame-radius);
+        padding-right: 25px;
     }
 }
 
