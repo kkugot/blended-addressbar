@@ -13,14 +13,15 @@ Blended Addressbar is a Zen Browser mod that reshapes the dual-toolbar addressba
 - Compact framed browser surface with subtle spacing, radius, and shadow.
 - Configurable browser frame corner radius.
 - Compact-mode toolbar icon colors that follow the addressbar foreground.
-- Optional sidebar blending that applies the active page colors to Zen sidebar controls.
+- Optional sidebar blending that feeds active page colors into Zen's native theme variables and respects macOS window material transparency.
 - Preference-driven loading bar height, opacity, and color source.
 
 ## Preferences
 
 The mod exposes its settings through `preferences.json`.
 
-- `uc.blended-addressbar.sidebar.enabled`: blend Zen sidebar controls with the active page colors.
+- `uc.blended-addressbar.sidebar.enabled`: blend Zen sidebar controls through native Zen theme colors. On macOS, this also factors in `zen.widget.macos.window-material`.
+- `uc.blended-addressbar.clear-cache-request`: momentary action that clears cached page colors and refreshes the active tab.
 - `uc.blended-addressbar.frame-radius`: browser frame corner radius as a CSS length, such as `8px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
 - `uc.loadbar.position`: choose a full-width left-to-right loading bar or a centered loading bar.

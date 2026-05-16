@@ -27,6 +27,11 @@
     "type": "checkbox"
   },
   {
+    "property": "uc.blended-addressbar.clear-cache-request",
+    "label": "Clear cached page colors",
+    "type": "checkbox"
+  },
+  {
     "type": "separator",
     "label": "Loading Bar",
     "margin": "20px 0 12px 0"

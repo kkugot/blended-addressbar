@@ -37,12 +37,26 @@
   const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
   const addressbarPrefBranch = 'uc.blended-addressbar.';
   const frameRadiusPref = `${addressbarPrefBranch}frame-radius`;
+  const sidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
+  const clearCacheRequestPref = `${addressbarPrefBranch}clear-cache-request`;
   const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
+  const macosWindowMaterialPref = 'zen.widget.macos.window-material';
+  const nativeZenThemeProperties = [
+    '--zen-main-browser-background',
+    '--zen-main-browser-background-toolbar',
+    '--zen-primary-color',
+    '--zen-colors-primary',
+    '--zen-colors-secondary',
+    '--zen-colors-text-primary',
+    '--toolbox-textcolor'
+  ];
   const chromeDoc = document;
-  const themeCache = new WeakMap();
+  let themeCache = new WeakMap();
   let themeRequestSeq = 0;
   let servicesModule = null;
   let lastThemeKey = null;
+  let lastAppliedTheme = null;
+  let nativeZenThemeOriginals = null;
   const themeApplyState = {
     href: '',
     applied: null,
@@ -78,7 +92,9 @@
   function applyTheme(theme, reason) {
     if (!theme) return;
 
+    lastAppliedTheme = theme;
     setVar(theme.bg, theme.fg);
+    applyNativeZenTheme(theme, reason);
     setPageLoadbarColors(theme);
 
     if (!DEBUG_THEME) return;
@@ -100,6 +116,120 @@
       fg: theme.fg,
       candidates: theme.candidates || null
     });
+  }
+
+  function rememberNativeZenThemeOriginals(root) {
+    if (nativeZenThemeOriginals) return;
+
+    nativeZenThemeOriginals = {
+      attributes: {
+        'zen-should-be-dark-mode': {
+          hadValue: root.hasAttribute('zen-should-be-dark-mode'),
+          value: root.getAttribute('zen-should-be-dark-mode')
+        }
+      },
+      properties: nativeZenThemeProperties.map(name => ({
+        name,
+        priority: root.style.getPropertyPriority(name),
+        value: root.style.getPropertyValue(name)
+      }))
+    };
+  }
+
+  function restoreNativeZenTheme() {
+    if (!nativeZenThemeOriginals) return;
+
+    const root = chromeDoc.documentElement;
+    for (const property of nativeZenThemeOriginals.properties) {
+      if (property.value) {
+        root.style.setProperty(property.name, property.value, property.priority);
+      } else {
+        root.style.removeProperty(property.name);
+      }
+    }
+
+    for (const [name, attribute] of Object.entries(nativeZenThemeOriginals.attributes)) {
+      if (attribute.hadValue) {
+        root.setAttribute(name, attribute.value);
+      } else {
+        root.removeAttribute(name);
+      }
+    }
+
+    nativeZenThemeOriginals = null;
+    root.setAttribute('data-blended-addressbar-native-theme', 'restored');
+    root.removeAttribute('data-blended-addressbar-native-theme-bg');
+    root.removeAttribute('data-blended-addressbar-native-theme-fg');
+    root.removeAttribute('data-blended-addressbar-native-theme-accent');
+    root.removeAttribute('data-blended-addressbar-native-theme-material');
+    root.removeAttribute('data-blended-addressbar-native-theme-opacity');
+    root.removeAttribute('data-blended-addressbar-native-theme-reason');
+  }
+
+  function getMacosWindowMaterialTheme(bg) {
+    const material = readIntPref(macosWindowMaterialPref, null);
+    if (!Number.isFinite(material)) {
+      return {
+        background: bg,
+        toolbarBackground: bg,
+        material: '',
+        opacity: ''
+      };
+    }
+
+    const clamped = Math.max(1, Math.min(7, material));
+    const opacity = 0.48 + ((clamped - 1) / 6) * 0.34;
+    const background = `color-mix(in srgb, ${bg} ${Math.round(opacity * 100)}%, transparent)`;
+
+    return {
+      background,
+      toolbarBackground: background,
+      material: String(clamped),
+      opacity: String(Math.round(opacity * 100) / 100)
+    };
+  }
+
+  function applyNativeZenTheme(theme, reason = '') {
+    const root = chromeDoc.documentElement;
+
+    if (!readBoolPref(sidebarEnabledPref, false)) {
+      restoreNativeZenTheme();
+      root.setAttribute('data-blended-addressbar-native-theme', 'disabled');
+      return;
+    }
+
+    if (!hasVisibleColor(theme?.bg)) {
+      restoreNativeZenTheme();
+      root.setAttribute('data-blended-addressbar-native-theme', 'no-background');
+      return;
+    }
+
+    const bg = theme.bg;
+    const fg = hasVisibleColor(theme.fg) ? theme.fg : chooseForeground(parseCssRgb(bg) || { r: 255, g: 255, b: 255 });
+    const materialTheme = getMacosWindowMaterialTheme(bg);
+    const accent = `color-mix(in srgb, ${bg} 72%, ${fg})`;
+    const secondary = `color-mix(in srgb, ${bg} 84%, ${fg})`;
+
+    rememberNativeZenThemeOriginals(root);
+    root.style.setProperty('--zen-main-browser-background', materialTheme.background, 'important');
+    root.style.setProperty('--zen-main-browser-background-toolbar', materialTheme.toolbarBackground, 'important');
+    root.style.setProperty('--zen-primary-color', accent, 'important');
+    root.style.setProperty('--zen-colors-primary', bg, 'important');
+    root.style.setProperty('--zen-colors-secondary', secondary, 'important');
+    root.style.setProperty('--zen-colors-text-primary', fg, 'important');
+    root.style.setProperty('--toolbox-textcolor', fg);
+    root.setAttribute('data-blended-addressbar-native-theme', 'applied');
+    root.setAttribute('data-blended-addressbar-native-theme-bg', bg);
+    root.setAttribute('data-blended-addressbar-native-theme-fg', fg);
+    root.setAttribute('data-blended-addressbar-native-theme-accent', accent);
+    root.setAttribute('data-blended-addressbar-native-theme-material', materialTheme.material);
+    root.setAttribute('data-blended-addressbar-native-theme-opacity', materialTheme.opacity);
+    root.setAttribute('data-blended-addressbar-native-theme-reason', reason || '');
+
+    const bgRgb = parseCssRgb(bg);
+    if (bgRgb) {
+      root.setAttribute('zen-should-be-dark-mode', String(getRelativeLuminance(bgRgb) < 0.5));
+    }
   }
 
   function getBrowserHref(browser) {
@@ -193,6 +323,18 @@
     const cached = browser ? themeCache.get(browser) : null;
     if (!cached || cached.href !== getBrowserHref(browser)) return null;
     return cached.theme?.bg ? cached.theme : null;
+  }
+
+  function clearThemeCache(reason = 'clear-cache') {
+    themeCache = new WeakMap();
+    lastThemeKey = null;
+    lastCss = null;
+    clearPendingThemeCandidate();
+    resetThemeArbitration(getBrowserHref(gBrowser?.selectedBrowser || null));
+
+    const root = chromeDoc.documentElement;
+    root.setAttribute('data-blended-addressbar-cache-cleared-at', String(Date.now()));
+    root.setAttribute('data-blended-addressbar-cache-clear-reason', reason);
   }
 
   function isLoadingThemeFor(browser) {
@@ -309,6 +451,28 @@
     return fallback;
   }
 
+  function readBoolPref(name, fallback) {
+    const prefs = getPrefs();
+    if (!prefs) return fallback;
+
+    try {
+      return prefs.getBoolPref(name, fallback);
+    } catch {}
+
+    return fallback;
+  }
+
+  function readIntPref(name, fallback) {
+    const prefs = getPrefs();
+    if (!prefs) return fallback;
+
+    try {
+      return prefs.getIntPref(name, fallback);
+    } catch {}
+
+    return fallback;
+  }
+
   function cssSupports(property, value) {
     try {
       return !!window.CSS?.supports?.(property, value);
@@ -397,6 +561,58 @@
         addUnloadListener(() => {
           try {
             prefs.removeObserver(addressbarPrefBranch, observer);
+          } catch {}
+        });
+      }
+    } catch {}
+  }
+
+  function observeNativeZenThemePrefs() {
+    const prefs = getPrefs();
+    if (!prefs?.addObserver) return;
+
+    const observer = {
+      observe(_subject, topic, prefName) {
+        const changedPref = String(prefName || '');
+        if (topic !== 'nsPref:changed'
+          || (changedPref !== sidebarEnabledPref
+            && changedPref !== clearCacheRequestPref
+            && changedPref !== macosWindowMaterialPref)) {
+          return;
+        }
+
+        if (changedPref === clearCacheRequestPref) {
+          if (!readBoolPref(clearCacheRequestPref, false)) return;
+          clearThemeCache('preference-button');
+          try {
+            prefs.setBoolPref(clearCacheRequestPref, false);
+          } catch {}
+          void updateActive({ reason: 'clear-cache' });
+          return;
+        }
+
+        if (readBoolPref(sidebarEnabledPref, false)) {
+          if (lastAppliedTheme) {
+            applyNativeZenTheme(lastAppliedTheme, changedPref === macosWindowMaterialPref
+              ? 'macos-window-material-pref'
+              : 'sidebar-pref-enabled');
+          } else {
+            void updateActive({ reason: 'sidebar-theme-enabled' });
+          }
+        } else {
+          restoreNativeZenTheme();
+        }
+      }
+    };
+
+    try {
+      prefs.addObserver(addressbarPrefBranch, observer);
+      prefs.addObserver(macosWindowMaterialPref, observer);
+      if (typeof addUnloadListener === 'function') {
+        addUnloadListener(() => {
+          try {
+            prefs.removeObserver(addressbarPrefBranch, observer);
+            prefs.removeObserver(macosWindowMaterialPref, observer);
           } catch {}
         });
       }
@@ -2775,6 +2991,7 @@
     observeFramePrefs();
     applyLoadbarPrefs();
     observeLoadbarPrefs();
+    observeNativeZenThemePrefs();
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
       observeViewportThemeTarget();
@@ -2792,6 +3009,7 @@
           stopLoadingThemePolling();
           stopActiveThemeRefresh();
           clearPendingThemeCandidate();
+          restoreNativeZenTheme();
         });
       }
     } catch {}
