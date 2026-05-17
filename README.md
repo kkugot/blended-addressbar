@@ -10,20 +10,23 @@ Blended Addressbar is a Zen Browser mod that reshapes the dual-toolbar addressba
 
 - Adaptive addressbar background and foreground colors from active-page semantic colors.
 - Readability guardrails for adaptive foreground colors.
-- Compact framed browser surface with subtle spacing, radius, and shadow.
-- Configurable browser frame corner radius.
+- Browser window tinting that mixes the active site theme into Zen's existing browser theme instead of replacing it. The tint is optional and configurable by percentage.
+- Compact framed browser surface with configurable corner radius, frame gap, padding removal, and selectable shadow strength.
+- Split view support that keeps only the outer browser-frame corners rounded while inner split boundaries stay square.
 - Compact-mode toolbar icon colors that follow the addressbar foreground.
-- Optional sidebar blending that feeds active page colors into Zen's native theme variables and respects macOS window material transparency.
 - Preference-driven loading bar height, opacity, and color source.
 
 ## Preferences
 
 The mod exposes its settings through `preferences.json`.
 
-- `uc.blended-addressbar.sidebar.enabled`: blend Zen sidebar controls through native Zen theme colors. On macOS, this also factors in `zen.widget.macos.window-material`.
+- `uc.blended-addressbar.window-tint.enabled`: tint the browser window with active page colors while preserving Zen's existing icon and text colors.
+- `uc.blended-addressbar.window-tint.strength`: tint strength as a percentage from `0` to `100`; defaults to `25`.
 - `uc.blended-addressbar.clear-cache-request`: momentary action that clears cached page colors and refreshes the active tab.
-- `uc.blended-addressbar.frame-radius`: browser frame corner radius as a CSS length, such as `8px` or `0`.
+- `uc.blended-addressbar.frame-radius`: outer browser frame corner radius as a CSS length, such as `8px` or `0`.
+- `uc.blended-addressbar.frame-gap`: spacing around the browser frame as a CSS length, such as `5px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
+- `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: no shadow, standard, minimal, or medium.
 - `uc.loadbar.position`: choose a full-width left-to-right loading bar or a centered loading bar.
 - `uc.loadbar.color-source`: choose Zen primary color, page foreground, page background, or a custom color.
 - `uc.loadbar.color`: custom loading bar color.

@@ -3,22 +3,42 @@
 :root {
     --blended-addressbar-frame-gap: 5px;
     --blended-addressbar-frame-radius: 14px;
-    --blended-addressbar-frame-shadow:
-        0 10px 24px rgba(0, 0, 0, 0.10),
-        0 1px 4px rgba(0, 0, 0, 0.10);
+    --blended-addressbar-inner-radius: max(0px, calc(var(--blended-addressbar-frame-radius) - var(--blended-addressbar-frame-gap)));
+    --blended-addressbar-frame-shadow-standard:
+        0 4px 16px rgba(0, 0, 0, 0.14),
+        0 1px 4px rgba(0, 0, 0, 0.12);
+    --blended-addressbar-frame-shadow-minimal:
+        0 0 0 1px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.05);
+    --blended-addressbar-frame-shadow-medium:
+        0 5px 12px rgba(0, 0, 0, 0.10),
+        0 1px 2px rgba(0, 0, 0, 0.10);
+    --blended-addressbar-frame-shadow: var(--blended-addressbar-frame-shadow-standard);
 }
 
-@media (-moz-bool-pref: "uc.blended-addressbar.frame-padding.disabled") {
-    :root {
-        --blended-addressbar-frame-gap: 0px;
-    }
+:root[data-blended-addressbar-frame-shadow="minimal"] {
+    --blended-addressbar-frame-shadow: var(--blended-addressbar-frame-shadow-minimal);
+}
+
+:root[data-blended-addressbar-frame-shadow="medium"] {
+    --blended-addressbar-frame-shadow: var(--blended-addressbar-frame-shadow-medium);
+}
+
+:root[data-blended-addressbar-frame-shadow="none"] {
+    --blended-addressbar-frame-shadow: none;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --blended-addressbar-frame-shadow:
-            0 12px 28px rgba(0, 0, 0, 0.30),
-            0 1px 5px rgba(0, 0, 0, 0.28);
+        --blended-addressbar-frame-shadow-standard:
+            0 6px 18px rgba(0, 0, 0, 0.34),
+            0 1px 5px rgba(0, 0, 0, 0.30);
+        --blended-addressbar-frame-shadow-minimal:
+            0 0 0 1px rgba(255, 255, 255, 0.08),
+            0 1px 2px rgba(0, 0, 0, 0.16);
+        --blended-addressbar-frame-shadow-medium:
+            0 6px 14px rgba(0, 0, 0, 0.30),
+            0 1px 3px rgba(0, 0, 0, 0.28);
     }
 }
 
@@ -32,6 +52,7 @@
     #zen-appcontent-wrapper {
         z-index: 3;
         margin: var(--blended-addressbar-frame-gap) var(--blended-addressbar-frame-gap) var(--blended-addressbar-frame-gap) 0 !important;
+        background-color: var(--blended-addressbar-frame-background, var(--zen-main-browser-background));
         box-shadow: var(--blended-addressbar-frame-shadow);
         border-radius: var(--blended-addressbar-frame-radius);
         overflow: hidden;
@@ -119,11 +140,27 @@
     /* Hide shadow and border - they are now in a parent element */
     #tabbrowser-tabbox #tabbrowser-tabpanels .browserSidebarContainer {
         :root:not([zen-no-padding="true"]) &:not(.zen-glance-overlay) {
-            --zen-native-inner-radius: 0 0 var(--zen-native-inner-radius) var(--zen-native-inner-radius);
+            --blended-addressbar-split-radius-top-left: 0px;
+            --blended-addressbar-split-radius-top-right: 0px;
+            --blended-addressbar-split-radius-bottom-right: 0px;
+            --blended-addressbar-split-radius-bottom-left: 0px;
+            --zen-native-inner-radius:
+                var(--blended-addressbar-split-radius-top-left)
+                var(--blended-addressbar-split-radius-top-right)
+                var(--blended-addressbar-split-radius-bottom-right)
+                var(--blended-addressbar-split-radius-bottom-left) !important;
             --zen-big-shadow: none;
         }
     }
-    
+
+    #tabbrowser-tabpanels > .browserSidebarContainer:not(.zen-glance-overlay) {
+        --zen-native-inner-radius:
+                var(--blended-addressbar-split-radius-top-left)
+                var(--blended-addressbar-split-radius-top-right)
+                var(--blended-addressbar-split-radius-bottom-right)
+                var(--blended-addressbar-split-radius-bottom-left) !important;
+    }
+
     /* Glance  modification*/
     .browserSidebarContainer.zen-glance-background.deck-selected {
          transform: scale(1) !important;
@@ -147,6 +184,12 @@
     }
 }
 
-@media (-moz-bool-pref: "uc.blended-addressbar.sidebar.enabled") {
-    /* Sidebar blending is handled by native Zen theme variables in blended-bar.uc.js. */
+#zen-browser-background::before {
+    background: linear-gradient(var(--blended-addressbar-window-tint-background, transparent), var(--blended-addressbar-window-tint-background, transparent)), var(--zen-main-browser-background-old) !important;
+    background-blend-mode: normal !important;
+}
+
+#zen-browser-background::after {
+    background: linear-gradient(var(--blended-addressbar-window-tint-background, transparent), var(--blended-addressbar-window-tint-background, transparent)), var(--zen-main-browser-background) !important;
+    background-blend-mode: normal !important;
 }

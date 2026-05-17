@@ -11,20 +11,56 @@
     "defaultValue": "14px"
   },
   {
+    "property": "uc.blended-addressbar.frame-gap",
+    "label": "Frame gap",
+    "type": "string",
+    "defaultValue": "5px"
+  },
+  {
     "property": "uc.blended-addressbar.frame-padding.disabled",
     "label": "Remove browser frame padding",
     "type": "checkbox"
   },
   {
+    "property": "uc.blended-addressbar.frame-shadow",
+    "label": "Frame shadow",
+    "type": "dropdown",
+    "defaultValue": "standard",
+    "options": [
+      {
+        "label": "No shadow",
+        "value": "none"
+      },
+      {
+        "label": "Standard",
+        "value": "standard"
+      },
+      {
+        "label": "Minimal",
+        "value": "minimal"
+      },
+      {
+        "label": "Medium",
+        "value": "medium"
+      }
+    ]
+  },
+  {
     "type": "text",
-    "label": "Sidebar",
+    "label": "Window Tint",
     "margin": "20px 0 12px 0",
     "size": "16px"
   },
   {
-    "property": "uc.blended-addressbar.sidebar.enabled",
-    "label": "Blend sidebar with page colors",
+    "property": "uc.blended-addressbar.window-tint.enabled",
+    "label": "Tint browser window with page colors",
     "type": "checkbox"
+  },
+  {
+    "property": "uc.blended-addressbar.window-tint.strength",
+    "label": "Window tint strength (%)",
+    "type": "string",
+    "defaultValue": "25"
   },
   {
     "property": "uc.blended-addressbar.clear-cache-request",
@@ -104,17 +140,5 @@
     "property": "uc.loadbar.shadow",
     "label": "Shadow",
     "type": "checkbox"
-  },
-  {
-    "type": "separator",
-    "label": "Custom Page Selector",
-    "margin": "20px 0 12px 0"
-  },
-  {
-    "property": "uc.blended-addressbar.selector-rule",
-    "label": "Selector rule JSON",
-    "type": "string",
-    "fontFamily": "monospace",
-    "defaultValue": "{\"url\":\"\",\"bg\":\"\",\"fg\":\"\"}"
   }
 ]

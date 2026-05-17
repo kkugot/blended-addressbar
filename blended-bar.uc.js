@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        0.9.4
+// @version        1.1.0
 // ==/UserScript==
 
 (() => {
@@ -37,20 +37,28 @@
   const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
   const addressbarPrefBranch = 'uc.blended-addressbar.';
   const frameRadiusPref = `${addressbarPrefBranch}frame-radius`;
-  const sidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
+  const frameGapPref = `${addressbarPrefBranch}frame-gap`;
+  const framePaddingDisabledPref = `${addressbarPrefBranch}frame-padding.disabled`;
+  const frameShadowPref = `${addressbarPrefBranch}frame-shadow`;
+  const windowTintEnabledPref = `${addressbarPrefBranch}window-tint.enabled`;
+  const windowTintStrengthPref = `${addressbarPrefBranch}window-tint.strength`;
+  const legacySidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
   const clearCacheRequestPref = `${addressbarPrefBranch}clear-cache-request`;
   const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
-  const macosWindowMaterialPref = 'zen.widget.macos.window-material';
+  const defaultWindowTintStrengthPercent = 25;
   const nativeZenThemeProperties = [
     '--zen-main-browser-background',
-    '--zen-main-browser-background-toolbar',
-    '--zen-primary-color',
-    '--zen-colors-primary',
-    '--zen-colors-secondary',
-    '--zen-colors-text-primary',
-    '--toolbox-textcolor'
+    '--zen-main-browser-background-toolbar'
   ];
   const chromeDoc = document;
+  const paneCornerSelector = '#tabbrowser-tabpanels > .browserSidebarContainer:not(.zen-glance-overlay)';
+  const paneCornerNeighborSelector = `${paneCornerSelector}, #sidebar-box[sidebar-panel-open]:not([hidden])`;
+  const paneCornerRadiusProperties = [
+    '--blended-addressbar-split-radius-top-left',
+    '--blended-addressbar-split-radius-top-right',
+    '--blended-addressbar-split-radius-bottom-right',
+    '--blended-addressbar-split-radius-bottom-left'
+  ];
   let themeCache = new WeakMap();
   let themeRequestSeq = 0;
   let servicesModule = null;
@@ -79,6 +87,8 @@
   let activeThemeUpdateInFlight = false;
   let pendingActiveThemeUpdateOptions = null;
   let activeThemeRefreshTimer = 0;
+  let paneCornerMutationObserver = null;
+  let paneCornerUpdateTimer = 0;
 
   const setVar = (value, foreground) => {
     chromeDoc.documentElement.style.setProperty('--zen-tab-header-background', value || 'transparent');
@@ -157,42 +167,40 @@
     }
 
     nativeZenThemeOriginals = null;
+    clearWindowTintBackground(root);
+    root.style.removeProperty('--blended-addressbar-frame-background');
     root.setAttribute('data-blended-addressbar-native-theme', 'restored');
     root.removeAttribute('data-blended-addressbar-native-theme-bg');
     root.removeAttribute('data-blended-addressbar-native-theme-fg');
     root.removeAttribute('data-blended-addressbar-native-theme-accent');
+    root.removeAttribute('data-blended-addressbar-native-theme-tint');
     root.removeAttribute('data-blended-addressbar-native-theme-material');
     root.removeAttribute('data-blended-addressbar-native-theme-opacity');
     root.removeAttribute('data-blended-addressbar-native-theme-reason');
   }
 
-  function getMacosWindowMaterialTheme(bg) {
-    const material = readIntPref(macosWindowMaterialPref, null);
-    if (!Number.isFinite(material)) {
-      return {
-        background: bg,
-        toolbarBackground: bg,
-        material: '',
-        opacity: ''
-      };
-    }
+  function getWindowTintBackground(bg, tintStrengthPercent) {
+    return `color-mix(in srgb, ${bg} ${tintStrengthPercent}%, transparent)`;
+  }
 
-    const clamped = Math.max(1, Math.min(7, material));
-    const opacity = 0.48 + ((clamped - 1) / 6) * 0.34;
-    const background = `color-mix(in srgb, ${bg} ${Math.round(opacity * 100)}%, transparent)`;
+  function getZenBrowserBackground() {
+    return chromeDoc.getElementById('zen-browser-background');
+  }
 
-    return {
-      background,
-      toolbarBackground: background,
-      material: String(clamped),
-      opacity: String(Math.round(opacity * 100) / 100)
-    };
+  function clearWindowTintBackground(root = chromeDoc.documentElement) {
+    root.style.removeProperty('--blended-addressbar-window-tint-background');
+    getZenBrowserBackground()?.style.removeProperty('--blended-addressbar-window-tint-background');
+  }
+
+  function setWindowTintBackground(tintBackground, root = chromeDoc.documentElement) {
+    root.style.setProperty('--blended-addressbar-window-tint-background', tintBackground, 'important');
+    getZenBrowserBackground()?.style.setProperty('--blended-addressbar-window-tint-background', tintBackground, 'important');
   }
 
   function applyNativeZenTheme(theme, reason = '') {
     const root = chromeDoc.documentElement;
 
-    if (!readBoolPref(sidebarEnabledPref, false)) {
+    if (!readWindowTintEnabled()) {
       restoreNativeZenTheme();
       root.setAttribute('data-blended-addressbar-native-theme', 'disabled');
       return;
@@ -205,35 +213,123 @@
     }
 
     const bg = theme.bg;
-    const fg = hasVisibleColor(theme.fg) ? theme.fg : chooseForeground(parseCssRgb(bg) || { r: 255, g: 255, b: 255 });
-    const materialTheme = getMacosWindowMaterialTheme(bg);
-    const accent = `color-mix(in srgb, ${bg} 72%, ${fg})`;
-    const secondary = `color-mix(in srgb, ${bg} 84%, ${fg})`;
+    const tintStrengthPercent = readWindowTintStrengthPercent();
+    const tintBackground = getWindowTintBackground(bg, tintStrengthPercent);
 
     rememberNativeZenThemeOriginals(root);
-    root.style.setProperty('--zen-main-browser-background', materialTheme.background, 'important');
-    root.style.setProperty('--zen-main-browser-background-toolbar', materialTheme.toolbarBackground, 'important');
-    root.style.setProperty('--zen-primary-color', accent, 'important');
-    root.style.setProperty('--zen-colors-primary', bg, 'important');
-    root.style.setProperty('--zen-colors-secondary', secondary, 'important');
-    root.style.setProperty('--zen-colors-text-primary', fg, 'important');
-    root.style.setProperty('--toolbox-textcolor', fg);
+    setWindowTintBackground(tintBackground, root);
+    root.style.setProperty('--blended-addressbar-frame-background', tintBackground, 'important');
     root.setAttribute('data-blended-addressbar-native-theme', 'applied');
     root.setAttribute('data-blended-addressbar-native-theme-bg', bg);
-    root.setAttribute('data-blended-addressbar-native-theme-fg', fg);
-    root.setAttribute('data-blended-addressbar-native-theme-accent', accent);
-    root.setAttribute('data-blended-addressbar-native-theme-material', materialTheme.material);
-    root.setAttribute('data-blended-addressbar-native-theme-opacity', materialTheme.opacity);
+    root.setAttribute('data-blended-addressbar-native-theme-tint', tintBackground);
+    root.setAttribute('data-blended-addressbar-native-theme-opacity', String(tintStrengthPercent / 100));
     root.setAttribute('data-blended-addressbar-native-theme-reason', reason || '');
-
-    const bgRgb = parseCssRgb(bg);
-    if (bgRgb) {
-      root.setAttribute('zen-should-be-dark-mode', String(getRelativeLuminance(bgRgb) < 0.5));
-    }
   }
 
   function getBrowserHref(browser) {
     return browser?.currentURI?.spec || '';
+  }
+
+  function clearPaneCornerRadii(pane) {
+    for (const property of paneCornerRadiusProperties) {
+      pane.style.removeProperty(property);
+    }
+  }
+
+  function overlapsRange(startA, endA, startB, endB, tolerance) {
+    return Math.max(startA, startB) <= Math.min(endA, endB) + tolerance;
+  }
+
+  function hasPaneNeighborAtCorner(paneRects, pane, rect, corner, tolerance) {
+    const checksLeft = corner.endsWith('left');
+    const checksTop = corner.startsWith('top');
+    const verticalEdge = checksLeft ? rect.left : rect.right;
+    const horizontalEdge = checksTop ? rect.top : rect.bottom;
+
+    return paneRects.some(item => {
+      if (item.pane === pane) return false;
+
+      const other = item.rect;
+      const touchesVerticalEdge = checksLeft
+        ? Math.abs(other.right - verticalEdge) <= tolerance
+        : Math.abs(other.left - verticalEdge) <= tolerance;
+      const touchesHorizontalEdge = checksTop
+        ? Math.abs(other.bottom - horizontalEdge) <= tolerance
+        : Math.abs(other.top - horizontalEdge) <= tolerance;
+
+      return (touchesVerticalEdge && overlapsRange(other.top, other.bottom, horizontalEdge, horizontalEdge, tolerance))
+        || (touchesHorizontalEdge && overlapsRange(other.left, other.right, verticalEdge, verticalEdge, tolerance));
+    });
+  }
+
+  function updatePaneCornerRadii() {
+    paneCornerUpdateTimer = 0;
+
+    const tabpanels = chromeDoc.getElementById('tabbrowser-tabpanels');
+    const tabbox = chromeDoc.getElementById('tabbrowser-tabbox');
+    const sidebarBox = chromeDoc.getElementById('sidebar-box');
+    const panes = Array.from(chromeDoc.querySelectorAll(paneCornerSelector));
+
+    if (!tabpanels || !panes.length) {
+      for (const pane of chromeDoc.querySelectorAll('.browserSidebarContainer')) {
+        clearPaneCornerRadii(pane);
+      }
+      return;
+    }
+
+    const frame = tabpanels.getBoundingClientRect();
+    if (!frame.width || !frame.height) return;
+
+    const tolerance = 1.5;
+    const radius = 'var(--blended-addressbar-inner-radius)';
+    const allowTopRadius = tabpanels.getAttribute('zen-split-view') === 'true';
+    const sidebarPanelOpen = !!sidebarBox
+      && !sidebarBox.hidden
+      && sidebarBox.hasAttribute('sidebar-panel-open');
+    const sidebarOnRight = sidebarPanelOpen
+      && (sidebarBox.hasAttribute('sidebar-positionend') || tabbox?.hasAttribute('sidebar-positionend'));
+    const sidebarBlocksLeftEdge = sidebarPanelOpen && !sidebarOnRight;
+    const sidebarBlocksRightEdge = sidebarPanelOpen && sidebarOnRight;
+    const paneRects = panes
+      .map(pane => ({ pane, rect: pane.getBoundingClientRect() }))
+      .filter(item => item.rect.width && item.rect.height);
+    const cornerNeighborRects = Array.from(chromeDoc.querySelectorAll(paneCornerNeighborSelector))
+      .map(pane => ({ pane, rect: pane.getBoundingClientRect() }))
+      .filter(item => item.rect.width && item.rect.height);
+
+    for (const { pane, rect } of paneRects) {
+      const touchesTop = Math.abs(rect.top - frame.top) <= tolerance;
+      const touchesRight = Math.abs(rect.right - frame.right) <= tolerance;
+      const touchesBottom = Math.abs(rect.bottom - frame.bottom) <= tolerance;
+      const touchesLeft = Math.abs(rect.left - frame.left) <= tolerance;
+
+      pane.style.setProperty('--blended-addressbar-split-radius-top-left', allowTopRadius && touchesTop && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'top-left', tolerance) ? radius : '0px');
+      pane.style.setProperty('--blended-addressbar-split-radius-top-right', allowTopRadius && touchesTop && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'top-right', tolerance) ? radius : '0px');
+      pane.style.setProperty('--blended-addressbar-split-radius-bottom-right', touchesBottom && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'bottom-right', tolerance) ? radius : '0px');
+      pane.style.setProperty('--blended-addressbar-split-radius-bottom-left', touchesBottom && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'bottom-left', tolerance) ? radius : '0px');
+    }
+  }
+
+  function schedulePaneCornerRadiiUpdate() {
+    if (paneCornerUpdateTimer) clearTimeout(paneCornerUpdateTimer);
+    paneCornerUpdateTimer = setTimeout(updatePaneCornerRadii, 0);
+  }
+
+  function observePaneCornerRadii() {
+    const tabpanels = chromeDoc.getElementById('tabbrowser-tabpanels');
+    if (!tabpanels || typeof MutationObserver === 'undefined') return;
+    const paneCornerObserverRoot = chromeDoc.getElementById('tabbrowser-tabbox') || tabpanels;
+
+    if (paneCornerMutationObserver) paneCornerMutationObserver.disconnect();
+    paneCornerMutationObserver = new MutationObserver(schedulePaneCornerRadiiUpdate);
+    paneCornerMutationObserver.observe(paneCornerObserverRoot, {
+      attributes: true,
+      attributeFilter: ['class', 'style', 'zen-split-view', 'is-zen-split', 'zen-split', 'sidebar-panel-open', 'sidebar-positionend', 'checked'],
+      childList: true,
+      subtree: true
+    });
+
+    schedulePaneCornerRadiiUpdate();
   }
 
   function getThemeKey(theme) {
@@ -462,6 +558,35 @@
     return fallback;
   }
 
+  function prefHasUserValue(name) {
+    const prefs = getPrefs();
+    if (!prefs?.prefHasUserValue) return false;
+
+    try {
+      return prefs.prefHasUserValue(name);
+    } catch {}
+
+    return false;
+  }
+
+  function readWindowTintEnabled() {
+    if (prefHasUserValue(windowTintEnabledPref)) {
+      return readBoolPref(windowTintEnabledPref, false);
+    }
+
+    return readBoolPref(legacySidebarEnabledPref, false);
+  }
+
+  function migrateWindowTintPref() {
+    const prefs = getPrefs();
+    if (!prefs?.setBoolPref) return;
+    if (prefHasUserValue(windowTintEnabledPref) || !prefHasUserValue(legacySidebarEnabledPref)) return;
+
+    try {
+      prefs.setBoolPref(windowTintEnabledPref, readBoolPref(legacySidebarEnabledPref, false));
+    } catch {}
+  }
+
   function readIntPref(name, fallback) {
     const prefs = getPrefs();
     if (!prefs) return fallback;
@@ -489,6 +614,11 @@
     return cssSupports('height', normalized) ? normalized : fallback;
   }
 
+  function normalizeFrameShadowPreset(value) {
+    const preset = String(value || '').trim();
+    return ['standard', 'minimal', 'medium', 'none'].includes(preset) ? preset : 'standard';
+  }
+
   function normalizeCssColor(value, fallback) {
     const raw = String(value || '').trim();
     if (!raw) return fallback;
@@ -509,6 +639,24 @@
     const alpha = (match[2] || amount > 1) ? amount / 100 : amount;
     const clamped = Math.max(0, Math.min(1, alpha));
     return `${Math.round(clamped * 1000) / 1000}`;
+  }
+
+  function normalizePercent(value, fallback, min = 0, max = 100) {
+    const raw = String(value || '').trim();
+    if (!raw) return fallback;
+
+    const match = raw.match(/^(\d+(?:\.\d+)?)\s*%?$/);
+    if (!match) return fallback;
+
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return fallback;
+
+    const clamped = Math.max(min, Math.min(max, amount));
+    return Math.round(clamped * 1000) / 1000;
+  }
+
+  function readWindowTintStrengthPercent() {
+    return normalizePercent(readStringPref(windowTintStrengthPref, String(defaultWindowTintStrengthPercent)), defaultWindowTintStrengthPercent, 0, 100);
   }
 
   function setPageLoadbarColors(theme) {
@@ -535,11 +683,16 @@
   function applyFramePrefs() {
     const root = chromeDoc.documentElement;
     const radius = normalizeCssLength(readStringPref(frameRadiusPref, '14px'), '14px');
+    const gap = readBoolPref(framePaddingDisabledPref, false) ? '0px' : normalizeCssLength(readStringPref(frameGapPref, '5px'), '5px');
+    const shadowPreset = normalizeFrameShadowPreset(readStringPref(frameShadowPref, 'standard'));
 
     root.style.setProperty('--blended-addressbar-frame-radius', radius);
+    root.style.setProperty('--blended-addressbar-frame-gap', gap);
+    root.setAttribute('data-blended-addressbar-frame-shadow', shadowPreset);
 
     if (DEBUG_THEME) {
       root.setAttribute('data-blended-addressbar-frame-radius', radius);
+      root.setAttribute('data-blended-addressbar-frame-gap', gap);
     }
   }
 
@@ -549,7 +702,7 @@
 
     const observer = {
       observe(_subject, topic, prefName) {
-        if (topic === 'nsPref:changed' && String(prefName || '') === frameRadiusPref) {
+        if (topic === 'nsPref:changed' && [frameRadiusPref, frameGapPref, framePaddingDisabledPref, frameShadowPref].includes(String(prefName || ''))) {
           applyFramePrefs();
         }
       }
@@ -575,9 +728,10 @@
       observe(_subject, topic, prefName) {
         const changedPref = String(prefName || '');
         if (topic !== 'nsPref:changed'
-          || (changedPref !== sidebarEnabledPref
-            && changedPref !== clearCacheRequestPref
-            && changedPref !== macosWindowMaterialPref)) {
+          || (changedPref !== windowTintEnabledPref
+            && changedPref !== windowTintStrengthPref
+            && changedPref !== legacySidebarEnabledPref
+            && changedPref !== clearCacheRequestPref)) {
           return;
         }
 
@@ -591,13 +745,11 @@
           return;
         }
 
-        if (readBoolPref(sidebarEnabledPref, false)) {
+        if (readWindowTintEnabled()) {
           if (lastAppliedTheme) {
-            applyNativeZenTheme(lastAppliedTheme, changedPref === macosWindowMaterialPref
-              ? 'macos-window-material-pref'
-              : 'sidebar-pref-enabled');
+            applyNativeZenTheme(lastAppliedTheme, 'window-tint-pref-enabled');
           } else {
-            void updateActive({ reason: 'sidebar-theme-enabled' });
+            void updateActive({ reason: 'window-tint-enabled' });
           }
         } else {
           restoreNativeZenTheme();
@@ -607,12 +759,10 @@
 
     try {
       prefs.addObserver(addressbarPrefBranch, observer);
-      prefs.addObserver(macosWindowMaterialPref, observer);
       if (typeof addUnloadListener === 'function') {
         addUnloadListener(() => {
           try {
             prefs.removeObserver(addressbarPrefBranch, observer);
-            prefs.removeObserver(macosWindowMaterialPref, observer);
           } catch {}
         });
       }
@@ -2988,6 +3138,7 @@
     }
 
     applyFramePrefs();
+    migrateWindowTintPref();
     observeFramePrefs();
     applyLoadbarPrefs();
     observeLoadbarPrefs();
@@ -2996,16 +3147,21 @@
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
       observeViewportThemeTarget();
       scheduleActiveThemeRefresh();
+      schedulePaneCornerRadiiUpdate();
       void updateActive({ reason: 'tab-select' });
     });
 
     try {
       window.addEventListener('resize', scheduleViewportThemeUpdate);
+      window.addEventListener('resize', schedulePaneCornerRadiiUpdate);
       if (typeof addUnloadListener === 'function') {
         addUnloadListener(() => {
           window.removeEventListener('resize', scheduleViewportThemeUpdate);
+          window.removeEventListener('resize', schedulePaneCornerRadiiUpdate);
           if (viewportThemeUpdateTimer) clearTimeout(viewportThemeUpdateTimer);
           if (viewportResizeObserver) viewportResizeObserver.disconnect();
+          if (paneCornerUpdateTimer) clearTimeout(paneCornerUpdateTimer);
+          if (paneCornerMutationObserver) paneCornerMutationObserver.disconnect();
           stopLoadingThemePolling();
           stopActiveThemeRefresh();
           clearPendingThemeCandidate();
@@ -3014,6 +3170,7 @@
       }
     } catch {}
     observeViewportThemeTarget();
+    observePaneCornerRadii();
     scheduleActiveThemeRefresh();
 
     const pl = {
@@ -3021,6 +3178,7 @@
         try {
           const active = gBrowser.selectedBrowser;
           const isTop = webProgress && webProgress.isTopLevel;
+          if (isTop) schedulePaneCornerRadiiUpdate();
           const matches = browserArg === active;
           if (isTop && matches) {
             scheduleActiveThemeRefresh();
@@ -3037,6 +3195,7 @@
         try {
           const active = gBrowser.selectedBrowser;
           const isTop = webProgress && webProgress.isTopLevel;
+          if (isTop) schedulePaneCornerRadiiUpdate();
           const matches = browserArg === active;
           if (!matches || !isTop) return;
           const listener = Ci && Ci.nsIWebProgressListener
@@ -3069,6 +3228,7 @@
     };
     try { gBrowser.addTabsProgressListener(pl); } catch {}
 
+    schedulePaneCornerRadiiUpdate();
     void updateActive({ reason: 'init' });
   }
 
