@@ -42,6 +42,12 @@
     }
 }
 
+:root:not([zen-should-be-dark-mode]) {
+    --blended-addressbar-frame-shadow-minimal:
+        0 0 0 1px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
 /* URL bar */
 
 /* Only in single toolbar mode */
@@ -88,24 +94,69 @@
     #zen-appcontent-navbar-wrapper {
         background-color: var(--zen-tab-header-background, var(--zen-main-browser-background-toolbar));
         box-shadow: none;
+        --blended-addressbar-header-muted-foreground: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 42%, transparent);
 
         transition: background-color 100ms linear;
 
-        #nav-bar-customization-target > :not(#urlbar-container),
+        #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
         #PersonalToolbar,
         #PanelUI-button {
             -moz-window-dragging: drag;
             color: var(--zen-tab-header-foreground, inherit);
             fill: currentColor;
-            --toolbox-textcolor: currentColor;
-            --toolbarbutton-icon-fill: currentColor;
-            --toolbar-color: currentColor;
-            --toolbar-field-color: currentColor;
+            --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
+            --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
+            --toolbar-color: var(--zen-tab-header-foreground, currentColor);
+            --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
             
         }
 
-        #urlbar-container .urlbar-input-box,
-        #urlbar-container #urlbar-input {
+        :is(
+            #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
+            #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon),
+            #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(.urlbar-page-action, .identity-box-button, .urlbar-icon),
+            #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(.urlbar-page-action, .identity-box-button) :is(.toolbarbutton-icon, .urlbar-icon),
+            #personal-bookmarks,
+            #personal-bookmarks.browser-toolbar,
+            #PersonalToolbar :is(#personal-bookmarks, .browser-toolbar),
+            #PersonalToolbar :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .bookmark-item),
+            #PanelUI-button,
+            #PanelUI-button :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon),
+            .titlebar-buttonbox-container :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .titlebar-button),
+            .titlebar-buttonbox-container :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .titlebar-button) *,
+            > :is(toolbarbutton, .toolbarbutton-1),
+            > :is(toolbarbutton, .toolbarbutton-1) :is(.toolbarbutton-icon, .toolbarbutton-text)
+        ) {
+            color: var(--zen-tab-header-foreground, inherit) !important;
+            fill: currentColor !important;
+            stroke: currentColor !important;
+            --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
+            --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
+            --toolbar-color: var(--zen-tab-header-foreground, currentColor);
+            --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
+        }
+
+        :is(
+            #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"])[disabled],
+            #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"])[disabled="true"],
+            #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled]),
+            #PersonalToolbar :is([disabled], [disabled="true"], [muted], [soundplaying]),
+            #PanelUI-button :is([disabled], [disabled="true"])
+        ) {
+            color: var(--blended-addressbar-header-muted-foreground) !important;
+            fill: currentColor !important;
+            stroke: currentColor !important;
+            --toolbarbutton-icon-fill: currentColor;
+        }
+
+        #urlbar:not([zen-floating-urlbar="true"]) {
+            color: var(--zen-tab-header-foreground, inherit);
+            --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
+            --input-color: var(--zen-tab-header-foreground, currentColor);
+        }
+
+        #urlbar:not([zen-floating-urlbar="true"]) .urlbar-input-box,
+        #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input {
             color: var(--zen-tab-header-foreground, inherit);
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }

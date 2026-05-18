@@ -155,6 +155,7 @@ test('frame shadow is selected through constrained dropdown presets', () => {
   assert.match(script, /data-blended-addressbar-frame-shadow/);
   assert.match(css, /--blended-addressbar-frame-shadow-standard:/);
   assert.match(css, /--blended-addressbar-frame-shadow-minimal:/);
+  assert.match(css, /:root:not\(\[zen-should-be-dark-mode\]\)\s*\{[^}]*--blended-addressbar-frame-shadow-minimal:\s*0 0 0 1px rgba\(0,\s*0,\s*0,\s*0\.08\),\s*0 1px 2px rgba\(0,\s*0,\s*0,\s*0\.05\)/s);
   assert.match(css, /--blended-addressbar-frame-shadow-medium:/);
   assert.match(css, /\[data-blended-addressbar-frame-shadow="none"\]/);
   assert.match(css, /--blended-addressbar-frame-shadow:\s*none/);
@@ -176,27 +177,67 @@ test('theme cache can be cleared through a momentary preference action', () => {
   assert.match(prefs, /Clear cached page colors/);
 });
 
-test('internal browser pages clear adaptive page theme instead of keeping stale web colors', () => {
+test('internal browser pages use a translucent page-canvas header instead of stale web colors', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /function isPageThemeEligibleHref\(href\)/);
   assert.match(script, /return \/\^\(https\?\|file\):\/i\.test\(String\(href \|\| ''\)\)/);
+  assert.match(script, /const internalPageHeaderOpacity = 0\.72/);
+  assert.match(script, /function isInternalPageThemeHref\(href\)/);
+  assert.match(script, /return \/\^\(about\|chrome\):\/i\.test\(String\(href \|\| ''\)\)/);
+  assert.match(script, /function getInternalPageTheme\(browser\)/);
+  assert.match(script, /getDocumentCanvasTheme\(doc,\s*view\)/);
+  assert.match(script, /source:\s*'internal-page'/);
+  assert.match(script, /function applyInternalPageTheme\(browser,\s*reason = 'internal-page'\)/);
+  assert.match(script, /lastAppliedTheme\?\.source === 'internal-page' && lastAppliedTheme\?\.href === href \? lastAppliedTheme : null/);
+  assert.match(script, /const key = getThemeKey\(theme\);\s*if \(key === lastThemeKey\) return true;/);
+  assert.match(script, /setVar\(theme\.bg,\s*theme\.fg\)/);
+  assert.match(script, /if \(!isPageThemeEligibleHref\(expectedHref\)\) \{\s*if \(applyInternalPageTheme\(browser,\s*'internal-page'\)\) return;\s*clearAdaptivePageTheme\('ineligible-url'\);\s*return;\s*\}/s);
   assert.match(script, /function clearAdaptivePageTheme\(reason = 'ineligible-url'\)/);
   assert.match(script, /clearTabHeaderTheme\(\)/);
   assert.match(script, /restoreNativeZenTheme\(\)/);
   assert.match(script, /clearWindowTintBackground\(\)/);
   assert.match(script, /removeProperty\('--blended-addressbar-frame-background'\)/);
   assert.match(script, /setPageLoadbarColors\(null\)/);
-  assert.match(script, /if \(!isPageThemeEligibleHref\(expectedHref\)\) \{\s*clearAdaptivePageTheme\('ineligible-url'\);\s*return;\s*\}/s);
+});
+
+test('unknown page colors use a translucent neutral header without native window tint', () => {
+  const script = read('blended-bar.uc.js');
+
+  assert.match(script, /const unknownPageHeaderOpacity = 0\.1/);
+  assert.match(script, /function getNeutralHeaderShade\(browser,\s*source = 'unknown-page'\)/);
+  assert.match(script, /rgbaToCss\(shade\)/);
+  assert.match(script, /fg:\s*normalizedScheme === 'light' \? 'rgba\(11,\s*13,\s*16,\s*0\.82\)' : 'rgba\(245,\s*247,\s*251,\s*0\.90\)'/);
+  assert.match(script, /function applyHeaderOnlyTheme\(browser,\s*theme,\s*reason = 'header-only'\)/);
+  assert.match(script, /function applyHeaderOnlyTheme\(browser,\s*theme,\s*reason = 'header-only'\)[\s\S]*const key = getThemeKey\(theme\);\s*chromeDoc\.documentElement\.style\.setProperty\('--blended-addressbar-frame-background',\s*'transparent',\s*'important'\);\s*if \(key === lastThemeKey\) return true;/);
+  assert.match(script, /setVar\(theme\.bg,\s*theme\.fg\)/);
+  assert.match(script, /clearWindowTintBackground\(\)/);
+  assert.match(script, /setProperty\('--blended-addressbar-frame-background',\s*'transparent',\s*'important'\)/);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme\) \{\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown'\);\s*return;\s*\}/s);
+  assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*'unknown-page'\)/);
+  assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason\)/);
 });
 
 test('adaptive foreground feeds only Zen omnibox input text color', () => {
   const css = read('style.css');
-  const inputBoxBlock = cssRuleBlock(css, '#urlbar-container .urlbar-input-box');
+  const inputBoxBlock = cssRuleBlock(css, '#urlbar:not([zen-floating-urlbar="true"]) .urlbar-input-box');
 
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\s*\{[^}]*--toolbar-field-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/s);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/s);
   assert.match(inputBoxBlock, /--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
   assert.match(inputBoxBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)/);
+  assert.match(css, /--blended-addressbar-header-muted-foreground:\s*color-mix\(in srgb,\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*42%,\s*transparent\)/);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input-container :is\(\.urlbar-page-action,\s*\.identity-box-button,\s*\.urlbar-icon\)/);
+  assert.doesNotMatch(css, /#urlbar\[zen-floating-urlbar="true"\]\s+#urlbar-input/);
+  assert.match(css, /\.titlebar-buttonbox-container :is\(toolbarbutton,\s*\.toolbarbutton-1,\s*\.toolbarbutton-icon,\s*\.titlebar-button\)/);
+  assert.match(css, /#personal-bookmarks,\s*[\r\n]+\s*#personal-bookmarks\.browser-toolbar/);
+  assert.match(css, /#PersonalToolbar :is\(#personal-bookmarks,\s*\.browser-toolbar\)/);
+  assert.match(css, /#PersonalToolbar :is\(toolbarbutton,\s*\.toolbarbutton-1,\s*\.toolbarbutton-icon,\s*\.toolbarbutton-text,\s*\.bookmark-item\)/);
+  assert.match(css, /--toolbar-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.match(css, /#nav-bar-customization-target > :not\(#urlbar-container\):not\(#urlbar\[zen-floating-urlbar="true"\]\)/);
+  assert.match(css, /#nav-bar-customization-target > :not\(#urlbar-container\):not\(#urlbar\[zen-floating-urlbar="true"\]\) :is\(\[disabled\],\s*\[disabled="true"\],\s*\[muted\],\s*\[soundplaying\],\s*\.toolbarbutton-icon\[disabled\]\)/);
   assert.doesNotMatch(css, /#nav-bar-customization-target,\s*[\r\n]+\s*#PersonalToolbar/);
   assert.doesNotMatch(css, /#urlbar-input-container\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground/s);
   assert.doesNotMatch(css, /#urlbar\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground/s);
+  assert.doesNotMatch(css, /#nav-bar-customization-target > :not\(#urlbar-container\),/);
 });

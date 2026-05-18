@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2 - 2026-05-18
+
+- Kept floating URL bar/search popup colors native so page-aware foreground does not bleed into the popup.
+- Scoped adaptive toolbar foregrounds to the non-floating chrome header, including bookmarks and toolbar icons.
+- Added a translucent neutral loading/unknown-page header with a transparent browser frame layer so it does not appear as a solid black or white block.
+- Stabilized internal browser page colors to avoid stale website colors and repeated flicker on `about:` pages.
+
 ## 1.1.1 - 2026-05-18
 
 - Scoped adaptive omnibox foreground colors to the URL input text instead of the URL bar popup container.

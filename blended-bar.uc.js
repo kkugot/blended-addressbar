@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.1.1
+// @version        1.1.2
 // ==/UserScript==
 
 (() => {
@@ -28,6 +28,8 @@
   const fallbackThemeStableDelayMs = 350;
   const immediateThemeConfidenceMin = 4;
   const activeThemeRefreshIntervalMs = 2500;
+  const internalPageHeaderOpacity = 0.72;
+  const unknownPageHeaderOpacity = 0.1;
   const themeBridgeTimeoutMs = 250;
   const themeMessageName = 'blended-addressbar:theme-response';
   const loadbarPrefBranch = 'uc.loadbar.';
@@ -108,6 +110,58 @@
     return /^(https?|file):/i.test(String(href || ''));
   }
 
+  function isInternalPageThemeHref(href) {
+    return /^(about|chrome):/i.test(String(href || ''));
+  }
+
+  function getTranslucentHeaderColor(bg, opacity = internalPageHeaderOpacity) {
+    const rgb = parseCssRgb(bg);
+    if (rgb) return rgbaToCss({ ...rgb, a: opacity });
+    return `color-mix(in srgb, ${bg} ${Math.round(opacity * 100)}%, transparent)`;
+  }
+
+  function getNeutralHeaderShade(browser, source = 'unknown-page') {
+    const rootStyle = getComputedStyle(chromeDoc.documentElement);
+    const colorScheme = rootStyle.getPropertyValue('--toolbar-color-scheme') || rootStyle.colorScheme;
+    const normalizedScheme = String(colorScheme || '').trim().toLowerCase();
+    const shade = normalizedScheme === 'light'
+      ? { r: 255, g: 255, b: 255, a: unknownPageHeaderOpacity }
+      : { r: 0, g: 0, b: 0, a: unknownPageHeaderOpacity };
+
+    return {
+      bg: rgbaToCss(shade),
+      fg: normalizedScheme === 'light' ? 'rgba(11, 13, 16, 0.82)' : 'rgba(245, 247, 251, 0.90)',
+      bridge: 'chrome',
+      href: getBrowserHref(browser),
+      source
+    };
+  }
+
+  function getInternalPageTheme(browser) {
+    const href = getBrowserHref(browser);
+    if (!isInternalPageThemeHref(href)) return null;
+
+    const doc = browser?.contentDocument || null;
+    const view = doc?.defaultView || null;
+    const canvasTheme = doc && view ? getDocumentCanvasTheme(doc, view) : null;
+    const fallbackTheme = canvasTheme?.bg ? canvasTheme : getChromeContrastFallbackTheme(browser, 'internal-page-fallback');
+    if (!fallbackTheme?.bg) return null;
+
+    const bgRgb = parseCssRgb(fallbackTheme.bg);
+    const fg = getReadableForeground(fallbackTheme.bg, [
+      fallbackTheme.fg || null,
+      bgRgb ? chooseForeground(bgRgb) : null
+    ]);
+
+    return {
+      bg: getTranslucentHeaderColor(fallbackTheme.bg),
+      fg,
+      bridge: fallbackTheme.bridge || 'chrome',
+      href,
+      source: 'internal-page'
+    };
+  }
+
   function clearAdaptivePageTheme(reason = 'ineligible-url') {
     const href = getBrowserHref(gBrowser?.selectedBrowser || null);
     clearPendingThemeCandidate();
@@ -130,6 +184,78 @@
       root.setAttribute('data-blended-addressbar-theme-fg', '');
       root.setAttribute('data-blended-addressbar-theme-href', href || '');
     }
+  }
+
+  function applyInternalPageTheme(browser, reason = 'internal-page') {
+    const href = getBrowserHref(browser);
+    const resolvedTheme = getInternalPageTheme(browser);
+    const theme = resolvedTheme?.bg
+      ? resolvedTheme
+      : (lastAppliedTheme?.source === 'internal-page' && lastAppliedTheme?.href === href ? lastAppliedTheme : null);
+    if (!theme?.bg) {
+      clearAdaptivePageTheme(reason);
+      return false;
+    }
+
+    const key = getThemeKey(theme);
+    if (key === lastThemeKey) return true;
+
+    clearPendingThemeCandidate();
+    resetThemeArbitration(href);
+    restoreNativeZenTheme();
+    clearWindowTintBackground();
+    chromeDoc.documentElement.style.removeProperty('--blended-addressbar-frame-background');
+
+    lastAppliedTheme = theme;
+    lastThemeKey = key;
+    lastCss = theme.bg;
+    setVar(theme.bg, theme.fg);
+    setPageLoadbarColors(theme);
+
+    if (DEBUG_THEME) {
+      const root = chromeDoc.documentElement;
+      root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
+      root.setAttribute('data-blended-addressbar-theme-bridge', theme.bridge || '');
+      root.setAttribute('data-blended-addressbar-theme-source', theme.source || '');
+      root.setAttribute('data-blended-addressbar-theme-bg', theme.bg || '');
+      root.setAttribute('data-blended-addressbar-theme-fg', theme.fg || '');
+      root.setAttribute('data-blended-addressbar-theme-href', href || '');
+    }
+
+    return true;
+  }
+
+  function applyHeaderOnlyTheme(browser, theme, reason = 'header-only') {
+    if (!theme?.bg || !browser || browser !== gBrowser?.selectedBrowser) return false;
+
+    const href = getBrowserHref(browser);
+    const key = getThemeKey(theme);
+    chromeDoc.documentElement.style.setProperty('--blended-addressbar-frame-background', 'transparent', 'important');
+    if (key === lastThemeKey) return true;
+
+    clearPendingThemeCandidate();
+    resetThemeArbitration(href);
+    restoreNativeZenTheme();
+    clearWindowTintBackground();
+    chromeDoc.documentElement.style.setProperty('--blended-addressbar-frame-background', 'transparent', 'important');
+
+    lastAppliedTheme = theme;
+    lastThemeKey = key;
+    lastCss = theme.bg;
+    setVar(theme.bg, theme.fg);
+    setPageLoadbarColors(theme);
+
+    if (DEBUG_THEME) {
+      const root = chromeDoc.documentElement;
+      root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
+      root.setAttribute('data-blended-addressbar-theme-bridge', theme.bridge || '');
+      root.setAttribute('data-blended-addressbar-theme-source', theme.source || '');
+      root.setAttribute('data-blended-addressbar-theme-bg', theme.bg || '');
+      root.setAttribute('data-blended-addressbar-theme-fg', theme.fg || '');
+      root.setAttribute('data-blended-addressbar-theme-href', href || '');
+    }
+
+    return true;
   }
 
   function applyTheme(theme, reason) {
@@ -2966,11 +3092,17 @@
 
     const expectedHref = getBrowserHref(browser);
     if (!isPageThemeEligibleHref(expectedHref)) {
+      if (applyInternalPageTheme(browser, 'internal-page')) return;
       clearAdaptivePageTheme('ineligible-url');
       return;
     }
 
     const cachedTheme = getCachedTheme(browser);
+    if (isLoadingThemeFor(browser) && !cachedTheme) {
+      applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown');
+      return;
+    }
+
     if (cachedTheme) {
       applyResolvedTheme(browser, cachedTheme, 'cache', expectedHref);
     }
@@ -2981,7 +3113,7 @@
     } else if (fastOnly) {
       return;
     } else if (!cachedTheme && !skipToolbarFallback) {
-      applyResolvedTheme(browser, getToolbarFallbackTheme(browser), 'toolbar-fallback', expectedHref);
+      applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), 'unknown-page');
     }
 
     if (!fastOnly) {
@@ -2989,7 +3121,7 @@
       if (pageTheme?.bg) {
         applyResolvedTheme(browser, pageTheme, reason, expectedHref);
       } else if (!skipToolbarFallback) {
-        applyResolvedTheme(browser, getToolbarFallbackTheme(browser), reason, expectedHref);
+        applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason);
       }
     }
 
