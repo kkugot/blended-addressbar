@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 - 2026-05-18
+
+- Scoped adaptive omnibox foreground colors to the URL input text instead of the URL bar popup container.
+- Cleared page-derived header, tint, cache, and loadbar colors when switching to internal browser pages such as `about:preferences`.
+
 ## 1.1.0 - 2026-05-18
 
 - Added an explicit `uc.blended-addressbar.frame-gap` preference while keeping the frame padding removal checkbox.

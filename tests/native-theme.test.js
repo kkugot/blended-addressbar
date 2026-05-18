@@ -176,10 +176,27 @@ test('theme cache can be cleared through a momentary preference action', () => {
   assert.match(prefs, /Clear cached page colors/);
 });
 
-test('adaptive foreground feeds Zen omnibox input text color', () => {
-  const css = read('style.css');
-  const navbarWrapperBlock = cssRuleBlock(css, '#zen-appcontent-navbar-wrapper');
+test('internal browser pages clear adaptive page theme instead of keeping stale web colors', () => {
+  const script = read('blended-bar.uc.js');
 
-  assert.match(navbarWrapperBlock, /--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
-  assert.match(navbarWrapperBlock, /--toolbarbutton-icon-fill:\s*currentColor/);
+  assert.match(script, /function isPageThemeEligibleHref\(href\)/);
+  assert.match(script, /return \/\^\(https\?\|file\):\/i\.test\(String\(href \|\| ''\)\)/);
+  assert.match(script, /function clearAdaptivePageTheme\(reason = 'ineligible-url'\)/);
+  assert.match(script, /clearTabHeaderTheme\(\)/);
+  assert.match(script, /restoreNativeZenTheme\(\)/);
+  assert.match(script, /clearWindowTintBackground\(\)/);
+  assert.match(script, /removeProperty\('--blended-addressbar-frame-background'\)/);
+  assert.match(script, /setPageLoadbarColors\(null\)/);
+  assert.match(script, /if \(!isPageThemeEligibleHref\(expectedHref\)\) \{\s*clearAdaptivePageTheme\('ineligible-url'\);\s*return;\s*\}/s);
+});
+
+test('adaptive foreground feeds only Zen omnibox input text color', () => {
+  const css = read('style.css');
+  const inputBoxBlock = cssRuleBlock(css, '#urlbar-container .urlbar-input-box');
+
+  assert.match(inputBoxBlock, /--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.match(inputBoxBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)/);
+  assert.doesNotMatch(css, /#nav-bar-customization-target,\s*[\r\n]+\s*#PersonalToolbar/);
+  assert.doesNotMatch(css, /#urlbar-input-container\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground/s);
+  assert.doesNotMatch(css, /#urlbar\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground/s);
 });

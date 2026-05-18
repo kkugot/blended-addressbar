@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.1.0
+// @version        1.1.1
 // ==/UserScript==
 
 (() => {
@@ -98,6 +98,39 @@
       chromeDoc.documentElement.style.removeProperty('--zen-tab-header-foreground');
     }
   };
+
+  function clearTabHeaderTheme() {
+    chromeDoc.documentElement.style.removeProperty('--zen-tab-header-background');
+    chromeDoc.documentElement.style.removeProperty('--zen-tab-header-foreground');
+  }
+
+  function isPageThemeEligibleHref(href) {
+    return /^(https?|file):/i.test(String(href || ''));
+  }
+
+  function clearAdaptivePageTheme(reason = 'ineligible-url') {
+    const href = getBrowserHref(gBrowser?.selectedBrowser || null);
+    clearPendingThemeCandidate();
+    resetThemeArbitration(href);
+    lastAppliedTheme = null;
+    lastThemeKey = null;
+    lastCss = null;
+    clearTabHeaderTheme();
+    restoreNativeZenTheme();
+    clearWindowTintBackground();
+    chromeDoc.documentElement.style.removeProperty('--blended-addressbar-frame-background');
+    setPageLoadbarColors(null);
+
+    if (DEBUG_THEME) {
+      const root = chromeDoc.documentElement;
+      root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
+      root.setAttribute('data-blended-addressbar-theme-bridge', '');
+      root.setAttribute('data-blended-addressbar-theme-source', '');
+      root.setAttribute('data-blended-addressbar-theme-bg', '');
+      root.setAttribute('data-blended-addressbar-theme-fg', '');
+      root.setAttribute('data-blended-addressbar-theme-href', href || '');
+    }
+  }
 
   function applyTheme(theme, reason) {
     if (!theme) return;
@@ -2932,6 +2965,11 @@
     if (!browser) return;
 
     const expectedHref = getBrowserHref(browser);
+    if (!isPageThemeEligibleHref(expectedHref)) {
+      clearAdaptivePageTheme('ineligible-url');
+      return;
+    }
+
     const cachedTheme = getCachedTheme(browser);
     if (cachedTheme) {
       applyResolvedTheme(browser, cachedTheme, 'cache', expectedHref);

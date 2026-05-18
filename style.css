@@ -88,17 +88,10 @@
     #zen-appcontent-navbar-wrapper {
         background-color: var(--zen-tab-header-background, var(--zen-main-browser-background-toolbar));
         box-shadow: none;
-        color: var(--zen-tab-header-foreground, inherit);
-        fill: currentColor;
-        --toolbox-textcolor: currentColor;
-        --toolbarbutton-icon-fill: currentColor;
-        --toolbar-color: currentColor;
-        --toolbar-field-color: currentColor;
-        --input-color: var(--zen-tab-header-foreground, currentColor);
 
         transition: background-color 100ms linear;
 
-        #nav-bar-customization-target,
+        #nav-bar-customization-target > :not(#urlbar-container),
         #PersonalToolbar,
         #PanelUI-button {
             -moz-window-dragging: drag;
@@ -108,8 +101,13 @@
             --toolbarbutton-icon-fill: currentColor;
             --toolbar-color: currentColor;
             --toolbar-field-color: currentColor;
-            --input-color: var(--zen-tab-header-foreground, currentColor);
             
+        }
+
+        #urlbar-container .urlbar-input-box,
+        #urlbar-container #urlbar-input {
+            color: var(--zen-tab-header-foreground, inherit);
+            --input-color: var(--zen-tab-header-foreground, currentColor);
         }
     }
 
