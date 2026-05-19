@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3 - 2026-05-19
+
+- Colored compact-mode sidebar top buttons after Zen moves them into the addressbar.
+- Matched macOS mono traffic-light controls to the adaptive addressbar foreground in compact mode.
+- Added the demo screenshot to the README.
+
 ## 1.1.2 - 2026-05-18
 
 - Kept floating URL bar/search popup colors native so page-aware foreground does not bleed into the popup.
