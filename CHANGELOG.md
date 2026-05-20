@@ -1,8 +1,11 @@
 # Changelog
 
-## 1.1.3 - 2026-05-20
+## 1.1.4 - 2026-05-20
 
 - Kept selected URL bar text colors native so selection remains an isolated input affordance.
+
+## 1.1.3 - 2026-05-20
+
 - Matched macOS mono window-control dots to a muted blended foreground color for contrast on adaptive headers.
 
 ## 1.1.2 - 2026-05-18
