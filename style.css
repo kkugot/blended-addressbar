@@ -160,6 +160,10 @@
             color: var(--zen-tab-header-foreground, inherit);
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }
+
+        #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input::selection {
+            color: FieldText !important;
+        }
     }
 
     &:has([zen-compact-mode="true"]) #zen-appcontent-navbar-wrapper {
