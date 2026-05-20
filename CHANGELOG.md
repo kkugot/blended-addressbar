@@ -1,10 +1,18 @@
 # Changelog
 
-## 1.1.3 - 2026-05-19
+## 1.1.5 - 2026-05-20
 
-- Colored compact-mode sidebar top buttons after Zen moves them into the addressbar.
-- Matched macOS mono traffic-light controls to the adaptive addressbar foreground in compact mode.
-- Added the demo screenshot to the README.
+- Kept focused/open URL text native while the addressbar popup is shown.
+- Restored native URL selection background and selected text colors.
+- Tuned expanded URL bar spacing and input-container height for the breakout state.
+
+## 1.1.4 - 2026-05-20
+
+- Kept selected URL bar text colors native so selection remains an isolated input affordance.
+
+## 1.1.3 - 2026-05-20
+
+- Matched macOS mono window-control dots to a muted blended foreground color for contrast on adaptive headers.
 
 ## 1.1.2 - 2026-05-18
 

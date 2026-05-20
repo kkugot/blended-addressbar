@@ -226,13 +226,13 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/s);
   assert.match(inputBoxBlock, /--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
   assert.match(inputBoxBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)/);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):is\(\[focused\],\s*\[open\],\s*\[breakout-extend="true"\]\) #urlbar-input\s*\{[^}]*color:\s*FieldText\s*!important[^}]*--input-color:\s*FieldText/s);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\[breakout\]\[breakout-extend\]\s*\{[^}]*top:\s*2px\s*!important/s);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\[breakout\]\[breakout-extend\]\s*>\s*\.urlbar-input-container\s*\{[^}]*height:\s*calc\(var\(--urlbar-container-height\) - 10px\)\s*!important/s);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input::selection\s*\{[^}]*background-color:\s*SelectedItem\s*!important[^}]*color:\s*SelectedItemText\s*!important/s);
   assert.match(css, /--blended-addressbar-header-muted-foreground:\s*color-mix\(in srgb,\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*42%,\s*transparent\)/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input-container :is\(\.urlbar-page-action,\s*\.identity-box-button,\s*\.urlbar-icon\)/);
   assert.doesNotMatch(css, /#urlbar\[zen-floating-urlbar="true"\]\s+#urlbar-input/);
-  assert.match(css, /#zen-sidebar-top-buttons,\s*[\r\n]+\s*#zen-sidebar-top-buttons :is\(toolbarbutton,\s*\.toolbarbutton-1,\s*\.toolbarbutton-icon,\s*\.toolbarbutton-text,\s*\.urlbar-icon,\s*image,\s*svg\)/);
-  assert.match(css, /#zen-sidebar-top-buttons :is\(\[disabled\],\s*\[disabled="true"\],\s*\[muted\],\s*\[soundplaying\],\s*\.toolbarbutton-icon\[disabled\]\)/);
-  assert.match(css, /&\[zen-compact-mode="true"\] #zen-appcontent-navbar-wrapper,\s*[\r\n]+\s*&:has\(\[zen-compact-mode="true"\]\) #zen-appcontent-navbar-wrapper/);
-  assert.match(css, /@media \(-moz-platform: macos\)\s*\{[\s\S]*@media -moz-pref\("zen\.widget\.mac\.mono-window-controls"\)\s*\{[\s\S]*:root:not\(\[window-modal-open="true"\]\)\[zen-compact-mode="true"\]:not\(\[zen-single-toolbar="true"\]\) \.titlebar-buttonbox-container\s*\{[\s\S]*--toolbox-textcolor:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
   assert.match(css, /\.titlebar-buttonbox-container :is\(toolbarbutton,\s*\.toolbarbutton-1,\s*\.toolbarbutton-icon,\s*\.titlebar-button\)/);
   assert.match(css, /#personal-bookmarks,\s*[\r\n]+\s*#personal-bookmarks\.browser-toolbar/);
   assert.match(css, /#PersonalToolbar :is\(#personal-bookmarks,\s*\.browser-toolbar\)/);

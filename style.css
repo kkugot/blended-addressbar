@@ -72,7 +72,6 @@
         }
     }
 
-    &[zen-compact-mode="true"],
     &:has([zen-compact-mode="true"]) {
         #zen-appcontent-wrapper {
             margin: var(--blended-addressbar-frame-gap) !important;
@@ -100,7 +99,6 @@
         transition: background-color 100ms linear;
 
         #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
-        #zen-sidebar-top-buttons,
         #PersonalToolbar,
         #PanelUI-button {
             -moz-window-dragging: drag;
@@ -116,8 +114,6 @@
         :is(
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon),
-            #zen-sidebar-top-buttons,
-            #zen-sidebar-top-buttons :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon, image, svg),
             #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(.urlbar-page-action, .identity-box-button, .urlbar-icon),
             #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(.urlbar-page-action, .identity-box-button) :is(.toolbarbutton-icon, .urlbar-icon),
             #personal-bookmarks,
@@ -144,7 +140,6 @@
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"])[disabled],
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"])[disabled="true"],
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled]),
-            #zen-sidebar-top-buttons :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled]),
             #PersonalToolbar :is([disabled], [disabled="true"], [muted], [soundplaying]),
             #PanelUI-button :is([disabled], [disabled="true"])
         ) {
@@ -165,9 +160,27 @@
             color: var(--zen-tab-header-foreground, inherit);
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }
+
+        #urlbar:not([zen-floating-urlbar="true"]):is([focused], [open], [breakout-extend="true"]) .urlbar-input-box,
+        #urlbar:not([zen-floating-urlbar="true"]):is([focused], [open], [breakout-extend="true"]) #urlbar-input {
+            color: FieldText !important;
+            --input-color: FieldText;
+        }
+
+        #urlbar:not([zen-floating-urlbar="true"])[breakout][breakout-extend] {
+            top: 2px !important;
+        }
+
+        #urlbar:not([zen-floating-urlbar="true"])[breakout][breakout-extend] > .urlbar-input-container {
+            height: calc(var(--urlbar-container-height) - 10px) !important;
+        }
+
+        #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input::selection {
+            background-color: SelectedItem !important;
+            color: SelectedItemText !important;
+        }
     }
 
-    &[zen-compact-mode="true"] #zen-appcontent-navbar-wrapper,
     &:has([zen-compact-mode="true"]) #zen-appcontent-navbar-wrapper {
         :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .urlbar-icon) {
             color: inherit !important;
@@ -241,9 +254,9 @@
 
 @media (-moz-platform: macos) {
     @media -moz-pref("zen.widget.mac.mono-window-controls") {
-        :root:not([window-modal-open="true"])[zen-compact-mode="true"]:not([zen-single-toolbar="true"]) .titlebar-buttonbox-container {
+        :root:not([window-modal-open="true"]):not([zen-single-toolbar="true"]) .titlebar-buttonbox-container {
             color: var(--zen-tab-header-foreground, inherit) !important;
-            --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
+            --zen-toolbar-element-bg: color-mix(in srgb, currentColor 14%, transparent) !important;
         }
     }
 }
