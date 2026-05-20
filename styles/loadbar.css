@@ -1,0 +1,110 @@
+
+/* Loader bar */
+
+@-moz-document url-prefix("chrome:") {
+  /* Assume single-toolbar mode as the base use case */
+  .browserSidebarContainer.deck-selected::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 0px !important; /* This will get overridden if the toolbar is showing */
+    left: 0px !important;
+    transform: none !important;
+    height: var(--blended-addressbar-loadbar-height, 2px) !important; /* Height of the top background */
+    max-width: 100% !important;
+    width: var(--bar-pcent) !important; /* Ensure full width or customizable width */
+    background-color: var(--bar-colour, var(--blended-addressbar-loadbar-color, var(--zen-primary-color))) !important; /* Solid color for the bar */
+    opacity: var(--blended-addressbar-loadbar-opacity, 0.85) !important;
+    @media (-moz-bool-pref: "uc.loadbar.shadow") {
+      filter: drop-shadow(0px 0px 10px black) !important;
+    }
+    border-radius: 0 var(--blended-addressbar-loadbar-height, 2px) var(--blended-addressbar-loadbar-height, 2px) 0 !important;
+    @media not (-moz-bool-pref: "uc.loadbar.roundedcorner") {
+       border-radius: 0 !important; /* Adjust this value to control the roundness of the ends */
+    }
+    z-index: 1 !important;
+    /* Apply smooth transition on width, top, opacity and background */
+    transition: width 0.5s ease-in-out, top 0.1s ease-in-out, left 0.2s ease-in-out, transform 0.2s ease-in-out, opacity 0.2s ease-in-out, background 0.2s ease !important;
+  }
+
+  /* When the toolbar is permanently showing, we move the loading bar under it */
+  @media not (-moz-bool-pref: "zen.view.compact.hide-toolbar") and not (-moz-bool-pref: "zen.view.use-single-toolbar") {
+    .browserSidebarContainer.deck-selected::before {
+      top: 39px !important;
+    }
+  }
+  
+  .browserSidebarContainer.deck-selected:has([zen-glance-selected])::before,
+  .browserSidebarContainer.deck-selected.zen-glance-overlay::before {
+    max-width: calc(85%) !important;
+    left: calc(15%/2) !important;
+    border-radius: 6px !important;
+  }
+
+  @media (-moz-pref("uc.loadbar.position", "center")) {
+    .browserSidebarContainer.deck-selected::before,
+    .browserSidebarContainer.deck-selected:has([zen-glance-selected])::before,
+    .browserSidebarContainer.deck-selected.zen-glance-overlay::before {
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      width: var(--bar-pcent) !important;
+    }
+  }
+  
+  .browserSidebarContainer.deck-selected.zen-glance-background::before {
+    background: transparent !important;
+    height: 0px !important;
+  }
+  
+  :root {
+    &:has(.tabbrowser-tab[selected][busy]) {
+      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
+      --bar-pcent: 15%;
+    }
+    &:has(.tabbrowser-tab[selected][busy][pendingicon]) {
+      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
+      --bar-pcent: 45%;
+    }
+    &:has(.tabbrowser-tab[selected][busy][pendingicon][progress]) {
+      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
+      --bar-pcent: 85%;
+    }
+    &:has(.tabbrowser-tab[selected][busy][progress]) {
+      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
+      --bar-pcent: 95%;
+    }
+    &:has(.tabbrowser-tab[selected][muted]:not([busy])) {
+      --bar-colour: orangered;
+      --bar-pcent: 100%;
+      
+      .browserSidebarContainer.deck-selected::before {
+        border-radius: 0;
+      }
+    }
+  }
+
+  /* 
+     When we are in compact mode, but not in single-toolbar mode,
+     hide the loading bar while the toolbar or URL bubble is currently showing.
+
+     This uses the conditionals found in /src/zen/compact-mode/zen-compact-mode.css
+     to detect if the toolbar is showing.
+  */
+  @media (-moz-bool-pref: "zen.view.compact.hide-toolbar") {
+    :root:not([zen-single-toolbar='true']):has([zen-compact-mode='true']) {
+      &:has(#zen-appcontent-navbar-wrapper[zen-has-hover]),
+      &:has(#zen-appcontent-navbar-wrapper[zen-user-show]),
+      &:has(#zen-appcontent-navbar-wrapper[has-popup-menu]),
+      &:has(*:is(#zen-appcontent-navbar-wrapper[panelopen='true'], 
+                 #zen-appcontent-navbar-wrapper[open='true'], 
+                 #urlbar:focus-within:not(#urlbar[zen-floating-urlbar='true']), 
+                 #zen-appcontent-navbar-wrapper[breakout-extend='true'])
+            :not(.zen-compact-mode-ignore)
+      ) {
+        .browserSidebarContainer.deck-selected::before {
+          opacity: 0 !important;
+          top: 0px !important;
+        }
+      }
+    }
+  }
+}

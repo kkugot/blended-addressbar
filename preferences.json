@@ -1,0 +1,144 @@
+[
+  {
+    "type": "separator",
+    "label": "Browser Frame",
+    "margin": "20px 0 12px 0"
+  },
+  {
+    "property": "uc.blended-addressbar.frame-radius",
+    "label": "Corner radius",
+    "type": "string",
+    "defaultValue": "14px"
+  },
+  {
+    "property": "uc.blended-addressbar.frame-gap",
+    "label": "Frame gap",
+    "type": "string",
+    "defaultValue": "5px"
+  },
+  {
+    "property": "uc.blended-addressbar.frame-padding.disabled",
+    "label": "Remove browser frame padding",
+    "type": "checkbox"
+  },
+  {
+    "property": "uc.blended-addressbar.frame-shadow",
+    "label": "Frame shadow",
+    "type": "dropdown",
+    "defaultValue": "standard",
+    "options": [
+      {
+        "label": "No shadow",
+        "value": "none"
+      },
+      {
+        "label": "Standard",
+        "value": "standard"
+      },
+      {
+        "label": "Minimal",
+        "value": "minimal"
+      },
+      {
+        "label": "Medium",
+        "value": "medium"
+      }
+    ]
+  },
+  {
+    "type": "text",
+    "label": "Window Tint",
+    "margin": "20px 0 12px 0",
+    "size": "16px"
+  },
+  {
+    "property": "uc.blended-addressbar.window-tint.enabled",
+    "label": "Tint browser window with page colors",
+    "type": "checkbox"
+  },
+  {
+    "property": "uc.blended-addressbar.window-tint.strength",
+    "label": "Window tint strength (%)",
+    "type": "string",
+    "defaultValue": "25"
+  },
+  {
+    "property": "uc.blended-addressbar.clear-cache-request",
+    "label": "Clear cached page colors",
+    "type": "checkbox"
+  },
+  {
+    "type": "separator",
+    "label": "Loading Bar",
+    "margin": "20px 0 12px 0"
+  },
+  {
+    "property": "uc.loadbar.position",
+    "label": "Loading bar layout",
+    "type": "dropdown",
+    "defaultValue": "full",
+    "options": [
+      {
+        "label": "Full width",
+        "value": "full"
+      },
+      {
+        "label": "Centered",
+        "value": "center"
+      }
+    ]
+  },
+  {
+    "property": "uc.loadbar.color-source",
+    "label": "Color source",
+    "type": "dropdown",
+    "placeholder": "Zen Primary",
+    "defaultValue": "zen",
+    "options": [
+      {
+        "label": "Zen Primary",
+        "value": "zen"
+      },
+      {
+        "label": "Page Foreground",
+        "value": "page-foreground"
+      },
+      {
+        "label": "Page Background",
+        "value": "page-background"
+      },
+      {
+        "label": "Custom Color",
+        "value": "custom"
+      }
+    ]
+  },
+  {
+    "property": "uc.loadbar.color",
+    "label": "Custom color",
+    "type": "string",
+    "defaultValue": "#3b82f6"
+  },
+  {
+    "property": "uc.loadbar.height",
+    "label": "Height",
+    "type": "string",
+    "defaultValue": "2px"
+  },
+  {
+    "property": "uc.loadbar.opacity",
+    "label": "Opacity (%)",
+    "type": "string",
+    "defaultValue": "85"
+  },
+  {
+    "property": "uc.loadbar.roundedcorner",
+    "label": "Rounded corners",
+    "type": "checkbox"
+  },
+  {
+    "property": "uc.loadbar.shadow",
+    "label": "Shadow",
+    "type": "checkbox"
+  }
+]
