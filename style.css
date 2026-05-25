@@ -50,6 +50,10 @@
 
 /* URL bar */
 
+#navigator-toolbox[zen-sidebar-expanded="true"] {
+    padding-top: 2px !important;
+}
+
 /* Only in single toolbar mode */
 :root:not([zen-single-toolbar="true"]) {
 
@@ -134,6 +138,13 @@
             --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
             --toolbar-color: var(--zen-tab-header-foreground, currentColor);
             --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
+        }
+
+        #urlbar:not([zen-floating-urlbar="true"]) #zen-site-data-icon-button[boosting] image {
+            color: var(--zen-tab-header-foreground, currentColor) !important;
+            fill: currentColor !important;
+            stroke: currentColor !important;
+            --toolbarbutton-icon-fill: currentColor;
         }
 
         :is(

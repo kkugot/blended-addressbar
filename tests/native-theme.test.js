@@ -145,6 +145,12 @@ test('frame gap, remove-padding checkbox, and inner radius settings coexist', ()
   assert.match(prefs, /uc\.blended-addressbar\.frame-padding\.disabled/);
 });
 
+test('expanded sidebar toolbox keeps chrome icons vertically aligned', () => {
+  const css = read('style.css');
+
+  assert.match(css, /#navigator-toolbox\[zen-sidebar-expanded="true"\]\s*\{[^}]*padding-top:\s*2px\s*!important/s);
+});
+
 test('frame shadow is selected through constrained dropdown presets', () => {
   const css = read('style.css');
   const script = read('blended-bar.uc.js');
@@ -166,15 +172,48 @@ test('frame shadow is selected through constrained dropdown presets', () => {
   assert.match(prefs, /"label": "Medium"/);
 });
 
-test('theme cache can be cleared through a momentary preference action', () => {
+test('page color caching is controlled by browsing and long-lived site preferences', () => {
   const script = read('blended-bar.uc.js');
   const prefs = read('preferences.json');
+  const readme = read('README.md');
 
-  assert.match(script, /clear-cache-request/);
-  assert.match(script, /clearThemeCache\('preference-button'\)/);
-  assert.match(script, /setBoolPref\(clearCacheRequestPref,\s*false\)/);
-  assert.match(prefs, /uc\.blended-addressbar\.clear-cache-request/);
-  assert.match(prefs, /Clear cached page colors/);
+  assert.match(script, /const rememberPageColorsPref = `\$\{addressbarPrefBranch\}remember-page-colors`/);
+  assert.match(script, /const rememberSiteColorsLongerPref = `\$\{addressbarPrefBranch\}remember-site-colors-longer`/);
+  assert.match(script, /const siteThemeCachePref = `\$\{addressbarPrefBranch\}site-theme-cache`/);
+  assert.match(script, /let hostThemeCache = new Map\(\)/);
+  assert.match(script, /function readRememberPageColors\(\)/);
+  assert.match(script, /return readBoolPref\(rememberPageColorsPref,\s*true\)/);
+  assert.match(script, /function readRememberSiteColorsLonger\(\)/);
+  assert.match(script, /return readRememberPageColors\(\) && readBoolPref\(rememberSiteColorsLongerPref,\s*false\)/);
+  assert.match(script, /function getThemeHostKey\(href\)/);
+  assert.match(script, /function getCachedHostTheme\(browser\)/);
+  assert.match(script, /source:\s*'host-cache'/);
+  assert.match(script, /function persistHostThemeCache\(\)/);
+  assert.match(script, /writeStringPref\(siteThemeCachePref/);
+  assert.match(script, /function clearHostThemeCache\(reason = 'clear-cache'\)/);
+  assert.match(script, /clearUserPref\(siteThemeCachePref\)/);
+  assert.match(script, /if \(changedPref === rememberPageColorsPref && !readRememberPageColors\(\)\)/);
+  assert.match(script, /if \(changedPref === rememberSiteColorsLongerPref && !readRememberSiteColorsLonger\(\)\)/);
+  assert.doesNotMatch(script, /clearCacheRequestPref/);
+  assert.doesNotMatch(script, /clear-cache-request/);
+  assert.match(prefs, /uc\.blended-addressbar\.remember-page-colors/);
+  assert.match(prefs, /Remember page colors while browsing/);
+  assert.match(prefs, /uc\.blended-addressbar\.remember-site-colors-longer/);
+  assert.match(prefs, /Remember site colors longer/);
+  assert.doesNotMatch(prefs, /uc\.blended-addressbar\.clear-cache-request/);
+  assert.doesNotMatch(prefs, /Clear cached page colors/);
+  assert.match(readme, /uc\.blended-addressbar\.remember-page-colors/);
+  assert.match(readme, /uc\.blended-addressbar\.remember-site-colors-longer/);
+  assert.doesNotMatch(readme, /uc\.blended-addressbar\.clear-cache-request/);
+});
+
+test('long-lived host color cache is a fallback instead of the first tab-switch paint', () => {
+  const script = read('blended-bar.uc.js');
+
+  assert.match(script, /const cachedThemeIsHost = cachedTheme\?\.source === 'host-cache'/);
+  assert.match(script, /if \(cachedTheme && !cachedThemeIsHost\) \{\s*applyResolvedTheme\(browser,\s*cachedTheme,\s*'cache',\s*expectedHref\);\s*\}/s);
+  assert.doesNotMatch(script, /if \(cachedTheme\) \{\s*applyResolvedTheme\(browser,\s*cachedTheme,\s*'cache',\s*expectedHref\);\s*\}\s*const fastTheme = getBrowserPageThemeFromChrome\(browser\)/s);
+  assert.match(script, /if \(pageTheme\?\.bg\) \{\s*applyResolvedTheme\(browser,\s*pageTheme,\s*reason,\s*expectedHref\);\s*\} else if \(cachedThemeIsHost\) \{\s*applyResolvedTheme\(browser,\s*cachedTheme,\s*'host-cache',\s*expectedHref\);\s*\}/s);
 });
 
 test('internal browser pages use a translucent page-canvas header instead of stale web colors', () => {
@@ -232,6 +271,8 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input::selection\s*\{[^}]*background-color:\s*SelectedItem\s*!important[^}]*color:\s*SelectedItemText\s*!important/s);
   assert.match(css, /--blended-addressbar-header-muted-foreground:\s*color-mix\(in srgb,\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*42%,\s*transparent\)/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input-container :is\(\.urlbar-page-action,\s*\.identity-box-button,\s*\.urlbar-icon\)/);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #zen-site-data-icon-button\[boosting\] image\s*\{[^}]*color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*!important/s);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #zen-site-data-icon-button\[boosting\] image\s*\{[^}]*--toolbarbutton-icon-fill:\s*currentColor/s);
   assert.doesNotMatch(css, /#urlbar\[zen-floating-urlbar="true"\]\s+#urlbar-input/);
   assert.match(css, /\.titlebar-buttonbox-container :is\(toolbarbutton,\s*\.toolbarbutton-1,\s*\.toolbarbutton-icon,\s*\.titlebar-button\)/);
   assert.match(css, /#personal-bookmarks,\s*[\r\n]+\s*#personal-bookmarks\.browser-toolbar/);

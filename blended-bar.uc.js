@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.1.3
+// @version        1.1.6
 // ==/UserScript==
 
 (() => {
@@ -45,9 +45,13 @@
   const windowTintEnabledPref = `${addressbarPrefBranch}window-tint.enabled`;
   const windowTintStrengthPref = `${addressbarPrefBranch}window-tint.strength`;
   const legacySidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
-  const clearCacheRequestPref = `${addressbarPrefBranch}clear-cache-request`;
+  const rememberPageColorsPref = `${addressbarPrefBranch}remember-page-colors`;
+  const rememberSiteColorsLongerPref = `${addressbarPrefBranch}remember-site-colors-longer`;
+  const siteThemeCachePref = `${addressbarPrefBranch}site-theme-cache`;
   const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
   const defaultWindowTintStrengthPercent = 25;
+  const hostThemeCacheMaxEntries = 100;
+  const hostThemeCacheTtlMs = 7 * 24 * 60 * 60 * 1000;
   const nativeZenThemeProperties = [
     '--zen-main-browser-background',
     '--zen-main-browser-background-toolbar'
@@ -62,6 +66,8 @@
     '--blended-addressbar-split-radius-bottom-left'
   ];
   let themeCache = new WeakMap();
+  let hostThemeCache = new Map();
+  let hostThemeCacheLoaded = false;
   let themeRequestSeq = 0;
   let servicesModule = null;
   let lastThemeKey = null;
@@ -508,6 +514,7 @@
       html: 3,
       'document-canvas': 2,
       sampler: 1,
+      'host-cache': 4,
       'chrome-contrast-fallback': 1,
       'toolbar-fallback': 0
     }[source] ?? 0;
@@ -544,14 +551,18 @@
     } = options;
     const confidence = getThemeSourceConfidence(theme);
     const key = `${getThemeKey(theme)}|${theme.source || ''}`;
+    const source = theme.source || '';
+    const replacingHostCache = themeApplyState.applied?.source === 'host-cache'
+      && source !== 'host-cache'
+      && confidence > 0;
 
     if (!loading) {
-      return confidence >= appliedConfidence
+      return replacingHostCache || confidence >= appliedConfidence
         ? { action: 'apply', confidence, key }
         : { action: 'ignore', confidence, key };
     }
 
-    if (appliedConfidence >= 0 && confidence <= appliedConfidence) {
+    if (!replacingHostCache && appliedConfidence >= 0 && confidence <= appliedConfidence) {
       return { action: 'ignore', confidence, key };
     }
 
@@ -566,22 +577,204 @@
     return { action: 'defer', confidence, key };
   }
 
+  function getThemeHostKey(href) {
+    try {
+      const url = new URL(String(href || ''));
+      return /^(https?):$/i.test(url.protocol) && url.hostname
+        ? url.hostname.toLowerCase()
+        : null;
+    } catch {}
+
+    return null;
+  }
+
+  function sanitizeHostTheme(theme, href) {
+    if (!theme?.bg || !isPageThemeEligibleHref(href)) return null;
+    if (theme.source === 'host-cache' || getThemeSourceConfidence(theme) < 2) return null;
+
+    return {
+      bg: theme.bg,
+      fg: theme.fg || null,
+      bridge: theme.bridge || 'cache',
+      href,
+      source: theme.source || ''
+    };
+  }
+
+  function normalizeHostThemeCacheEntry(entry, now = Date.now()) {
+    const savedAt = Number(entry?.savedAt || 0);
+    const theme = entry?.theme || null;
+    if (!savedAt || now - savedAt > hostThemeCacheTtlMs || !theme?.bg) return null;
+
+    return {
+      savedAt,
+      theme: {
+        bg: String(theme.bg || ''),
+        fg: theme.fg ? String(theme.fg) : null,
+        bridge: theme.bridge ? String(theme.bridge) : 'cache',
+        href: theme.href ? String(theme.href) : '',
+        source: theme.source ? String(theme.source) : ''
+      }
+    };
+  }
+
+  function pruneHostThemeCache(now = Date.now()) {
+    for (const [host, entry] of hostThemeCache.entries()) {
+      if (!normalizeHostThemeCacheEntry(entry, now)) {
+        hostThemeCache.delete(host);
+      }
+    }
+
+    while (hostThemeCache.size > hostThemeCacheMaxEntries) {
+      const oldestHost = hostThemeCache.keys().next().value;
+      if (!oldestHost) break;
+      hostThemeCache.delete(oldestHost);
+    }
+  }
+
+  function ensureHostThemeCacheLoaded() {
+    if (hostThemeCacheLoaded) return;
+    hostThemeCacheLoaded = true;
+
+    if (!readRememberSiteColorsLonger()) {
+      hostThemeCache = new Map();
+      return;
+    }
+
+    const raw = readStringPref(siteThemeCachePref, '');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+      const now = Date.now();
+      for (const item of entries) {
+        const host = String(item?.[0] || '').trim().toLowerCase();
+        const entry = normalizeHostThemeCacheEntry(item?.[1], now);
+        if (host && entry) hostThemeCache.set(host, entry);
+      }
+      pruneHostThemeCache(now);
+    } catch {
+      hostThemeCache = new Map();
+      clearUserPref(siteThemeCachePref);
+    }
+  }
+
+  function persistHostThemeCache() {
+    if (!readRememberSiteColorsLonger()) {
+      clearUserPref(siteThemeCachePref);
+      return;
+    }
+
+    pruneHostThemeCache();
+    if (!hostThemeCache.size) {
+      clearUserPref(siteThemeCachePref);
+      return;
+    }
+
+    writeStringPref(siteThemeCachePref, JSON.stringify({
+      version: 1,
+      entries: Array.from(hostThemeCache.entries())
+    }));
+  }
+
+  function clearHostThemeCache(reason = 'clear-cache') {
+    hostThemeCache = new Map();
+    hostThemeCacheLoaded = true;
+    clearUserPref(siteThemeCachePref);
+
+    if (DEBUG_THEME) {
+      const root = chromeDoc.documentElement;
+      root.setAttribute('data-blended-addressbar-host-cache-cleared-at', String(Date.now()));
+      root.setAttribute('data-blended-addressbar-host-cache-clear-reason', reason);
+    }
+  }
+
+  function cacheHostTheme(theme, href) {
+    if (!readRememberSiteColorsLonger()) return;
+
+    const host = getThemeHostKey(href);
+    const cachedTheme = sanitizeHostTheme(theme, href);
+    if (!host || !cachedTheme) return;
+
+    ensureHostThemeCacheLoaded();
+    hostThemeCache.delete(host);
+    hostThemeCache.set(host, {
+      savedAt: Date.now(),
+      theme: cachedTheme
+    });
+    persistHostThemeCache();
+  }
+
+  function getCachedHostTheme(browser) {
+    if (!readRememberSiteColorsLonger()) {
+      if (hostThemeCache.size || prefHasUserValue(siteThemeCachePref)) {
+        clearHostThemeCache('site-cache-disabled');
+      }
+      return null;
+    }
+
+    const href = getBrowserHref(browser);
+    const host = getThemeHostKey(href);
+    if (!host) return null;
+
+    ensureHostThemeCacheLoaded();
+    const entry = normalizeHostThemeCacheEntry(hostThemeCache.get(host));
+    if (!entry?.theme?.bg) {
+      if (hostThemeCache.delete(host)) persistHostThemeCache();
+      return null;
+    }
+
+    hostThemeCache.delete(host);
+    hostThemeCache.set(host, entry);
+    return {
+      ...entry.theme,
+      href,
+      source: 'host-cache',
+      cachedAt: entry.savedAt,
+      cachedSource: entry.theme.source || ''
+    };
+  }
+
   function cacheTheme(browser, theme) {
     if (!browser || !theme?.bg) return;
+
+    const href = theme.href || getBrowserHref(browser);
+    if (!readRememberPageColors()) {
+      themeCache = new WeakMap();
+      if (hostThemeCache.size || prefHasUserValue(siteThemeCachePref)) {
+        clearHostThemeCache('page-cache-disabled');
+      }
+      return;
+    }
+
     themeCache.set(browser, {
-      href: theme.href || getBrowserHref(browser),
+      href,
       theme
     });
+    cacheHostTheme(theme, href);
   }
 
   function getCachedTheme(browser) {
+    if (!readRememberPageColors()) {
+      themeCache = new WeakMap();
+      if (hostThemeCache.size || prefHasUserValue(siteThemeCachePref)) {
+        clearHostThemeCache('page-cache-disabled');
+      }
+      return null;
+    }
+
     const cached = browser ? themeCache.get(browser) : null;
-    if (!cached || cached.href !== getBrowserHref(browser)) return null;
-    return cached.theme?.bg ? cached.theme : null;
+    if (cached && cached.href === getBrowserHref(browser) && cached.theme?.bg) {
+      return cached.theme;
+    }
+
+    return getCachedHostTheme(browser);
   }
 
   function clearThemeCache(reason = 'clear-cache') {
     themeCache = new WeakMap();
+    clearHostThemeCache(reason);
     lastThemeKey = null;
     lastCss = null;
     clearPendingThemeCandidate();
@@ -706,6 +899,35 @@
     return fallback;
   }
 
+  function writeStringPref(name, value) {
+    const prefs = getPrefs();
+    if (!prefs) return false;
+
+    try {
+      prefs.setStringPref(name, value);
+      return true;
+    } catch {}
+
+    try {
+      prefs.setCharPref(name, value);
+      return true;
+    } catch {}
+
+    return false;
+  }
+
+  function clearUserPref(name) {
+    const prefs = getPrefs();
+    if (!prefs?.clearUserPref) return false;
+
+    try {
+      prefs.clearUserPref(name);
+      return true;
+    } catch {}
+
+    return false;
+  }
+
   function readBoolPref(name, fallback) {
     const prefs = getPrefs();
     if (!prefs) return fallback;
@@ -734,6 +956,14 @@
     }
 
     return readBoolPref(legacySidebarEnabledPref, false);
+  }
+
+  function readRememberPageColors() {
+    return readBoolPref(rememberPageColorsPref, true);
+  }
+
+  function readRememberSiteColorsLonger() {
+    return readRememberPageColors() && readBoolPref(rememberSiteColorsLongerPref, false);
   }
 
   function migrateWindowTintPref() {
@@ -890,17 +1120,32 @@
           || (changedPref !== windowTintEnabledPref
             && changedPref !== windowTintStrengthPref
             && changedPref !== legacySidebarEnabledPref
-            && changedPref !== clearCacheRequestPref)) {
+            && changedPref !== rememberPageColorsPref
+            && changedPref !== rememberSiteColorsLongerPref)) {
           return;
         }
 
-        if (changedPref === clearCacheRequestPref) {
-          if (!readBoolPref(clearCacheRequestPref, false)) return;
-          clearThemeCache('preference-button');
-          try {
-            prefs.setBoolPref(clearCacheRequestPref, false);
-          } catch {}
-          void updateActive({ reason: 'clear-cache' });
+        if (changedPref === rememberPageColorsPref && !readRememberPageColors()) {
+          clearThemeCache('page-cache-disabled');
+          void updateActive({ reason: 'page-cache-disabled' });
+          return;
+        }
+
+        if (changedPref === rememberPageColorsPref) {
+          void updateActive({ reason: 'page-cache-enabled' });
+          return;
+        }
+
+        if (changedPref === rememberSiteColorsLongerPref && !readRememberSiteColorsLonger()) {
+          clearHostThemeCache('site-cache-disabled');
+          void updateActive({ reason: 'site-cache-disabled' });
+          return;
+        }
+
+        if (changedPref === rememberSiteColorsLongerPref) {
+          hostThemeCacheLoaded = false;
+          ensureHostThemeCacheLoaded();
+          void updateActive({ reason: 'site-cache-enabled' });
           return;
         }
 
@@ -3098,18 +3343,21 @@
     }
 
     const cachedTheme = getCachedTheme(browser);
+    const cachedThemeIsHost = cachedTheme?.source === 'host-cache';
     if (isLoadingThemeFor(browser) && !cachedTheme) {
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown');
       return;
     }
 
-    if (cachedTheme) {
+    if (cachedTheme && !cachedThemeIsHost) {
       applyResolvedTheme(browser, cachedTheme, 'cache', expectedHref);
     }
 
     const fastTheme = getBrowserPageThemeFromChrome(browser);
     if (fastTheme?.bg) {
       applyResolvedTheme(browser, fastTheme, reason === 'fallback' ? 'fast' : reason, expectedHref);
+    } else if (cachedThemeIsHost && fastOnly) {
+      applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref);
     } else if (fastOnly) {
       return;
     } else if (!cachedTheme && !skipToolbarFallback) {
@@ -3120,6 +3368,8 @@
       const pageTheme = await getBrowserPageTheme(browser);
       if (pageTheme?.bg) {
         applyResolvedTheme(browser, pageTheme, reason, expectedHref);
+      } else if (cachedThemeIsHost) {
+        applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref);
       } else if (!skipToolbarFallback) {
         applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason);
       }

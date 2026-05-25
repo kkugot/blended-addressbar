@@ -24,7 +24,8 @@ The mod exposes its settings through `preferences.json`.
 
 - `uc.blended-addressbar.window-tint.enabled`: tint the browser window with active page colors while preserving Zen's existing icon and text colors.
 - `uc.blended-addressbar.window-tint.strength`: tint strength as a percentage from `0` to `100`; defaults to `25`.
-- `uc.blended-addressbar.clear-cache-request`: momentary action that clears cached page colors and refreshes the active tab.
+- `uc.blended-addressbar.remember-page-colors`: remember page colors in memory while browsing; turning it off clears cached colors and disables color cache reuse.
+- `uc.blended-addressbar.remember-site-colors-longer`: persist remembered site colors across browser restarts; defaults off.
 - `uc.blended-addressbar.frame-radius`: outer browser frame corner radius as a CSS length, such as `8px` or `0`.
 - `uc.blended-addressbar.frame-gap`: spacing around the browser frame as a CSS length, such as `5px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.6 - 2026-05-25
+
+- Replaced the momentary page-color cache clear action with a `Remember page colors while browsing` preference.
+- Added an opt-in `Remember site colors longer` preference that persists capped host color cache entries across browser restarts.
+- Deferred persisted host-cache colors until fresh page color lookup fails, preventing addressbar background blinking on tab switch.
+- Kept expanded sidebar toolbar alignment and boosted site-data icon colors consistent with adaptive header foregrounds.
+
 ## 1.1.5 - 2026-05-20
 
 - Kept focused/open URL text native while the addressbar popup is shown.
