@@ -4,6 +4,7 @@
     --blended-addressbar-frame-gap: 5px;
     --blended-addressbar-frame-radius: 14px;
     --blended-addressbar-inner-radius: max(0px, calc(var(--blended-addressbar-frame-radius) - var(--blended-addressbar-frame-gap)));
+    --blended-addressbar-color-transition: 100ms linear;
     --blended-addressbar-frame-shadow-standard:
         0 4px 16px rgba(0, 0, 0, 0.14),
         0 1px 4px rgba(0, 0, 0, 0.12);
@@ -99,8 +100,7 @@
         background-color: var(--zen-tab-header-background, var(--zen-main-browser-background-toolbar));
         box-shadow: none;
         --blended-addressbar-header-muted-foreground: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 42%, transparent);
-
-        transition: background-color 100ms linear;
+        transition: background-color var(--blended-addressbar-color-transition), color var(--blended-addressbar-color-transition);
 
         #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
         #PersonalToolbar,
@@ -108,11 +108,11 @@
             -moz-window-dragging: drag;
             color: var(--zen-tab-header-foreground, inherit);
             fill: currentColor;
+            transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
             --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
             --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
             --toolbar-color: var(--zen-tab-header-foreground, currentColor);
             --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
-            
         }
 
         :is(
@@ -134,6 +134,7 @@
             color: var(--zen-tab-header-foreground, inherit) !important;
             fill: currentColor !important;
             stroke: currentColor !important;
+            transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
             --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
             --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
             --toolbar-color: var(--zen-tab-header-foreground, currentColor);
@@ -144,6 +145,7 @@
             color: var(--zen-tab-header-foreground, currentColor) !important;
             fill: currentColor !important;
             stroke: currentColor !important;
+            transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
             --toolbarbutton-icon-fill: currentColor;
         }
 
@@ -157,11 +159,13 @@
             color: var(--blended-addressbar-header-muted-foreground) !important;
             fill: currentColor !important;
             stroke: currentColor !important;
+            transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
             --toolbarbutton-icon-fill: currentColor;
         }
 
         #urlbar:not([zen-floating-urlbar="true"]) {
             color: var(--zen-tab-header-foreground, inherit);
+            transition: color var(--blended-addressbar-color-transition);
             --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }
@@ -169,6 +173,7 @@
         #urlbar:not([zen-floating-urlbar="true"]) .urlbar-input-box,
         #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input {
             color: var(--zen-tab-header-foreground, inherit);
+            transition: color var(--blended-addressbar-color-transition);
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }
 

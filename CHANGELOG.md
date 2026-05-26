@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.2.0 - 2026-05-26
+
+- Added a persistent content sampler inspired by `caezium/zen-page-tint` to pick up rendered page colors and theme mutations without repeated one-off frame-script setup.
+- Restored a short linear adaptive header color transition for background and foreground changes.
+- Deferred post-load semantic fallbacks briefly so rendered pixel samples can win first on Zen Boost-modified pages.
+- Added Zen Boost-aware color arbitration that ignores non-rendered theme sources while Boost is active and resamples when Boost state changes.
+- Applied exact target-tab/page cached colors before same-host or host-cache fallbacks during tab switches.
+- Retained the previous same-host color during tab switches so unloaded tabs do not briefly flash a neutral header while restoring.
+- Kept a stable readable foreground on early cached tab-switch colors so the addressbar text does not blink while samples catch up.
+- Kept preferred `theme-color` metadata stable during active page loads while still skipping weaker non-rendered fast fallbacks.
+- Added coalesced active-tab color refresh scheduling with a `requestAnimationFrame` plus timeout fallback.
+- Added a bounded `origin + pathname` page-color LRU cache before the long-lived host fallback cache.
+- Skipped reapplying equivalent tab colors by normalizing theme keys and avoiding unchanged CSS variable writes.
+- Removed the `Remember page colors while browsing` preference; page colors are now always remembered in memory during the browsing session.
+- Changed `Remember site colors longer` to default on so site colors persist across browser restarts unless disabled.
+- Removed the perpetual active-tab refresh loop from the normal event path now that the content sampler observes page theme changes.
+- Removed scroll-driven page color resampling so scrolling does not change the adaptive header color.
+- Kept cached tab-switch colors stable without immediately forcing a fresh persistent page sample.
+- Cleared page color caches when the OS color scheme changes and skipped same-document navigation refreshes.
+- Added README credit for the borrowed `zen-page-tint` implementation ideas.
+- Centralized adaptive color source policy and resolve-context inputs so Boost, Dark Reader, semantic colors, and cache behavior use one arbitration model.
+
 ## 1.1.6 - 2026-05-25
 
 - Replaced the momentary page-color cache clear action with a `Remember page colors while browsing` preference.

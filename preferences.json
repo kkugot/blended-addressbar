@@ -63,16 +63,10 @@
     "defaultValue": "25"
   },
   {
-    "property": "uc.blended-addressbar.remember-page-colors",
-    "label": "Remember page colors while browsing",
-    "type": "checkbox",
-    "defaultValue": true
-  },
-  {
     "property": "uc.blended-addressbar.remember-site-colors-longer",
     "label": "Remember site colors longer",
     "type": "checkbox",
-    "defaultValue": false
+    "defaultValue": true
   },
   {
     "type": "separator",

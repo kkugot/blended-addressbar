@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.1.6
+// @version        1.2.0
 // ==/UserScript==
 
 (() => {
@@ -26,12 +26,16 @@
   const loadingSamplingIntervalMs = 120;
   const sampledColorMinAlpha = 0.08;
   const fallbackThemeStableDelayMs = 350;
+  const visualThemeSettleDelayMs = 180;
   const immediateThemeConfidenceMin = 4;
-  const activeThemeRefreshIntervalMs = 2500;
   const internalPageHeaderOpacity = 0.72;
   const unknownPageHeaderOpacity = 0.1;
   const themeBridgeTimeoutMs = 250;
   const themeMessageName = 'blended-addressbar:theme-response';
+  const persistentThemeMessageName = 'blended-addressbar:persistent-theme';
+  const themeFrameScriptUrl = 'chrome://sine/content/blended-addressbar/frame.js';
+  const pageThemeCacheMaxEntries = 500;
+  const scheduleSafetyMs = 100;
   const loadbarPrefBranch = 'uc.loadbar.';
   const loadbarHeightPref = `${loadbarPrefBranch}height`;
   const loadbarOpacityPref = `${loadbarPrefBranch}opacity`;
@@ -45,7 +49,6 @@
   const windowTintEnabledPref = `${addressbarPrefBranch}window-tint.enabled`;
   const windowTintStrengthPref = `${addressbarPrefBranch}window-tint.strength`;
   const legacySidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
-  const rememberPageColorsPref = `${addressbarPrefBranch}remember-page-colors`;
   const rememberSiteColorsLongerPref = `${addressbarPrefBranch}remember-site-colors-longer`;
   const siteThemeCachePref = `${addressbarPrefBranch}site-theme-cache`;
   const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
@@ -65,9 +68,31 @@
     '--blended-addressbar-split-radius-bottom-right',
     '--blended-addressbar-split-radius-bottom-left'
   ];
+  const colorSourcePolicies = Object.freeze({
+    'selector-rule': Object.freeze({ sourceClass: 'explicit', rendered: true, confidence: 7, preferred: true }),
+    'dark-reader': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 5, modifier: true }),
+    'top-visible': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
+    'pixel-top-edge': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
+    pixel: Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
+    'theme-color': Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 7, preferred: true }),
+    body: Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 3 }),
+    html: Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 3 }),
+    'document-canvas': Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 2 }),
+    sampler: Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 1 }),
+    'host-cache': Object.freeze({ sourceClass: 'cache', rendered: false, confidence: 4 }),
+    'chrome-contrast-fallback': Object.freeze({ sourceClass: 'fallback', rendered: false, confidence: 1 }),
+    'toolbar-fallback': Object.freeze({ sourceClass: 'fallback', rendered: false, confidence: 0 })
+  });
+  const unknownColorSourcePolicy = Object.freeze({
+    sourceClass: 'unknown',
+    rendered: false,
+    confidence: 0
+  });
   let themeCache = new WeakMap();
+  let pageThemeCache = new Map();
   let hostThemeCache = new Map();
   let hostThemeCacheLoaded = false;
+  let persistentThemeListeners = new WeakMap();
   let themeRequestSeq = 0;
   let servicesModule = null;
   let lastThemeKey = null;
@@ -94,22 +119,50 @@
   let loadingThemePollHref = '';
   let activeThemeUpdateInFlight = false;
   let pendingActiveThemeUpdateOptions = null;
-  let activeThemeRefreshTimer = 0;
+  let scheduledActiveUpdate = false;
+  let scheduledActiveUpdateOptions = null;
+  let scheduledActiveUpdateAt = 0;
+  let scheduledActiveUpdateRaf = 0;
+  let scheduledActiveUpdateTimer = 0;
   let paneCornerMutationObserver = null;
   let paneCornerUpdateTimer = 0;
+  let zenBoostMutationObserver = null;
+  let lastZenBoostActive = false;
 
-  const setVar = (value, foreground) => {
-    chromeDoc.documentElement.style.setProperty('--zen-tab-header-background', value || 'transparent');
-    if (foreground) {
-      chromeDoc.documentElement.style.setProperty('--zen-tab-header-foreground', foreground);
-    } else {
-      chromeDoc.documentElement.style.removeProperty('--zen-tab-header-foreground');
+  function setStylePropertyIfChanged(style, name, value, priority = '') {
+    if (!style || !name) return false;
+
+    const nextValue = String(value ?? '');
+    const nextPriority = String(priority || '');
+    if (style.getPropertyValue(name) === nextValue && style.getPropertyPriority(name) === nextPriority) {
+      return false;
     }
-  };
+
+    style.setProperty(name, nextValue, nextPriority);
+    return true;
+  }
+
+  function removeStylePropertyIfChanged(style, name) {
+    if (!style || !name || !style.getPropertyValue(name)) return false;
+
+    style.removeProperty(name);
+    return true;
+  }
+
+  function setVar(value, foreground) {
+    const rootStyle = chromeDoc.documentElement.style;
+    setStylePropertyIfChanged(rootStyle, '--zen-tab-header-background', value || 'transparent');
+    if (foreground) {
+      setStylePropertyIfChanged(rootStyle, '--zen-tab-header-foreground', foreground);
+    } else {
+      removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-foreground');
+    }
+  }
 
   function clearTabHeaderTheme() {
-    chromeDoc.documentElement.style.removeProperty('--zen-tab-header-background');
-    chromeDoc.documentElement.style.removeProperty('--zen-tab-header-foreground');
+    const rootStyle = chromeDoc.documentElement.style;
+    removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-background');
+    removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-foreground');
   }
 
   function isPageThemeEligibleHref(href) {
@@ -204,7 +257,10 @@
     }
 
     const key = getThemeKey(theme);
-    if (key === lastThemeKey) return true;
+    if (key === lastThemeKey) {
+      lastAppliedTheme = theme;
+      return true;
+    }
 
     clearPendingThemeCandidate();
     resetThemeArbitration(href);
@@ -236,14 +292,16 @@
 
     const href = getBrowserHref(browser);
     const key = getThemeKey(theme);
-    chromeDoc.documentElement.style.setProperty('--blended-addressbar-frame-background', 'transparent', 'important');
-    if (key === lastThemeKey) return true;
+    if (key === lastThemeKey && getCurrentFrameBackground() === 'transparent') {
+      lastAppliedTheme = theme;
+      return true;
+    }
 
     clearPendingThemeCandidate();
     resetThemeArbitration(href);
     restoreNativeZenTheme();
     clearWindowTintBackground();
-    chromeDoc.documentElement.style.setProperty('--blended-addressbar-frame-background', 'transparent', 'important');
+    setStylePropertyIfChanged(chromeDoc.documentElement.style, '--blended-addressbar-frame-background', 'transparent', 'important');
 
     lastAppliedTheme = theme;
     lastThemeKey = key;
@@ -358,8 +416,12 @@
   }
 
   function setWindowTintBackground(tintBackground, root = chromeDoc.documentElement) {
-    root.style.setProperty('--blended-addressbar-window-tint-background', tintBackground, 'important');
-    getZenBrowserBackground()?.style.setProperty('--blended-addressbar-window-tint-background', tintBackground, 'important');
+    setStylePropertyIfChanged(root.style, '--blended-addressbar-window-tint-background', tintBackground, 'important');
+    setStylePropertyIfChanged(getZenBrowserBackground()?.style, '--blended-addressbar-window-tint-background', tintBackground, 'important');
+  }
+
+  function getCurrentFrameBackground(root = chromeDoc.documentElement) {
+    return String(root.style.getPropertyValue('--blended-addressbar-frame-background') || '').trim();
   }
 
   function applyNativeZenTheme(theme, reason = '') {
@@ -383,7 +445,7 @@
 
     rememberNativeZenThemeOriginals(root);
     setWindowTintBackground(tintBackground, root);
-    root.style.setProperty('--blended-addressbar-frame-background', tintBackground, 'important');
+    setStylePropertyIfChanged(root.style, '--blended-addressbar-frame-background', tintBackground, 'important');
     root.setAttribute('data-blended-addressbar-native-theme', 'applied');
     root.setAttribute('data-blended-addressbar-native-theme-bg', bg);
     root.setAttribute('data-blended-addressbar-native-theme-tint', tintBackground);
@@ -497,27 +559,86 @@
     schedulePaneCornerRadiiUpdate();
   }
 
+  function normalizeAlphaForKey(alpha) {
+    const value = Number(alpha);
+    if (!Number.isFinite(value)) return '1';
+
+    const clamped = Math.max(0, Math.min(1, value));
+    return String(Math.round(clamped * 1000) / 1000);
+  }
+
+  function getHexColorAlphaForKey(value) {
+    const hex = String(value || '').trim().match(/^#([0-9a-f]{4}|[0-9a-f]{8})$/i);
+    if (!hex) return null;
+
+    const raw = hex[1];
+    const alpha = raw.length === 4
+      ? parseInt(`${raw[3]}${raw[3]}`, 16)
+      : parseInt(raw.slice(6, 8), 16);
+    return Number.isFinite(alpha) ? alpha / 255 : null;
+  }
+
+  function normalizeThemeColorForKey(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const rgb = parseCssRgb(raw);
+    if (!rgb) return raw.toLowerCase().replace(/\s+/g, ' ');
+
+    const alpha = normalizeAlphaForKey(getHexColorAlphaForKey(raw) ?? getCssColorAlpha(raw) ?? 1);
+    return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+  }
+
   function getThemeKey(theme) {
-    return `${theme?.bg || ''}|${theme?.fg || ''}`;
+    return `${normalizeThemeColorForKey(theme?.bg)}|${normalizeThemeColorForKey(theme?.fg)}`;
+  }
+
+  function withStableForeground(theme, fallbackTheme = lastAppliedTheme) {
+    if (!theme?.bg) return theme;
+    if (hasVisibleColor(theme?.fg)) return theme;
+
+    const bgRgb = parseCssRgb(theme.bg);
+    const foreground = getReadableForeground(theme.bg, [
+      fallbackTheme?.fg || null,
+      bgRgb ? chooseForeground(bgRgb) : null
+    ]);
+    if (!foreground) return theme;
+
+    return {
+      ...theme,
+      fg: foreground
+    };
+  }
+
+  function getColorSourceName(themeOrSource) {
+    return typeof themeOrSource === 'string'
+      ? themeOrSource
+      : (themeOrSource?.source || '');
+  }
+
+  function getCachedColorSourceName(themeOrSource) {
+    return typeof themeOrSource === 'string'
+      ? ''
+      : (themeOrSource?.cachedSource || '');
+  }
+
+  function getColorSourcePolicy(themeOrSource) {
+    return colorSourcePolicies[getColorSourceName(themeOrSource)] || unknownColorSourcePolicy;
+  }
+
+  function isRenderedThemeSource(source) {
+    const sourceName = getColorSourceName(source);
+    if (getColorSourcePolicy(sourceName).rendered) return true;
+
+    return sourceName === 'host-cache' && getColorSourcePolicy(getCachedColorSourceName(source)).rendered;
+  }
+
+  function isPreferredSemanticThemeSource(source) {
+    return getColorSourcePolicy(source).preferred === true;
   }
 
   function getThemeSourceConfidence(themeOrSource) {
-    const source = typeof themeOrSource === 'string'
-      ? themeOrSource
-      : (themeOrSource?.source || '');
-    return {
-      'selector-rule': 7,
-      'dark-reader': 5,
-      'top-visible': 6,
-      'theme-color': 5,
-      body: 3,
-      html: 3,
-      'document-canvas': 2,
-      sampler: 1,
-      'host-cache': 4,
-      'chrome-contrast-fallback': 1,
-      'toolbar-fallback': 0
-    }[source] ?? 0;
+    return getColorSourcePolicy(themeOrSource).confidence;
   }
 
   function clearPendingThemeCandidate() {
@@ -538,15 +659,43 @@
     }
   }
 
+  function createResolveContext(browser, options = {}) {
+    const loading = options.loading ?? isLoadingThemeFor(browser);
+
+    return {
+      appliedConfidence: options.appliedConfidence ?? themeApplyState.applied?.confidence ?? -1,
+      browser,
+      boostActive: options.boostActive ?? isZenBoostActive(),
+      deferNonVisual: Boolean(options.deferNonVisual),
+      fastOnly: Boolean(options.fastOnly),
+      loading,
+      now: options.now ?? Date.now(),
+      pendingKey: options.pendingKey ?? (themeApplyState.pending?.key || ''),
+      pendingSince: options.pendingSince ?? (themeApplyState.pending?.since || 0),
+      phase: options.phase || (loading ? 'loading' : 'settled'),
+      requireRendered: options.requireRendered ?? (options.boostActive ?? isZenBoostActive()),
+      stableDelay: options.stableDelay ?? fallbackThemeStableDelayMs
+    };
+  }
+
+  function shouldSkipFastLoadingTheme(theme, resolveContext) {
+    return resolveContext.fastOnly
+      && resolveContext.loading
+      && !isRenderedThemeSource(theme.source)
+      && !isPreferredSemanticThemeSource(theme.source);
+  }
+
   function shouldApplyThemeCandidate(theme, options = {}) {
     if (!theme?.bg) return { action: 'ignore', confidence: 0, key: '' };
 
     const {
       appliedConfidence = themeApplyState.applied?.confidence ?? -1,
+      deferNonVisual = false,
       loading = false,
       now = Date.now(),
       pendingKey = themeApplyState.pending?.key || '',
       pendingSince = themeApplyState.pending?.since || 0,
+      requireRendered = false,
       stableDelay = fallbackThemeStableDelayMs
     } = options;
     const confidence = getThemeSourceConfidence(theme);
@@ -555,6 +704,26 @@
     const replacingHostCache = themeApplyState.applied?.source === 'host-cache'
       && source !== 'host-cache'
       && confidence > 0;
+    const requireRenderedTheme = requireRendered && !isRenderedThemeSource(theme);
+    if (requireRenderedTheme) {
+      return { action: 'ignore', confidence, key };
+    }
+
+    const deferForVisualSample = deferNonVisual
+      && !replacingHostCache
+      && !isRenderedThemeSource(source);
+
+    if (deferForVisualSample) {
+      if (!loading && appliedConfidence >= 0 && confidence < appliedConfidence) {
+        return { action: 'ignore', confidence, key };
+      }
+
+      if (pendingKey === key && pendingSince && now - pendingSince >= stableDelay) {
+        return { action: 'apply', confidence, key };
+      }
+
+      return { action: 'defer', confidence, key };
+    }
 
     if (!loading) {
       return replacingHostCache || confidence >= appliedConfidence
@@ -586,6 +755,62 @@
     } catch {}
 
     return null;
+  }
+
+  function getThemePageKey(href) {
+    try {
+      const url = new URL(String(href || ''));
+      if (/^(https?|file):$/i.test(url.protocol)) return `${url.origin}${url.pathname}`;
+    } catch {}
+
+    return String(href || '');
+  }
+
+  function sanitizePageTheme(theme, href) {
+    if (!theme?.bg || !isPageThemeEligibleHref(href)) return null;
+    if (theme.source === 'host-cache' || theme.source === 'page-cache') return null;
+    if (getThemeSourceConfidence(theme) < 2) return null;
+
+    return {
+      bg: theme.bg,
+      fg: theme.fg || null,
+      bridge: theme.bridge || 'cache',
+      href,
+      source: theme.source || ''
+    };
+  }
+
+  function cachePageTheme(theme, href) {
+    const key = getThemePageKey(href);
+    const cachedTheme = sanitizePageTheme(theme, href);
+    if (!key || !cachedTheme) return;
+
+    if (pageThemeCache.has(key)) pageThemeCache.delete(key);
+    pageThemeCache.set(key, {
+      savedAt: Date.now(),
+      theme: cachedTheme
+    });
+
+    while (pageThemeCache.size > pageThemeCacheMaxEntries) {
+      pageThemeCache.delete(pageThemeCache.keys().next().value);
+    }
+  }
+
+  function getCachedPageTheme(browser) {
+    const href = getBrowserHref(browser);
+    const key = getThemePageKey(href);
+    if (!key) return null;
+
+    const entry = pageThemeCache.get(key);
+    if (!entry?.theme?.bg) return null;
+
+    pageThemeCache.delete(key);
+    pageThemeCache.set(key, entry);
+    return {
+      ...entry.theme,
+      href,
+      cachedAt: entry.savedAt
+    };
   }
 
   function sanitizeHostTheme(theme, href) {
@@ -740,40 +965,107 @@
     if (!browser || !theme?.bg) return;
 
     const href = theme.href || getBrowserHref(browser);
-    if (!readRememberPageColors()) {
-      themeCache = new WeakMap();
-      if (hostThemeCache.size || prefHasUserValue(siteThemeCachePref)) {
-        clearHostThemeCache('page-cache-disabled');
-      }
-      return;
-    }
 
     themeCache.set(browser, {
       href,
       theme
     });
+    cachePageTheme(theme, href);
     cacheHostTheme(theme, href);
   }
 
-  function getCachedTheme(browser) {
-    if (!readRememberPageColors()) {
-      themeCache = new WeakMap();
-      if (hostThemeCache.size || prefHasUserValue(siteThemeCachePref)) {
-        clearHostThemeCache('page-cache-disabled');
-      }
-      return null;
-    }
-
+  function getCachedTargetTheme(browser) {
     const cached = browser ? themeCache.get(browser) : null;
-    if (cached && cached.href === getBrowserHref(browser) && cached.theme?.bg) {
+    if (cached
+      && cached.href === getBrowserHref(browser)
+      && cached.theme?.bg
+      && cached.theme.source !== 'host-cache') {
       return cached.theme;
     }
 
-    return getCachedHostTheme(browser);
+    return getCachedPageTheme(browser);
+  }
+
+  function getCachedTheme(browser) {
+    return getCachedTargetTheme(browser) || getCachedHostTheme(browser);
+  }
+
+  function getSameHostRetainedTheme(cachedTheme, expectedHref) {
+    const expectedHost = getThemeHostKey(expectedHref);
+    const previousHost = getThemeHostKey(lastAppliedTheme?.href);
+    if (!expectedHost) return null;
+    if (previousHost !== expectedHost) return null;
+
+    if (cachedTheme?.source === 'host-cache' && cachedTheme.bg) {
+      return {
+        ...cachedTheme,
+        href: expectedHref
+      };
+    }
+
+    const retainedTheme = sanitizeHostTheme(lastAppliedTheme, expectedHref);
+    if (!retainedTheme?.bg) return null;
+
+    return {
+      ...retainedTheme,
+      href: expectedHref,
+      source: 'host-cache',
+      cachedSource: retainedTheme.source || ''
+    };
+  }
+
+  function isZenBoostActive() {
+    return chromeDoc.getElementById('zen-site-data-icon-button')?.hasAttribute('boosting') || false;
+  }
+
+  function clearActivePageThemeCache(browser = gBrowser?.selectedBrowser || null) {
+    if (!browser) return;
+
+    const href = getBrowserHref(browser);
+    themeCache.delete(browser);
+
+    const pageKey = getThemePageKey(href);
+    if (pageKey) pageThemeCache.delete(pageKey);
+
+    const hostKey = getThemeHostKey(href);
+    if (hostKey) {
+      ensureHostThemeCacheLoaded();
+      if (hostThemeCache.delete(hostKey)) persistHostThemeCache();
+    }
+
+    clearPendingThemeCandidate();
+  }
+
+  function handleZenBoostStateChange() {
+    const nextBoostActive = isZenBoostActive();
+    if (nextBoostActive === lastZenBoostActive) return;
+
+    lastZenBoostActive = nextBoostActive;
+    const browser = gBrowser?.selectedBrowser || null;
+    clearActivePageThemeCache(browser);
+    requestPersistentFrameTheme(browser, true);
+    scheduleActiveUpdate({ reason: 'zen-boost-change', skipToolbarFallback: true });
+  }
+
+  function observeZenBoostState() {
+    const button = chromeDoc.getElementById('zen-site-data-icon-button');
+    if (!button || typeof MutationObserver === 'undefined') {
+      setTimeout(observeZenBoostState, 500);
+      return;
+    }
+
+    lastZenBoostActive = isZenBoostActive();
+    if (zenBoostMutationObserver) zenBoostMutationObserver.disconnect();
+    zenBoostMutationObserver = new MutationObserver(handleZenBoostStateChange);
+    zenBoostMutationObserver.observe(button, {
+      attributes: true,
+      attributeFilter: ['boosting']
+    });
   }
 
   function clearThemeCache(reason = 'clear-cache') {
     themeCache = new WeakMap();
+    pageThemeCache = new Map();
     clearHostThemeCache(reason);
     lastThemeKey = null;
     lastCss = null;
@@ -804,18 +1096,25 @@
       source: theme.source || ''
     };
 
-    if (key !== lastThemeKey) {
-      lastThemeKey = key;
-      lastCss = theme.bg;
-      applyTheme(theme, reason);
+    if (key === lastThemeKey) {
+      lastAppliedTheme = theme;
+      return true;
     }
+
+    lastThemeKey = key;
+    lastCss = theme.bg;
+    applyTheme(theme, reason);
 
     return true;
   }
 
-  function queueStableThemeCandidate(browser, theme, reason, expectedHref, decision) {
+  function queueStableThemeCandidate(browser, theme, reason, expectedHref, decision, options = {}) {
     const href = getBrowserHref(browser);
     const now = Date.now();
+    const resolveContext = createResolveContext(browser, options);
+    const loading = resolveContext.loading;
+    const requireRendered = resolveContext.requireRendered;
+    const stableDelay = resolveContext.stableDelay;
     const pending = themeApplyState.pending;
     const sameCandidate = pending?.href === href && pending.key === decision.key;
     const since = sameCandidate ? pending.since : now;
@@ -826,18 +1125,27 @@
       expectedHref,
       href,
       key: decision.key,
+      options: {
+        deferNonVisual: Boolean(options.deferNonVisual),
+        loading,
+        requireRendered,
+        stableDelay
+      },
       reason,
       since,
       theme
     };
 
     const elapsed = now - since;
-    const remaining = Math.max(0, fallbackThemeStableDelayMs - elapsed);
+    const remaining = Math.max(0, stableDelay - elapsed);
     themeApplyState.pendingTimer = setTimeout(() => {
       const queued = themeApplyState.pending;
       if (!queued || queued.key !== decision.key || queued.href !== getBrowserHref(browser)) return;
       void applyResolvedTheme(browser, queued.theme, queued.reason, queued.expectedHref, {
-        loading: true,
+        deferNonVisual: queued.options?.deferNonVisual ?? false,
+        loading: queued.options?.loading ?? true,
+        requireRendered: queued.options?.requireRendered ?? false,
+        stableDelay: queued.options?.stableDelay ?? fallbackThemeStableDelayMs,
         now: Date.now()
       });
     }, remaining);
@@ -848,21 +1156,20 @@
     if (expectedHref && getBrowserHref(browser) !== expectedHref) return false;
     if (expectedHref && theme.href && theme.href !== expectedHref) return false;
 
-    const visibleTheme = hasVisibleColor(theme.bg)
-      ? theme
+    const foregroundTheme = withStableForeground(theme);
+    const visibleTheme = hasVisibleColor(foregroundTheme.bg)
+      ? foregroundTheme
       : getChromeContrastFallbackTheme(browser, 'chrome-contrast-fallback');
 
     const href = getBrowserHref(browser);
     ensureThemeArbitrationHref(href);
 
-    const decision = shouldApplyThemeCandidate(visibleTheme, {
-      loading: options.loading ?? isLoadingThemeFor(browser),
-      now: options.now ?? Date.now()
-    });
+    const resolveContext = createResolveContext(browser, options);
+    const decision = shouldApplyThemeCandidate(visibleTheme, resolveContext);
 
     if (decision.action === 'ignore') return false;
     if (decision.action === 'defer') {
-      queueStableThemeCandidate(browser, visibleTheme, reason, expectedHref, decision);
+      queueStableThemeCandidate(browser, visibleTheme, reason, expectedHref, decision, resolveContext);
       return false;
     }
 
@@ -958,12 +1265,8 @@
     return readBoolPref(legacySidebarEnabledPref, false);
   }
 
-  function readRememberPageColors() {
-    return readBoolPref(rememberPageColorsPref, true);
-  }
-
   function readRememberSiteColorsLonger() {
-    return readRememberPageColors() && readBoolPref(rememberSiteColorsLongerPref, false);
+    return readBoolPref(rememberSiteColorsLongerPref, true);
   }
 
   function migrateWindowTintPref() {
@@ -1120,19 +1423,7 @@
           || (changedPref !== windowTintEnabledPref
             && changedPref !== windowTintStrengthPref
             && changedPref !== legacySidebarEnabledPref
-            && changedPref !== rememberPageColorsPref
             && changedPref !== rememberSiteColorsLongerPref)) {
-          return;
-        }
-
-        if (changedPref === rememberPageColorsPref && !readRememberPageColors()) {
-          clearThemeCache('page-cache-disabled');
-          void updateActive({ reason: 'page-cache-disabled' });
-          return;
-        }
-
-        if (changedPref === rememberPageColorsPref) {
-          void updateActive({ reason: 'page-cache-enabled' });
           return;
         }
 
@@ -1789,6 +2080,88 @@
 
   function getBrowserMessageManager(browser) {
     return browser?.messageManager || browser?.frameLoader?.messageManager || null;
+  }
+
+  function getPersistentFrameTheme(data, browser) {
+    const href = data?.href || getBrowserHref(browser);
+    if (!data?.bg || !isPageThemeEligibleHref(href)) return null;
+
+    return {
+      bg: data.bg,
+      fg: data.fg || null,
+      bridge: 'persistent-frame',
+      href,
+      source: data.source || 'pixel-top-edge'
+    };
+  }
+
+  function attachPersistentThemeListener(browser) {
+    if (!browser || persistentThemeListeners.has(browser)) return;
+
+    const messageManager = getBrowserMessageManager(browser);
+    if (!messageManager?.addMessageListener) return;
+
+    const listener = {
+      receiveMessage(message) {
+        const data = message?.data || null;
+        const href = getBrowserHref(browser);
+        if (!href || !isPageThemeEligibleHref(href)) return;
+        if (data?.href && data.href !== href) return;
+
+        const theme = getPersistentFrameTheme(data, browser);
+        if (!theme?.bg) return;
+
+        cacheTheme(browser, theme);
+        if (browser === gBrowser?.selectedBrowser) {
+          applyResolvedTheme(browser, theme, 'persistent-frame', href, {
+            loading: isLoadingThemeFor(browser),
+            requireRendered: isZenBoostActive()
+          });
+        }
+      }
+    };
+
+    try {
+      messageManager.addMessageListener(persistentThemeMessageName, listener);
+      persistentThemeListeners.set(browser, listener);
+    } catch {}
+  }
+
+  function detachPersistentThemeListener(browser) {
+    if (!browser) return;
+
+    const messageManager = getBrowserMessageManager(browser);
+    const listener = persistentThemeListeners.get(browser);
+    if (messageManager && listener) {
+      try {
+        messageManager.removeMessageListener(persistentThemeMessageName, listener);
+      } catch {}
+    }
+    persistentThemeListeners.delete(browser);
+  }
+
+  function requestPersistentFrameTheme(browser, forceFresh = false) {
+    const messageManager = getBrowserMessageManager(browser);
+    if (!browser || !messageManager?.loadFrameScript || !messageManager?.addMessageListener) return false;
+
+    attachPersistentThemeListener(browser);
+    if (forceFresh) {
+      const key = getThemePageKey(getBrowserHref(browser));
+      if (key) pageThemeCache.delete(key);
+    }
+
+    try {
+      messageManager.loadFrameScript(themeFrameScriptUrl, false);
+      return true;
+    } catch (error) {
+      if (DEBUG_THEME) {
+        console.info('[blended-addressbar:urlbar] Persistent frame bridge load failed', {
+          error: error?.message || String(error),
+          href: getBrowserHref(browser)
+        });
+      }
+      return false;
+    }
   }
 
   function getThemeFrameScript(requestId) {
@@ -3327,6 +3700,7 @@
     const {
       enableSampler = false,
       fastOnly = false,
+      keepCachedTheme = false,
       reason = 'fallback',
       samplingInterval = samplingIntervalMs,
       skipToolbarFallback = false
@@ -3341,36 +3715,75 @@
       clearAdaptivePageTheme('ineligible-url');
       return;
     }
+    attachPersistentThemeListener(browser);
 
-    const cachedTheme = getCachedTheme(browser);
+    const zenBoostActive = isZenBoostActive();
+    if (zenBoostActive) requestPersistentFrameTheme(browser, true);
+
+    const targetCachedTheme = getCachedTargetTheme(browser);
+    const cachedTheme = targetCachedTheme || getCachedHostTheme(browser);
     const cachedThemeIsHost = cachedTheme?.source === 'host-cache';
-    if (isLoadingThemeFor(browser) && !cachedTheme) {
+    const retainedHostTheme = targetCachedTheme ? null : getSameHostRetainedTheme(cachedTheme, expectedHref);
+    if (targetCachedTheme) {
+      applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {
+        requireRendered: zenBoostActive
+      });
+    }
+    if (retainedHostTheme) {
+      applyResolvedTheme(browser, retainedHostTheme, 'same-host-retained', expectedHref, {
+        requireRendered: zenBoostActive
+      });
+    }
+
+    const hasStableCachedTabTheme = keepCachedTheme
+      && !zenBoostActive
+      && !!(targetCachedTheme || retainedHostTheme);
+    if (hasStableCachedTabTheme) return;
+
+    if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme) {
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown');
       return;
     }
 
-    if (cachedTheme && !cachedThemeIsHost) {
-      applyResolvedTheme(browser, cachedTheme, 'cache', expectedHref);
-    }
-
     const fastTheme = getBrowserPageThemeFromChrome(browser);
     if (fastTheme?.bg) {
-      applyResolvedTheme(browser, fastTheme, reason === 'fallback' ? 'fast' : reason, expectedHref);
+      const skipLoadingSemanticFastTheme = shouldSkipFastLoadingTheme(fastTheme, createResolveContext(browser, {
+        fastOnly,
+        loading: isLoadingThemeFor(browser),
+        requireRendered: zenBoostActive
+      }));
+
+      if (!skipLoadingSemanticFastTheme) {
+        applyResolvedTheme(browser, fastTheme, reason === 'fallback' ? 'fast' : reason, expectedHref, {
+          deferNonVisual: zenBoostActive || !fastOnly,
+          requireRendered: zenBoostActive,
+          stableDelay: visualThemeSettleDelayMs
+        });
+      }
     } else if (cachedThemeIsHost && fastOnly) {
-      applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref);
+      applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref, {
+        requireRendered: zenBoostActive
+      });
     } else if (fastOnly) {
       return;
-    } else if (!cachedTheme && !skipToolbarFallback) {
+    } else if (!cachedTheme && !retainedHostTheme && !skipToolbarFallback) {
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), 'unknown-page');
     }
 
     if (!fastOnly) {
+      requestPersistentFrameTheme(browser, zenBoostActive || !cachedTheme);
       const pageTheme = await getBrowserPageTheme(browser);
       if (pageTheme?.bg) {
-        applyResolvedTheme(browser, pageTheme, reason, expectedHref);
+        applyResolvedTheme(browser, pageTheme, reason, expectedHref, {
+          deferNonVisual: true,
+          requireRendered: zenBoostActive,
+          stableDelay: visualThemeSettleDelayMs
+        });
       } else if (cachedThemeIsHost) {
-        applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref);
-      } else if (!skipToolbarFallback) {
+        applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref, {
+          requireRendered: zenBoostActive
+        });
+      } else if (!retainedHostTheme && !skipToolbarFallback) {
         applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason);
       }
     }
@@ -3417,6 +3830,55 @@
         }, 0);
       }
     }
+  }
+
+  function mergeActiveUpdateOptions(current = {}, next = {}) {
+    if (!current) return next || {};
+    if (!next) return current || {};
+
+    return {
+      ...current,
+      ...next,
+      enableSampler: Boolean(current.enableSampler || next.enableSampler),
+      fastOnly: Boolean(current.fastOnly && next.fastOnly),
+      keepCachedTheme: Boolean(current.keepCachedTheme && next.keepCachedTheme),
+      skipToolbarFallback: Boolean(current.skipToolbarFallback && next.skipToolbarFallback),
+      reason: next.reason || current.reason
+    };
+  }
+
+  function scheduleActiveUpdate(options = {}) {
+    scheduledActiveUpdateOptions = mergeActiveUpdateOptions(scheduledActiveUpdateOptions, options);
+
+    if (scheduledActiveUpdate && Date.now() - scheduledActiveUpdateAt > scheduleSafetyMs * 4) {
+      scheduledActiveUpdate = false;
+    }
+    if (scheduledActiveUpdate) return;
+
+    scheduledActiveUpdate = true;
+    scheduledActiveUpdateAt = Date.now();
+    const run = () => {
+      if (!scheduledActiveUpdate) return;
+
+      scheduledActiveUpdate = false;
+      try {
+        if (scheduledActiveUpdateRaf) cancelAnimationFrame(scheduledActiveUpdateRaf);
+      } catch {}
+      if (scheduledActiveUpdateTimer) clearTimeout(scheduledActiveUpdateTimer);
+      scheduledActiveUpdateRaf = 0;
+      scheduledActiveUpdateTimer = 0;
+
+      const nextOptions = scheduledActiveUpdateOptions || {};
+      scheduledActiveUpdateOptions = null;
+      void updateActive(nextOptions);
+    };
+
+    try {
+      scheduledActiveUpdateRaf = requestAnimationFrame(run);
+    } catch {
+      scheduledActiveUpdateRaf = 0;
+    }
+    scheduledActiveUpdateTimer = setTimeout(run, scheduleSafetyMs);
   }
 
   function stopLoadingThemePolling() {
@@ -3471,39 +3933,6 @@
     loadingThemePollTimer = setTimeout(scheduleLoadingThemePollTick, 60);
   }
 
-  function stopActiveThemeRefresh() {
-    if (activeThemeRefreshTimer) clearTimeout(activeThemeRefreshTimer);
-    activeThemeRefreshTimer = 0;
-  }
-
-  function runActiveThemeRefresh() {
-    activeThemeRefreshTimer = 0;
-
-    const browser = gBrowser?.selectedBrowser || null;
-    if (!browser) {
-      scheduleActiveThemeRefresh();
-      return;
-    }
-
-    const expectedHref = getBrowserHref(browser);
-    void updateActive({
-      reason: 'active-refresh',
-      skipToolbarFallback: true
-    }).finally(() => {
-      const selected = gBrowser?.selectedBrowser || null;
-      if (!selected) return;
-      if (selected === browser && getBrowserHref(selected) !== expectedHref) {
-        void updateActive({ reason: 'active-refresh-navigation' });
-      }
-      scheduleActiveThemeRefresh();
-    });
-  }
-
-  function scheduleActiveThemeRefresh() {
-    stopActiveThemeRefresh();
-    activeThemeRefreshTimer = setTimeout(runActiveThemeRefresh, activeThemeRefreshIntervalMs);
-  }
-
   function clearScheduledThemeUpdates() {
     for (const timer of scheduledThemeTimers) {
       clearTimeout(timer);
@@ -3519,7 +3948,7 @@
     for (const delay of delays) {
       const timer = setTimeout(() => {
         scheduledThemeTimers = scheduledThemeTimers.filter(item => item !== timer);
-        void updateActive(options);
+        scheduleActiveUpdate(options);
       }, delay);
       scheduledThemeTimers.push(timer);
     }
@@ -3566,24 +3995,45 @@
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
       observeViewportThemeTarget();
-      scheduleActiveThemeRefresh();
       schedulePaneCornerRadiiUpdate();
-      void updateActive({ reason: 'tab-select' });
+      handleZenBoostStateChange();
+      scheduleActiveUpdate({ reason: 'tab-select', keepCachedTheme: true });
+    });
+
+    gBrowser.tabContainer.addEventListener('TabClose', (event) => {
+      detachPersistentThemeListener(event.target?.linkedBrowser || null);
     });
 
     try {
+      let colorSchemeQuery = null;
+      const onColorSchemeChange = () => {
+        clearThemeCache('color-scheme-change');
+        scheduleActiveUpdate({ reason: 'color-scheme-change' });
+      };
+      try {
+        colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        colorSchemeQuery.addEventListener('change', onColorSchemeChange);
+      } catch {}
+
       window.addEventListener('resize', scheduleViewportThemeUpdate);
       window.addEventListener('resize', schedulePaneCornerRadiiUpdate);
       if (typeof addUnloadListener === 'function') {
         addUnloadListener(() => {
+          try {
+            colorSchemeQuery?.removeEventListener?.('change', onColorSchemeChange);
+          } catch {}
           window.removeEventListener('resize', scheduleViewportThemeUpdate);
           window.removeEventListener('resize', schedulePaneCornerRadiiUpdate);
           if (viewportThemeUpdateTimer) clearTimeout(viewportThemeUpdateTimer);
+          if (scheduledActiveUpdateTimer) clearTimeout(scheduledActiveUpdateTimer);
+          try {
+            if (scheduledActiveUpdateRaf) cancelAnimationFrame(scheduledActiveUpdateRaf);
+          } catch {}
           if (viewportResizeObserver) viewportResizeObserver.disconnect();
           if (paneCornerUpdateTimer) clearTimeout(paneCornerUpdateTimer);
           if (paneCornerMutationObserver) paneCornerMutationObserver.disconnect();
+          if (zenBoostMutationObserver) zenBoostMutationObserver.disconnect();
           stopLoadingThemePolling();
-          stopActiveThemeRefresh();
           clearPendingThemeCandidate();
           restoreNativeZenTheme();
         });
@@ -3591,17 +4041,18 @@
     } catch {}
     observeViewportThemeTarget();
     observePaneCornerRadii();
-    scheduleActiveThemeRefresh();
+    observeZenBoostState();
 
     const pl = {
       onLocationChange(browserArg, webProgress, req, location, flags) {
         try {
+          const sameDocumentFlag = Ci?.nsIWebProgressListener?.LOCATION_CHANGE_SAME_DOCUMENT || 0;
+          if (flags & sameDocumentFlag) return;
           const active = gBrowser.selectedBrowser;
           const isTop = webProgress && webProgress.isTopLevel;
           if (isTop) schedulePaneCornerRadiiUpdate();
           const matches = browserArg === active;
           if (isTop && matches) {
-            scheduleActiveThemeRefresh();
             startLoadingThemePolling(browserArg);
             scheduleActiveUpdates(
               earlyThemeUpdateDelays,
@@ -3624,7 +4075,6 @@
           const startFlag = listener ? listener.STATE_START : 0x00000001;
           const stopFlag = listener ? listener.STATE_STOP : 0x00000010;
           if (flags & startFlag) {
-            scheduleActiveThemeRefresh();
             startLoadingThemePolling(browserArg);
             scheduleActiveUpdates(
               earlyThemeUpdateDelays,
