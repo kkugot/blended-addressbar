@@ -355,8 +355,9 @@
     return true;
   }
 
-  function applyHeaderOnlyTheme(browser, theme, reason = 'header-only') {
+  function applyHeaderOnlyTheme(browser, theme, reason = 'header-only', expectedHref = null) {
     if (!theme?.bg || !browser || browser !== gBrowser?.selectedBrowser) return false;
+    if (expectedHref && getBrowserHref(browser) !== expectedHref) return false;
 
     const href = getBrowserHref(browser);
     const key = getThemeKey(theme);
@@ -3335,25 +3336,25 @@
     const cachedTheme = targetCachedTheme || getCachedHostTheme(browser);
     const cachedThemeIsHost = cachedTheme?.source === 'host-cache';
     const retainedHostTheme = targetCachedTheme ? null : getSameHostRetainedTheme(cachedTheme, expectedHref);
-    if (targetCachedTheme) {
-      applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {
+    const targetCachedThemeApplied = targetCachedTheme
+      ? applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {
         requireRendered: zenBoostActive
-      });
-    }
-    if (retainedHostTheme) {
-      applyResolvedTheme(browser, retainedHostTheme, 'same-host-retained', expectedHref, {
+      })
+      : false;
+    const retainedHostThemeApplied = retainedHostTheme
+      ? applyResolvedTheme(browser, retainedHostTheme, 'same-host-retained', expectedHref, {
         requireRendered: zenBoostActive
-      });
-    }
+      })
+      : false;
 
     const hasStableCachedTabTheme = keepCachedTheme
       && !zenBoostActive
-      && !!(targetCachedTheme || retainedHostTheme);
+      && (targetCachedThemeApplied || retainedHostThemeApplied);
     const deferUnknownFallback = keepCachedTheme && !zenBoostActive;
     if (hasStableCachedTabTheme) return;
 
     if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback) {
-      applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown');
+      applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown', expectedHref);
       return;
     }
 
@@ -3379,7 +3380,7 @@
     } else if (fastOnly) {
       return;
     } else if (!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback) {
-      applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), 'unknown-page');
+      applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), 'unknown-page', expectedHref);
     }
 
     if (!fastOnly) {
@@ -3396,7 +3397,7 @@
           requireRendered: zenBoostActive
         });
       } else if (!retainedHostTheme && !skipToolbarFallback) {
-        applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason);
+        applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason, expectedHref);
       }
     }
 

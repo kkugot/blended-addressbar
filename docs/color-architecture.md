@@ -127,7 +127,7 @@ Modifiers change which candidates are trusted and how quickly they can commit.
 | Modifier | Current behavior |
 | --- | --- |
 | Loading | Starts fast polling and early `fastOnly` updates. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
-| Tab switch | Coalesces updates, applies exact target cache first, then same-host retained color, then host fallback. Exact or retained cached tab colors are kept without immediately forcing a fresh persistent page sample. Equivalent color keys are no-ops to avoid CSS rewrite blink. |
+| Tab switch | Coalesces updates, applies exact target cache first, then same-host retained color, then host fallback. Exact or retained cached tab colors are kept without immediately forcing a fresh persistent page sample only after the cache paint succeeds. Equivalent color keys are no-ops to avoid CSS rewrite blink. |
 | Zen Boost | Detected through `#zen-site-data-icon-button[boosting]` in `blended-bar.uc.js`, then folded into `createResolveContext` as `boostActive` / `requireRendered`. Boost changes clear active page cache, request a persistent rendered sample, and require rendered sources. Non-rendered semantic sources are ignored while Boost is active. |
 | Dark Reader | Detected through `--darkreader-neutral-background` and `--darkreader-neutral-text`. Treated as rendered and allowed through Boost gates. |
 | Persistent frame | Sends top-edge pixel, theme-color, body/html, or ancestor top-visible samples when the page loads, mutates theme attributes/head metadata, or fires pageshow/load. It does not listen to scroll events. |
@@ -155,7 +155,7 @@ The first refactor phase is implemented across `blended-bar.uc.js` and the helpe
 - `isRenderedThemeSource`, `isPreferredSemanticThemeSource`, and `getThemeSourceConfidence` read from the same registry.
 - `createResolveContext` centralizes loading, Boost, stable-delay, and pending-candidate inputs before arbitration.
 - Fast loading semantic skips now use `shouldSkipFastLoadingTheme` instead of duplicating the condition inline.
-- Cached tab switches can now return after painting the cached/retained color, avoiding an immediate persistent-frame sample on switch.
+- Cached tab switches can now return after successfully painting the cached/retained color, avoiding an immediate persistent-frame sample on switch while still continuing if the cached candidate is rejected.
 - Repeated CSS property writes use `scripts/style-state.js` so equivalent values are no-ops.
 - Host-cache preference serialization now lives in `scripts/site-theme-cache.js` and writes compact bounded payloads.
 - Hidden-tabs chrome foreground styling now lives in `styles/header-chrome.css`, imported by `style.css`.
