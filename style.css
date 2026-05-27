@@ -5,7 +5,7 @@
     --blended-addressbar-frame-gap: 5px;
     --blended-addressbar-frame-radius: 14px;
     --blended-addressbar-inner-radius: max(0px, calc(var(--blended-addressbar-frame-radius) - var(--blended-addressbar-frame-gap)));
-    --blended-addressbar-color-transition: 100ms ease-out;
+    --blended-addressbar-color-transition: 100ms linear;
     --blended-addressbar-frame-shadow-standard:
         0 4px 16px rgba(0, 0, 0, 0.14),
         0 1px 4px rgba(0, 0, 0, 0.12);

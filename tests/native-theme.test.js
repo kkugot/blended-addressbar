@@ -1,5 +1,6 @@
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
+const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -7,6 +8,22 @@ const root = join(__dirname, '..');
 
 function read(name) {
   return readFileSync(join(root, name), 'utf8');
+}
+
+function readStyleWithImports(name = 'style.css') {
+  return read(name).replace(/^@import "([^"]+)";\s*$/gm, (_, path) => read(path));
+}
+
+function loadScriptModule(name, options = {}) {
+  const context = {
+    BlendedAddressbarModuleOptions: options,
+    console
+  };
+  vm.createContext(context);
+  vm.runInContext(read(`scripts/${name}`), context, {
+    filename: join(root, 'scripts', name)
+  });
+  return context.BlendedAddressbarModule;
 }
 
 function cssRuleBlock(css, selector) {
@@ -125,6 +142,53 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   assert.doesNotMatch(script, /const colorSourcePolicies = Object\.freeze\(\{/);
 });
 
+test('focused helper modules expose the expected subscript contract', () => {
+  const styleState = loadScriptModule('style-state.js');
+  assert.equal(typeof styleState.setStylePropertyIfChanged, 'function');
+  assert.equal(typeof styleState.removeStylePropertyIfChanged, 'function');
+
+  const paneLayout = loadScriptModule('pane-layout.js', {
+    chromeDoc: { getElementById: () => null, querySelectorAll: () => [] },
+    removeStylePropertyIfChanged: () => false,
+    setStylePropertyIfChanged: () => false
+  });
+  assert.equal(typeof paneLayout.cleanupPaneCornerRadii, 'function');
+  assert.equal(typeof paneLayout.observePaneCornerRadii, 'function');
+  assert.equal(typeof paneLayout.schedulePaneCornerRadiiUpdate, 'function');
+  assert.equal(typeof paneLayout.updatePaneCornerRadii, 'function');
+
+  const sourcePolicy = loadScriptModule('theme-source-policy.js');
+  assert.equal(typeof sourcePolicy.getCachedColorSourceName, 'function');
+  assert.equal(typeof sourcePolicy.getColorSourceName, 'function');
+  assert.equal(typeof sourcePolicy.getColorSourcePolicy, 'function');
+  assert.equal(typeof sourcePolicy.getThemeSourceConfidence, 'function');
+  assert.equal(typeof sourcePolicy.isPreferredSemanticThemeSource, 'function');
+  assert.equal(typeof sourcePolicy.isRenderedThemeSource, 'function');
+  assert.equal(sourcePolicy.isRenderedThemeSource({ source: 'host-cache', cachedSource: 'pixel-top-edge' }), true);
+
+  const prefs = loadScriptModule('prefs.js', {
+    getServices: () => null,
+    window: { CSS: { supports: () => true } }
+  });
+  assert.equal(typeof prefs.readStringPref, 'function');
+  assert.equal(typeof prefs.writeStringPref, 'function');
+  assert.equal(typeof prefs.clearUserPref, 'function');
+  assert.equal(typeof prefs.normalizeCssLength, 'function');
+  assert.equal(typeof prefs.normalizeFrameShadowPreset, 'function');
+  assert.equal(prefs.normalizeFrameShadowPreset('unexpected'), 'standard');
+
+  const colorUtils = loadScriptModule('color-utils.js', {
+    cssSupports: () => true,
+    sampledColorMinAlpha: 0.08
+  });
+  assert.equal(typeof colorUtils.parseCssRgb, 'function');
+  assert.equal(typeof colorUtils.getReadableForeground, 'function');
+  const rgb = colorUtils.parseCssRgb('rgb(1, 2, 3)');
+  assert.equal(rgb.r, 1);
+  assert.equal(rgb.g, 2);
+  assert.equal(rgb.b, 3);
+});
+
 test('native theme debug metadata is cleared from one property list', () => {
   const script = read('blended-bar.uc.js');
 
@@ -140,11 +204,10 @@ test('native theme debug metadata is cleared from one property list', () => {
   assert.equal(countOccurrences(script, "root.removeAttribute('data-blended-addressbar-native-theme-"), 0);
 });
 
-test('adaptive header background and foreground use a short non-linear transition', () => {
+test('adaptive header background and foreground keep the existing short transition', () => {
   const css = read('style.css');
 
-  assert.match(css, /--blended-addressbar-color-transition:\s*100ms ease-out/);
-  assert.doesNotMatch(css, /--blended-addressbar-color-transition:\s*[^;]*linear/);
+  assert.match(css, /--blended-addressbar-color-transition:\s*100ms linear/);
   assert.match(css, /#zen-appcontent-navbar-wrapper\s*\{[\s\S]*transition:\s*background-color var\(--blended-addressbar-color-transition\),\s*color var\(--blended-addressbar-color-transition\)/);
   assert.match(css, /transition:\s*color var\(--blended-addressbar-color-transition\),\s*fill var\(--blended-addressbar-color-transition\),\s*stroke var\(--blended-addressbar-color-transition\)/);
   assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
@@ -223,7 +286,7 @@ test('expanded sidebar toolbox keeps chrome icons vertically aligned', () => {
 });
 
 test('hidden tab sidebar toolbar icons use the softer addressbar chrome foreground', () => {
-  const css = `${read('style.css')}\n${read('styles/header-chrome.css')}`;
+  const css = readStyleWithImports();
   const headerCss = read('styles/header-chrome.css');
 
   assert.match(css, /#navigator-toolbox\[tabs-hidden\]/);

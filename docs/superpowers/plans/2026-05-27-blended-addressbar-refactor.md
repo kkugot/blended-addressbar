@@ -394,14 +394,19 @@ Run:
 node --test tests/native-theme.test.js
 node --check blended-bar.uc.js
 node --check frame.js
+node --check scripts/style-state.js
+node --check scripts/prefs.js
+node --check scripts/pane-layout.js
+node --check scripts/color-utils.js
+node --check scripts/theme-source-policy.js
 git diff --check
 ```
 
 Expected:
 
 ```text
-tests 30
-pass 30
+tests 34
+pass 34
 fail 0
 ```
 
