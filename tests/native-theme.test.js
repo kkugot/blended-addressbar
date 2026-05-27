@@ -116,6 +116,7 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   const prefs = read('scripts/prefs.js');
   const paneLayout = read('scripts/pane-layout.js');
   const sourcePolicy = read('scripts/theme-source-policy.js');
+  const siteThemeCache = read('scripts/site-theme-cache.js');
 
   assert.match(theme, /"scripts":\s*\{\s*"blended-bar\.uc\.js"/);
   assert.match(script, /const scriptModuleBaseUrl = 'chrome:\/\/sine\/content\/blended-addressbar\/scripts\/'/);
@@ -125,6 +126,7 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   assert.match(script, /loadBlendedAddressbarModule\('prefs\.js'/);
   assert.match(script, /loadBlendedAddressbarModule\('pane-layout\.js'/);
   assert.match(script, /loadBlendedAddressbarModule\('theme-source-policy\.js'\)/);
+  assert.match(script, /loadBlendedAddressbarModule\('site-theme-cache\.js'/);
   assert.match(styleState, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
   assert.match(styleState, /function removeStylePropertyIfChanged\(style,\s*name\)/);
   assert.match(colorUtils, /function parseCssRgb\(input\)/);
@@ -135,11 +137,14 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   assert.match(paneLayout, /function cleanupPaneCornerRadii\(\)/);
   assert.match(sourcePolicy, /const colorSourcePolicies = Object\.freeze\(\{/);
   assert.match(sourcePolicy, /function getThemeSourceConfidence\(themeOrSource\)/);
+  assert.match(siteThemeCache, /function serializeHostThemeCacheEntries\(hostThemeCache/);
+  assert.match(siteThemeCache, /function normalizeSerializedHostThemeCacheItem\(item/);
   assert.doesNotMatch(script, /function parseCssRgb\(input\)/);
   assert.doesNotMatch(script, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
   assert.doesNotMatch(script, /function readStringPref\(name,\s*fallback\)/);
   assert.doesNotMatch(script, /function updatePaneCornerRadii\(\)/);
   assert.doesNotMatch(script, /const colorSourcePolicies = Object\.freeze\(\{/);
+  assert.doesNotMatch(script, /function serializeHostThemeCacheEntries\(hostThemeCache/);
 });
 
 test('focused helper modules expose the expected subscript contract', () => {
@@ -165,6 +170,11 @@ test('focused helper modules expose the expected subscript contract', () => {
   assert.equal(typeof sourcePolicy.isPreferredSemanticThemeSource, 'function');
   assert.equal(typeof sourcePolicy.isRenderedThemeSource, 'function');
   assert.equal(sourcePolicy.isRenderedThemeSource({ source: 'host-cache', cachedSource: 'pixel-top-edge' }), true);
+
+  const siteThemeCache = loadScriptModule('site-theme-cache.js');
+  assert.equal(typeof siteThemeCache.normalizeHostThemeCacheEntry, 'function');
+  assert.equal(typeof siteThemeCache.normalizeSerializedHostThemeCacheItem, 'function');
+  assert.equal(typeof siteThemeCache.serializeHostThemeCacheEntries, 'function');
 
   const prefs = loadScriptModule('prefs.js', {
     getServices: () => null,
@@ -372,6 +382,7 @@ test('page color caching is always enabled while long-lived site colors remain o
   assert.match(script, /function getCachedHostTheme\(browser\)/);
   assert.match(script, /source:\s*'host-cache'/);
   assert.match(script, /function persistHostThemeCache\(\)/);
+  assert.match(script, /const shouldMigrate = parsed\?\.version !== 2 \|\| raw\.length > hostThemeCachePrefMaxBytes/);
   assert.match(script, /writeStringPref\(siteThemeCachePref/);
   assert.match(script, /function clearHostThemeCache\(reason = 'clear-cache'\)/);
   assert.match(script, /clearUserPref\(siteThemeCachePref\)/);
@@ -392,6 +403,44 @@ test('page color caching is always enabled while long-lived site colors remain o
   assert.match(readme, /uc\.blended-addressbar\.remember-site-colors-longer/);
   assert.match(readme, /defaults on/);
   assert.doesNotMatch(readme, /uc\.blended-addressbar\.clear-cache-request/);
+});
+
+test('long-lived host color cache writes compact bounded preference payloads', () => {
+  const now = Date.now();
+  const siteThemeCache = loadScriptModule('site-theme-cache.js', {
+    hostThemeCacheTtlMs: 7 * 24 * 60 * 60 * 1000
+  });
+  const entries = new Map();
+
+  for (let index = 0; index < 100; index += 1) {
+    entries.set(`example-${index}.test`, {
+      savedAt: now - index,
+      theme: {
+        bg: `rgb(${index}, ${index}, ${index})`,
+        fg: 'rgb(255, 255, 255)',
+        bridge: 'persistent-frame',
+        href: `https://example-${index}.test/a/very/long/path/that/should/not/be/persisted/${index}`,
+        source: 'pixel-top-edge'
+      }
+    });
+  }
+
+  const serialized = siteThemeCache.serializeHostThemeCacheEntries(entries, now);
+  const parsed = JSON.parse(serialized);
+
+  assert.ok(serialized.length <= 8192, `cache pref payload was ${serialized.length} bytes`);
+  assert.equal(parsed.version, 2);
+  assert.ok(parsed.entries.length <= 40);
+  assert.doesNotMatch(serialized, /very\/long\/path/);
+  assert.equal(parsed.entries.at(-1)[0], 'example-99.test');
+  const normalizedItem = siteThemeCache.normalizeSerializedHostThemeCacheItem(parsed.entries.at(-1), now);
+  assert.equal(normalizedItem[0], 'example-99.test');
+  assert.equal(normalizedItem[1].savedAt, now - 99);
+  assert.equal(normalizedItem[1].theme.bg, 'rgb(99, 99, 99)');
+  assert.equal(normalizedItem[1].theme.fg, 'rgb(255, 255, 255)');
+  assert.equal(normalizedItem[1].theme.bridge, 'cache');
+  assert.equal(normalizedItem[1].theme.href, '');
+  assert.equal(normalizedItem[1].theme.source, 'pixel-top-edge');
 });
 
 test('long-lived host color cache is a fallback instead of the first tab-switch paint', () => {

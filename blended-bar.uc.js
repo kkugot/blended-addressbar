@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.2.1
+// @version        1.3.0
 // ==/UserScript==
 
 (() => {
@@ -67,6 +67,8 @@
   const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
   const defaultWindowTintStrengthPercent = 25;
   const hostThemeCacheMaxEntries = 100;
+  const hostThemeCachePersistentMaxEntries = 40;
+  const hostThemeCachePrefMaxBytes = 8192;
   const hostThemeCacheTtlMs = 7 * 24 * 60 * 60 * 1000;
   const nativeZenThemeProperties = [
     '--zen-main-browser-background',
@@ -177,6 +179,16 @@
     isPreferredSemanticThemeSource,
     isRenderedThemeSource
   } = loadBlendedAddressbarModule('theme-source-policy.js');
+
+  const {
+    normalizeHostThemeCacheEntry,
+    normalizeSerializedHostThemeCacheItem,
+    serializeHostThemeCacheEntries
+  } = loadBlendedAddressbarModule('site-theme-cache.js', {
+    hostThemeCachePersistentMaxEntries,
+    hostThemeCachePrefMaxBytes,
+    hostThemeCacheTtlMs
+  });
 
   const {
     clearUserPref,
@@ -730,23 +742,6 @@
     };
   }
 
-  function normalizeHostThemeCacheEntry(entry, now = Date.now()) {
-    const savedAt = Number(entry?.savedAt || 0);
-    const theme = entry?.theme || null;
-    if (!savedAt || now - savedAt > hostThemeCacheTtlMs || !theme?.bg) return null;
-
-    return {
-      savedAt,
-      theme: {
-        bg: String(theme.bg || ''),
-        fg: theme.fg ? String(theme.fg) : null,
-        bridge: theme.bridge ? String(theme.bridge) : 'cache',
-        href: theme.href ? String(theme.href) : '',
-        source: theme.source ? String(theme.source) : ''
-      }
-    };
-  }
-
   function pruneHostThemeCache(now = Date.now()) {
     for (const [host, entry] of hostThemeCache.entries()) {
       if (!normalizeHostThemeCacheEntry(entry, now)) {
@@ -776,13 +771,14 @@
     try {
       const parsed = JSON.parse(raw);
       const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
+      const shouldMigrate = parsed?.version !== 2 || raw.length > hostThemeCachePrefMaxBytes;
       const now = Date.now();
       for (const item of entries) {
-        const host = String(item?.[0] || '').trim().toLowerCase();
-        const entry = normalizeHostThemeCacheEntry(item?.[1], now);
-        if (host && entry) hostThemeCache.set(host, entry);
+        const normalizedItem = normalizeSerializedHostThemeCacheItem(item, now);
+        if (normalizedItem) hostThemeCache.set(normalizedItem[0], normalizedItem[1]);
       }
       pruneHostThemeCache(now);
+      if (shouldMigrate) persistHostThemeCache();
     } catch {
       hostThemeCache = new Map();
       clearUserPref(siteThemeCachePref);
@@ -801,10 +797,12 @@
       return;
     }
 
-    writeStringPref(siteThemeCachePref, JSON.stringify({
-      version: 1,
-      entries: Array.from(hostThemeCache.entries())
-    }));
+    const serialized = serializeHostThemeCacheEntries(hostThemeCache);
+    if (serialized) {
+      writeStringPref(siteThemeCachePref, serialized);
+    } else {
+      clearUserPref(siteThemeCachePref);
+    }
   }
 
   function clearHostThemeCache(reason = 'clear-cache') {

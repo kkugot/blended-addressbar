@@ -4,11 +4,18 @@ This document describes the current adaptive color pipeline for Blended Addressb
 
 ## Runtime Pieces
 
-- `blended-bar.uc.js` runs in browser chrome. It owns browser lifecycle hooks, cache lookup, source arbitration, CSS variable writes, native Zen tinting, frame preferences, and loading bar preferences.
+- `blended-bar.uc.js` runs in browser chrome. It owns browser lifecycle hooks, cache lookup orchestration, candidate arbitration, CSS variable writes, native Zen tinting, frame preferences, and loading bar preferences. It remains the single Zen script entry point and loads focused helper modules from `scripts/`.
+- `scripts/style-state.js` owns idempotent CSS custom property writes/removals.
+- `scripts/color-utils.js` owns color parsing, alpha visibility checks, contrast, and readable foreground selection.
+- `scripts/prefs.js` owns preference access and preference value normalization.
+- `scripts/pane-layout.js` owns split-pane/browser-frame corner radius observation and updates.
+- `scripts/theme-source-policy.js` owns color source policy metadata, confidence lookup, preferred semantic checks, and rendered-source checks.
+- `scripts/site-theme-cache.js` owns host-cache preference serialization and deserialization, including compact bounded persistence.
 - `frame.js` runs in page content through a persistent frame listener. It watches page theme mutations, load, and pageshow events, then sends lightweight color samples back to chrome. Scroll does not trigger color updates.
 - `style.css` consumes chrome CSS variables such as `--zen-tab-header-background`, `--zen-tab-header-foreground`, `--blended-addressbar-frame-background`, and `--blended-addressbar-window-tint-background`.
+- `styles/header-chrome.css` consumes the header foreground variables for hidden-tabs and compact-mode chrome icon styling.
 - `styles/loadbar.css` consumes loadbar variables and preferences.
-- `preferences.json` exposes user settings. Page colors are always remembered in memory; long-lived host cache persistence is controlled by `uc.blended-addressbar.remember-site-colors-longer`.
+- `preferences.json` exposes user settings. Exact tab and page colors are remembered in memory. Host-level fallback caching, including persistence across restarts, is enabled only while `uc.blended-addressbar.remember-site-colors-longer` is true.
 
 ## Current Event Flow
 
@@ -21,7 +28,7 @@ flowchart TD
   Kind -->|init, tab select, resize, color-scheme change| Schedule["scheduleActiveUpdate"]
   Kind -->|location change or load start| Loading["startLoadingThemePolling + early fastOnly updates"]
   Kind -->|load stop| Settled["stop loading poll + settled full updates"]
-  Kind -->|persistent frame message| Persistent["apply persistent rendered candidate"]
+  Kind -->|persistent frame message| Persistent["apply persistent frame candidate"]
   Kind -->|Zen Boost attribute change| Boost["clear active cache + request rendered sample"]
 
   Schedule --> Update["updateActive"]
@@ -83,13 +90,13 @@ flowchart TD
 
 ## Color Sources
 
-The current code mixes source ordering, source confidence, and source policy in several places. This table describes the effective intent.
+Source metadata is centralized in `scripts/theme-source-policy.js`; ordering decisions still happen in `startSampling`, `shouldSkipFastLoadingTheme`, and `applyResolvedTheme`. Zen Boost is intentionally not in the source registry because it is a resolve-context modifier, not a color source. This table describes the effective source policy.
 
 | Source | Class | Rendered/trusted? | Confidence | Notes |
 | --- | --- | --- | --- | --- |
 | `selector-rule` | explicit semantic | yes | 7 | User-defined selector override. Treated as trusted even though it is not a pixel sample. |
 | `theme-color` | preferred semantic | no | 7 | Preferred during normal active loads so semantic site color can stay stable. Ignored while Boost requires rendered sources. |
-| `top-visible` | visual DOM | yes | 6 | Top visible element from chrome-side DOM read. |
+| `top-visible` | visual DOM | yes | 6 | Top visible element from chrome-side DOM read or persistent-frame ancestor sampling. |
 | `pixel-top-edge` / `pixel` | visual pixel | yes | 6 | Persistent content or chrome snapshot of rendered top edge. |
 | `dark-reader` | modifier-derived visual | yes | 5 | Uses Dark Reader CSS variables. Treated as rendered because it reflects transformed page colors. |
 | `host-cache` | cache fallback | maybe | 4 | Rendered only when its `cachedSource` was rendered. |
@@ -102,7 +109,8 @@ The current code mixes source ordering, source confidence, and source policy in 
 
 - `themeCache`: per-browser `WeakMap` for the current exact tab and href.
 - `pageThemeCache`: bounded in-memory cache by origin and pathname. This is the preferred tab-switch fallback after exact tab cache.
-- `hostThemeCache`: host-level fallback. It can persist across restarts when `remember-site-colors-longer` is enabled.
+- `hostThemeCache`: host-level fallback. The in-memory map is capped separately from persistence and can persist across restarts when `remember-site-colors-longer` is enabled.
+- `site-theme-cache` preference payload: compact versioned JSON written by `scripts/site-theme-cache.js`. Persistence keeps only the newest bounded host entries, omits hrefs entirely, and clears the preference if no serialized payload fits the byte budget.
 - Same-host retention: if the next tab has the same host as the last applied theme, the previous theme can be retained briefly instead of flashing neutral while an unloaded tab restores.
 
 Cache precedence on tab switch is:
@@ -120,7 +128,7 @@ Modifiers change which candidates are trusted and how quickly they can commit.
 | --- | --- |
 | Loading | Starts fast polling and early `fastOnly` updates. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
 | Tab switch | Coalesces updates, applies exact target cache first, then same-host retained color, then host fallback. Exact or retained cached tab colors are kept without immediately forcing a fresh persistent page sample. Equivalent color keys are no-ops to avoid CSS rewrite blink. |
-| Zen Boost | Detected through `#zen-site-data-icon-button[boosting]`. Boost changes clear active page cache, request a persistent rendered sample, and require rendered sources. Non-rendered semantic sources are ignored while Boost is active. |
+| Zen Boost | Detected through `#zen-site-data-icon-button[boosting]` in `blended-bar.uc.js`, then folded into `createResolveContext` as `boostActive` / `requireRendered`. Boost changes clear active page cache, request a persistent rendered sample, and require rendered sources. Non-rendered semantic sources are ignored while Boost is active. |
 | Dark Reader | Detected through `--darkreader-neutral-background` and `--darkreader-neutral-text`. Treated as rendered and allowed through Boost gates. |
 | Persistent frame | Sends top-edge pixel, theme-color, body/html, or ancestor top-visible samples when the page loads, mutates theme attributes/head metadata, or fires pageshow/load. It does not listen to scroll events. |
 | Foreground stability | Background and foreground are applied together. Early candidates can reuse a stable readable foreground to avoid addressbar text blinking before samples catch up. |
@@ -141,13 +149,16 @@ Current mitigations exist for each case, but they are spread across scheduling, 
 
 ## Implemented Simplification
 
-The first refactor phase is implemented in `blended-bar.uc.js`:
+The first refactor phase is implemented across `blended-bar.uc.js` and the helper modules:
 
-- Color source metadata now lives in `colorSourcePolicies`.
+- Color source metadata now lives in `scripts/theme-source-policy.js`.
 - `isRenderedThemeSource`, `isPreferredSemanticThemeSource`, and `getThemeSourceConfidence` read from the same registry.
 - `createResolveContext` centralizes loading, Boost, stable-delay, and pending-candidate inputs before arbitration.
 - Fast loading semantic skips now use `shouldSkipFastLoadingTheme` instead of duplicating the condition inline.
 - Cached tab switches can now return after painting the cached/retained color, avoiding an immediate persistent-frame sample on switch.
+- Repeated CSS property writes use `scripts/style-state.js` so equivalent values are no-ops.
+- Host-cache preference serialization now lives in `scripts/site-theme-cache.js` and writes compact bounded payloads.
+- Hidden-tabs chrome foreground styling now lives in `styles/header-chrome.css`, imported by `style.css`.
 
 The larger pipeline split below is still proposed.
 
@@ -192,10 +203,10 @@ The resolver can then be a small policy matrix instead of scattered booleans:
 | Settled page | Allow semantic preferred sources and rendered sources, but use hysteresis so small or lower-confidence changes do not disturb the UI. |
 | Scroll/sticky header | Do not update the adaptive header from scroll alone. Keep the previous color until load, pageshow, metadata/theme mutation, Boost, or navigation changes the candidate set. |
 
-### Simplification Targets
+### Remaining Simplification Targets
 
-- Replace separate `fastOnly`, `deferNonVisual`, `requireRendered`, `skipToolbarFallback`, and `loading` checks with a `ResolveContext` object and one resolver.
-- Replace hard-coded rendered-source arrays and confidence maps with a source registry:
+- Finish replacing separate `fastOnly`, `deferNonVisual`, `requireRendered`, `skipToolbarFallback`, and `loading` checks with one resolver that consumes the existing `ResolveContext`.
+- Expand the existing source registry if new sources are added:
 
 ```js
 const COLOR_SOURCES = {
@@ -212,9 +223,9 @@ const COLOR_SOURCES = {
 
 ## Recommended Next Step
 
-Refactor in two phases:
+Continue the larger pipeline split in two phases:
 
-1. Add the source registry and `ResolveContext` while keeping existing behavior. This makes tests target policy instead of scattered implementation details.
+1. Add a candidate collection layer while keeping the existing behavior and source registry.
 2. Replace the branch-heavy `startSampling`/`applyResolvedTheme` interaction with `collectCandidates -> resolveColorState -> commitColorState`.
 
 This keeps the current performance wins while making future cases, such as Boost, Dark Reader, semantic theme colors, and tab restore, explicit policy choices instead of one-off guards.

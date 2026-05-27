@@ -1,11 +1,14 @@
 # Changelog
 
-## 1.2.1 - 2026-05-27
+## 1.3.0 - 2026-05-27
 
 - Split repeated chrome script helper logic into focused modules loaded from the existing Zen script entry point.
 - Centralized adaptive theme debug attributes and native Zen theme metadata cleanup.
 - Moved hidden-tabs chrome foreground styling into `styles/header-chrome.css`.
-- Added regression coverage for helper module exports, CSS import order, and the refactored debug/metadata behavior.
+- Added compact bounded host color cache persistence that migrates older payloads, omits persisted hrefs, and clears oversized cache preferences.
+- Added regression coverage for helper module exports, CSS import order, host cache serialization, and refactored debug/metadata behavior.
+- Updated the marketplace preview image and kept the README to a single marketplace-ready preview.
+- Updated the adaptive color architecture notes to match the current helper-module split, cache layers, and Zen Boost modifier behavior.
 
 ## 1.2.0 - 2026-05-26
 
