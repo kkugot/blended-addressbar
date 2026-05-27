@@ -19,6 +19,18 @@ function cssRuleBlock(css, selector) {
   return css.slice(openIndex + 1, closeIndex);
 }
 
+function cssSelectorPrelude(css, selectorStart) {
+  const selectorIndex = css.indexOf(selectorStart);
+  assert.notEqual(selectorIndex, -1, `missing selector start: ${selectorStart}`);
+  const openIndex = css.indexOf('{', selectorIndex);
+  assert.notEqual(openIndex, -1, `missing opening brace after selector start: ${selectorStart}`);
+  return css.slice(selectorIndex, openIndex);
+}
+
+function countOccurrences(value, needle) {
+  return value.split(needle).length - 1;
+}
+
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
   const script = read('blended-bar.uc.js');
   const css = read('style.css');
@@ -79,10 +91,60 @@ test('browser window tint bridges page colors through native Zen window theme va
   assert.match(readme, /tint the browser window with active page colors/);
 });
 
-test('adaptive header background and foreground use a short linear transition', () => {
+test('chrome script loads focused helper modules from one manifest entrypoint', () => {
+  const script = read('blended-bar.uc.js');
+  const theme = read('theme.json');
+  const styleState = read('scripts/style-state.js');
+  const colorUtils = read('scripts/color-utils.js');
+  const prefs = read('scripts/prefs.js');
+  const paneLayout = read('scripts/pane-layout.js');
+  const sourcePolicy = read('scripts/theme-source-policy.js');
+
+  assert.match(theme, /"scripts":\s*\{\s*"blended-bar\.uc\.js"/);
+  assert.match(script, /const scriptModuleBaseUrl = 'chrome:\/\/sine\/content\/blended-addressbar\/scripts\/'/);
+  assert.match(script, /function loadBlendedAddressbarModule\(filename,\s*options = \{\}\)/);
+  assert.match(script, /loadBlendedAddressbarModule\('style-state\.js'\)/);
+  assert.match(script, /loadBlendedAddressbarModule\('color-utils\.js'/);
+  assert.match(script, /loadBlendedAddressbarModule\('prefs\.js'/);
+  assert.match(script, /loadBlendedAddressbarModule\('pane-layout\.js'/);
+  assert.match(script, /loadBlendedAddressbarModule\('theme-source-policy\.js'\)/);
+  assert.match(styleState, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
+  assert.match(styleState, /function removeStylePropertyIfChanged\(style,\s*name\)/);
+  assert.match(colorUtils, /function parseCssRgb\(input\)/);
+  assert.match(colorUtils, /function getReadableForeground\(bg,\s*candidates = \[\]\)/);
+  assert.match(prefs, /function readStringPref\(name,\s*fallback\)/);
+  assert.match(prefs, /function normalizeCssLength\(value,\s*fallback\)/);
+  assert.match(paneLayout, /function updatePaneCornerRadii\(\)/);
+  assert.match(paneLayout, /function cleanupPaneCornerRadii\(\)/);
+  assert.match(sourcePolicy, /const colorSourcePolicies = Object\.freeze\(\{/);
+  assert.match(sourcePolicy, /function getThemeSourceConfidence\(themeOrSource\)/);
+  assert.doesNotMatch(script, /function parseCssRgb\(input\)/);
+  assert.doesNotMatch(script, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
+  assert.doesNotMatch(script, /function readStringPref\(name,\s*fallback\)/);
+  assert.doesNotMatch(script, /function updatePaneCornerRadii\(\)/);
+  assert.doesNotMatch(script, /const colorSourcePolicies = Object\.freeze\(\{/);
+});
+
+test('native theme debug metadata is cleared from one property list', () => {
+  const script = read('blended-bar.uc.js');
+
+  assert.match(script, /const nativeZenThemeDebugAttributes = Object\.freeze\(\[/);
+  assert.match(script, /'data-blended-addressbar-native-theme-bg'/);
+  assert.match(script, /'data-blended-addressbar-native-theme-fg'/);
+  assert.match(script, /'data-blended-addressbar-native-theme-accent'/);
+  assert.match(script, /'data-blended-addressbar-native-theme-tint'/);
+  assert.match(script, /'data-blended-addressbar-native-theme-material'/);
+  assert.match(script, /'data-blended-addressbar-native-theme-opacity'/);
+  assert.match(script, /'data-blended-addressbar-native-theme-reason'/);
+  assert.match(script, /for \(const attribute of nativeZenThemeDebugAttributes\) \{\s*root\.removeAttribute\(attribute\);\s*\}/);
+  assert.equal(countOccurrences(script, "root.removeAttribute('data-blended-addressbar-native-theme-"), 0);
+});
+
+test('adaptive header background and foreground use a short non-linear transition', () => {
   const css = read('style.css');
 
-  assert.match(css, /--blended-addressbar-color-transition:\s*100ms linear/);
+  assert.match(css, /--blended-addressbar-color-transition:\s*100ms ease-out/);
+  assert.doesNotMatch(css, /--blended-addressbar-color-transition:\s*[^;]*linear/);
   assert.match(css, /#zen-appcontent-navbar-wrapper\s*\{[\s\S]*transition:\s*background-color var\(--blended-addressbar-color-transition\),\s*color var\(--blended-addressbar-color-transition\)/);
   assert.match(css, /transition:\s*color var\(--blended-addressbar-color-transition\),\s*fill var\(--blended-addressbar-color-transition\),\s*stroke var\(--blended-addressbar-color-transition\)/);
   assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
@@ -104,7 +166,7 @@ test('split-pane and focus-ring treatments are absent from runtime and chrome CS
 });
 
 test('browser panes round only corners that touch the outer browser frame', () => {
-  const script = read('blended-bar.uc.js');
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/pane-layout.js')}`;
   const css = read('style.css');
 
   assert.match(script, /const paneCornerSelector = '#tabbrowser-tabpanels > \.browserSidebarContainer:not\(\.zen-glance-overlay\)'/);
@@ -135,10 +197,10 @@ test('browser panes round only corners that touch the outer browser frame', () =
   assert.match(css, /--zen-native-inner-radius:\s*var\(--blended-addressbar-split-radius-top-left\)\s+var\(--blended-addressbar-split-radius-top-right\)\s+var\(--blended-addressbar-split-radius-bottom-right\)\s+var\(--blended-addressbar-split-radius-bottom-left\)\s*!important/);
   assert.doesNotMatch(css, /--zen-native-inner-radius:\s*0 0 var\(--blended-addressbar-inner-radius\) var\(--blended-addressbar-inner-radius\)/);
 
-  assert.match(script, /--blended-addressbar-split-radius-top-left', allowTopRadius && touchesTop && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects, pane, rect, 'top-left', tolerance\) \? radius : '0px'/);
-  assert.match(script, /--blended-addressbar-split-radius-top-right', allowTopRadius && touchesTop && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects, pane, rect, 'top-right', tolerance\) \? radius : '0px'/);
-  assert.match(script, /--blended-addressbar-split-radius-bottom-right', touchesBottom && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects, pane, rect, 'bottom-right', tolerance\) \? radius : '0px'/);
-  assert.match(script, /--blended-addressbar-split-radius-bottom-left', touchesBottom && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects, pane, rect, 'bottom-left', tolerance\) \? radius : '0px'/);
+  assert.match(script, /setPaneCornerRadius\(pane,\s*'--blended-addressbar-split-radius-top-left',\s*allowTopRadius && touchesTop && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects,\s*pane,\s*rect,\s*'top-left',\s*tolerance\),\s*radius\)/);
+  assert.match(script, /setPaneCornerRadius\(pane,\s*'--blended-addressbar-split-radius-top-right',\s*allowTopRadius && touchesTop && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects,\s*pane,\s*rect,\s*'top-right',\s*tolerance\),\s*radius\)/);
+  assert.match(script, /setPaneCornerRadius\(pane,\s*'--blended-addressbar-split-radius-bottom-right',\s*touchesBottom && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects,\s*pane,\s*rect,\s*'bottom-right',\s*tolerance\),\s*radius\)/);
+  assert.match(script, /setPaneCornerRadius\(pane,\s*'--blended-addressbar-split-radius-bottom-left',\s*touchesBottom && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects,\s*pane,\s*rect,\s*'bottom-left',\s*tolerance\),\s*radius\)/);
 });
 
 test('frame gap, remove-padding checkbox, and inner radius settings coexist', () => {
@@ -160,9 +222,53 @@ test('expanded sidebar toolbox keeps chrome icons vertically aligned', () => {
   assert.match(css, /#navigator-toolbox\[zen-sidebar-expanded="true"\]\s*\{[^}]*padding-top:\s*2px\s*!important/s);
 });
 
+test('hidden tab sidebar toolbar icons use the softer addressbar chrome foreground', () => {
+  const css = `${read('style.css')}\n${read('styles/header-chrome.css')}`;
+  const headerCss = read('styles/header-chrome.css');
+
+  assert.match(css, /#navigator-toolbox\[tabs-hidden\]/);
+  assert.match(css, /--blended-addressbar-header-chrome-foreground:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.match(css, /--blended-addressbar-header-chrome-icon-fill:\s*color-mix\(in srgb,\s*var\(--blended-addressbar-header-chrome-foreground\)\s*60%,\s*transparent\)/);
+  assert.match(css, /#navigator-toolbox\[tabs-hidden\][^{]*\{[^}]*--toolbarbutton-icon-fill:\s*var\(--blended-addressbar-header-chrome-icon-fill\)\s*!important/s);
+  assert.match(css, /#navigator-toolbox\[tabs-hidden\][\s\S]*color:\s*var\(--blended-addressbar-header-chrome-icon-fill\)\s*!important/);
+  assert.match(css, /#navigator-toolbox\[tabs-hidden\][\s\S]*--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
+  assert.match(css, /#navigator-toolbox\[tabs-hidden\][\s\S]*:is\([^)]*(?:\[disabled\]|\[disabled="true"\]|\[muted\]|\[soundplaying\])/);
+  assert.match(css, /color:\s*var\(--blended-addressbar-header-muted-foreground\)\s*!important/);
+  assert.match(headerCss, /\.urlbar-icon/);
+  assert.match(headerCss, /\.identity-box-button/);
+  assert.match(headerCss, /\.urlbar-page-action/);
+  assert.match(headerCss, /fill-opacity:\s*0\.6\s*!important/);
+  assert.match(headerCss, /--urlbar-icon-fill-opacity:\s*0\.6/);
+  const compactSelector = '&:has([zen-compact-mode="true"]):not(:has(#navigator-toolbox[tabs-hidden])) #zen-appcontent-navbar-wrapper';
+  const compactIndex = headerCss.indexOf(compactSelector);
+  assert.notEqual(compactIndex, -1, `missing selector: ${compactSelector}`);
+  const compactBlock = headerCss.slice(compactIndex, headerCss.indexOf('\n    }', compactIndex));
+  assert.match(compactBlock, /color:\s*inherit\s*!important/);
+  assert.match(compactBlock, /fill:\s*currentColor\s*!important/);
+  assert.match(compactBlock, /--toolbarbutton-icon-fill:\s*currentColor/);
+  assert.doesNotMatch(headerCss, /&:has\(\[zen-compact-mode="true"\]\)\s+#zen-appcontent-navbar-wrapper/);
+});
+
+test('hidden tab chrome styling lives in a focused imported stylesheet', () => {
+  const css = read('style.css');
+  const headerCss = read('styles/header-chrome.css');
+
+  assert.match(css, /@import "styles\/header-chrome\.css";/);
+  assert.match(headerCss, /#navigator-toolbox\[tabs-hidden\]/);
+  assert.match(headerCss, /--blended-addressbar-header-chrome-icon-fill/);
+  const compactSelector = '&:has([zen-compact-mode="true"]):not(:has(#navigator-toolbox[tabs-hidden])) #zen-appcontent-navbar-wrapper';
+  const compactIndex = headerCss.indexOf(compactSelector);
+  assert.notEqual(compactIndex, -1, `missing selector: ${compactSelector}`);
+  const compactBlock = headerCss.slice(compactIndex, headerCss.indexOf('\n    }', compactIndex));
+  assert.match(compactBlock, /color:\s*inherit\s*!important/);
+  assert.match(compactBlock, /fill:\s*currentColor\s*!important/);
+  assert.match(compactBlock, /--toolbarbutton-icon-fill:\s*currentColor/);
+  assert.doesNotMatch(css, /--blended-addressbar-header-chrome-icon-fill/);
+});
+
 test('frame shadow is selected through constrained dropdown presets', () => {
   const css = read('style.css');
-  const script = read('blended-bar.uc.js');
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/prefs.js')}`;
   const prefs = read('preferences.json');
 
   assert.match(script, /const frameShadowPref = `\$\{addressbarPrefBranch\}frame-shadow`/);
@@ -258,7 +364,7 @@ test('early tab-switch themes keep a stable foreground while samples catch up', 
   assert.doesNotMatch(script, /const visibleTheme = hasVisibleColor\(theme\.bg\)\s*\?\s*theme/);
 });
 
-test('same-host tab switches retain host color while unloaded tabs restore', () => {
+test('same-host tab switches retain host color while uncached tab switches defer only initial neutral fallbacks', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /function getSameHostRetainedTheme\(cachedTheme,\s*expectedHref\)/);
@@ -268,13 +374,15 @@ test('same-host tab switches retain host color while unloaded tabs restore', () 
   assert.match(script, /cachedSource:\s*retainedTheme\.source \|\| ''/);
   assert.match(script, /const retainedHostTheme = targetCachedTheme \? null : getSameHostRetainedTheme\(cachedTheme,\s*expectedHref\)/);
   assert.match(script, /if \(retainedHostTheme\) \{\s*applyResolvedTheme\(browser,\s*retainedHostTheme,\s*'same-host-retained',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\);\s*\}/s);
-  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme\)/);
-  assert.match(script, /else if \(!cachedTheme && !retainedHostTheme && !skipToolbarFallback\)/);
+  assert.match(script, /const deferUnknownFallback = keepCachedTheme\s+&& !zenBoostActive/);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\)/);
+  assert.match(script, /else if \(!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
   assert.match(script, /else if \(!retainedHostTheme && !skipToolbarFallback\)/);
+  assert.doesNotMatch(script, /else if \(!retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
 });
 
 test('same effective tab theme updates are no-ops to avoid tab-switch blink', () => {
-  const script = read('blended-bar.uc.js');
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/style-state.js')}`;
 
   assert.match(script, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
   assert.match(script, /function removeStylePropertyIfChanged\(style,\s*name\)/);
@@ -284,9 +392,39 @@ test('same effective tab theme updates are no-ops to avoid tab-switch blink', ()
   assert.match(script, /function setVar\(value,\s*foreground\)[\s\S]*setStylePropertyIfChanged\(rootStyle,\s*'--zen-tab-header-background'/);
   assert.match(script, /function setWindowTintBackground\(tintBackground,[\s\S]*setStylePropertyIfChanged\(root\.style,\s*'--blended-addressbar-window-tint-background'/);
   assert.match(script, /setStylePropertyIfChanged\(root\.style,\s*'--blended-addressbar-frame-background',\s*tintBackground,\s*'important'\)/);
+  assert.match(script, /function setPageLoadbarColors\(theme\)[\s\S]*const rootStyle = chromeDoc\.documentElement\.style/);
+  assert.match(script, /setStylePropertyIfChanged\(rootStyle,\s*'--blended-addressbar-page-loadbar-background',\s*theme\.bg\)/);
+  assert.match(script, /removeStylePropertyIfChanged\(rootStyle,\s*'--blended-addressbar-page-loadbar-background'\)/);
+  assert.match(script, /setStylePropertyIfChanged\(rootStyle,\s*'--blended-addressbar-page-loadbar-foreground',\s*theme\.fg\)/);
+  assert.match(script, /setStylePropertyIfChanged\(rootStyle,\s*'--blended-addressbar-frame-radius',\s*radius\)/);
+  assert.match(script, /setStylePropertyIfChanged\(rootStyle,\s*'--blended-addressbar-loadbar-color',\s*colorValue\)/);
   assert.match(script, /if \(key === lastThemeKey\) \{\s*lastAppliedTheme = theme;\s*return true;\s*\}/);
   assert.match(script, /if \(key === lastThemeKey && getCurrentFrameBackground\(\) === 'transparent'\) \{\s*lastAppliedTheme = theme;\s*return true;\s*\}/);
   assert.doesNotMatch(script, /const key = getThemeKey\(theme\);\s*chromeDoc\.documentElement\.style\.setProperty\('--blended-addressbar-frame-background',\s*'transparent',\s*'important'\);\s*if \(key === lastThemeKey\)/);
+});
+
+test('theme debug attributes are written through one helper', () => {
+  const script = read('blended-bar.uc.js');
+
+  assert.match(script, /function setThemeDebugAttributes\(reason = '',\s*theme = null,\s*href = ''\)/);
+  assert.equal(countOccurrences(script, "setAttribute('data-blended-addressbar-theme-reason'"), 1);
+  assert.equal(countOccurrences(script, "setAttribute('data-blended-addressbar-theme-bridge'"), 1);
+  assert.equal(countOccurrences(script, "setAttribute('data-blended-addressbar-theme-source'"), 1);
+  assert.equal(countOccurrences(script, "setAttribute('data-blended-addressbar-theme-bg'"), 1);
+  assert.equal(countOccurrences(script, "setAttribute('data-blended-addressbar-theme-fg'"), 1);
+  assert.equal(countOccurrences(script, "setAttribute('data-blended-addressbar-theme-href'"), 1);
+  assert.match(script, /setThemeDebugAttributes\(reason,\s*null,\s*href\)/);
+  assert.match(script, /setThemeDebugAttributes\(reason,\s*theme,\s*href\)/);
+  assert.match(script, /setThemeDebugAttributes\(reason,\s*theme,\s*theme\.href \|\| ''\)/);
+});
+
+test('pane radius updates skip unchanged per-pane style writes', () => {
+  const script = read('scripts/pane-layout.js');
+
+  assert.match(script, /function setPaneCornerRadius\(pane,\s*property,\s*shouldRound,\s*radius\)\s*\{[\s\S]*setStylePropertyIfChanged\(pane\.style,\s*property,\s*shouldRound \? radius : '0px'\)/);
+  assert.match(script, /setPaneCornerRadius\(pane,\s*'--blended-addressbar-split-radius-top-left',\s*allowTopRadius && touchesTop && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects,\s*pane,\s*rect,\s*'top-left',\s*tolerance\),\s*radius\)/);
+  assert.match(script, /setPaneCornerRadius\(pane,\s*'--blended-addressbar-split-radius-bottom-right',\s*touchesBottom && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner\(cornerNeighborRects,\s*pane,\s*rect,\s*'bottom-right',\s*tolerance\),\s*radius\)/);
+  assert.doesNotMatch(script, /pane\.style\.setProperty\('--blended-addressbar-split-radius-top-left'/);
 });
 
 test('page theme cache uses bounded origin-path LRU entries before host fallback', () => {
@@ -369,8 +507,20 @@ test('cached tab switches do not force a fresh page sample immediately', () => {
   assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
 });
 
-test('color source policies are centralized before candidate arbitration', () => {
+test('uncached tab switches skip initial neutral flash but clear stale colors after theme lookup misses', () => {
   const script = read('blended-bar.uc.js');
+
+  assert.match(script, /const deferUnknownFallback = keepCachedTheme\s+&& !zenBoostActive/);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\)/);
+  assert.match(script, /else if \(!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
+  assert.match(script, /else if \(!retainedHostTheme && !skipToolbarFallback\)/);
+  assert.doesNotMatch(script, /else if \(!retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
+  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
+  assert.doesNotMatch(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme\) \{\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\)/s);
+});
+
+test('color source policies are centralized before candidate arbitration', () => {
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/theme-source-policy.js')}`;
 
   assert.match(script, /const colorSourcePolicies = Object\.freeze\(\{/);
   assert.match(script, /'theme-color': Object\.freeze\(\{ sourceClass: 'semantic', rendered: false, confidence: 7, preferred: true \}\)/);
@@ -386,7 +536,7 @@ test('color source policies are centralized before candidate arbitration', () =>
 });
 
 test('post-load semantic fallbacks wait for rendered samples to avoid Zen Boost color flicker', () => {
-  const script = read('blended-bar.uc.js');
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/theme-source-policy.js')}`;
 
   assert.match(script, /const visualThemeSettleDelayMs = 180/);
   assert.match(script, /function isRenderedThemeSource\(source\)/);
@@ -407,7 +557,7 @@ test('post-load semantic fallbacks wait for rendered samples to avoid Zen Boost 
 });
 
 test('Zen Boost active state requires rendered color sources and fresh samples', () => {
-  const script = read('blended-bar.uc.js');
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/theme-source-policy.js')}`;
 
   assert.match(script, /let zenBoostMutationObserver = null/);
   assert.match(script, /let lastZenBoostActive = false/);
@@ -490,7 +640,7 @@ test('unknown page colors use a translucent neutral header without native window
   assert.match(script, /setVar\(theme\.bg,\s*theme\.fg\)/);
   assert.match(script, /clearWindowTintBackground\(\)/);
   assert.match(script, /setStylePropertyIfChanged\(chromeDoc\.documentElement\.style,\s*'--blended-addressbar-frame-background',\s*'transparent',\s*'important'\)/);
-  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme\) \{\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown'\);\s*return;\s*\}/s);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown'\);\s*return;\s*\}/s);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*'unknown-page'\)/);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason\)/);
 });
@@ -508,7 +658,10 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\[breakout\]\[breakout-extend\]\s*>\s*\.urlbar-input-container\s*\{[^}]*height:\s*calc\(var\(--urlbar-container-height\) - 10px\)\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input::selection\s*\{[^}]*background-color:\s*SelectedItem\s*!important[^}]*color:\s*SelectedItemText\s*!important/s);
   assert.match(css, /--blended-addressbar-header-muted-foreground:\s*color-mix\(in srgb,\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*42%,\s*transparent\)/);
-  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input-container :is\(\.urlbar-page-action,\s*\.identity-box-button,\s*\.urlbar-icon\)/);
+  const urlbarIconSelector = cssSelectorPrelude(css, '#urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container');
+  assert.match(urlbarIconSelector, /\.urlbar-page-action/);
+  assert.match(urlbarIconSelector, /\.identity-box-button/);
+  assert.match(urlbarIconSelector, /\.urlbar-icon/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #zen-site-data-icon-button\[boosting\] image\s*\{[^}]*color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #zen-site-data-icon-button\[boosting\] image\s*\{[^}]*--toolbarbutton-icon-fill:\s*currentColor/s);
   assert.doesNotMatch(css, /#urlbar\[zen-floating-urlbar="true"\]\s+#urlbar-input/);

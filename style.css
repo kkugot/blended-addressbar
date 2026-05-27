@@ -1,10 +1,11 @@
 @import "styles/loadbar.css";
+@import "styles/header-chrome.css";
 
 :root {
     --blended-addressbar-frame-gap: 5px;
     --blended-addressbar-frame-radius: 14px;
     --blended-addressbar-inner-radius: max(0px, calc(var(--blended-addressbar-frame-radius) - var(--blended-addressbar-frame-gap)));
-    --blended-addressbar-color-transition: 100ms linear;
+    --blended-addressbar-color-transition: 100ms ease-out;
     --blended-addressbar-frame-shadow-standard:
         0 4px 16px rgba(0, 0, 0, 0.14),
         0 1px 4px rgba(0, 0, 0, 0.12);
@@ -90,7 +91,7 @@
             border-radius: 0 0 var(--blended-addressbar-frame-radius) var(--blended-addressbar-frame-radius) !important;
         }
     }
-    
+
     #tabbrowser-tabpanels,
     #tabbrowser-tabbox {
         overflow: hidden;
@@ -194,14 +195,6 @@
         #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input::selection {
             background-color: SelectedItem !important;
             color: SelectedItemText !important;
-        }
-    }
-
-    &:has([zen-compact-mode="true"]) #zen-appcontent-navbar-wrapper {
-        :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .urlbar-icon) {
-            color: inherit !important;
-            fill: currentColor !important;
-            --toolbarbutton-icon-fill: currentColor;
         }
     }
 

@@ -34,6 +34,7 @@
   const themeMessageName = 'blended-addressbar:theme-response';
   const persistentThemeMessageName = 'blended-addressbar:persistent-theme';
   const themeFrameScriptUrl = 'chrome://sine/content/blended-addressbar/frame.js';
+  const scriptModuleBaseUrl = 'chrome://sine/content/blended-addressbar/scripts/';
   const pageThemeCacheMaxEntries = 500;
   const scheduleSafetyMs = 100;
   const loadbarPrefBranch = 'uc.loadbar.';
@@ -41,11 +42,23 @@
   const loadbarOpacityPref = `${loadbarPrefBranch}opacity`;
   const loadbarColorPref = `${loadbarPrefBranch}color`;
   const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
+  const loadbarColorSourceValues = Object.freeze({
+    custom: 'var(--blended-addressbar-loadbar-custom-color)',
+    'page-background': 'var(--blended-addressbar-page-loadbar-background, var(--zen-primary-color))',
+    'page-foreground': 'var(--blended-addressbar-page-loadbar-foreground, var(--zen-primary-color))',
+    zen: 'var(--zen-primary-color)'
+  });
   const addressbarPrefBranch = 'uc.blended-addressbar.';
   const frameRadiusPref = `${addressbarPrefBranch}frame-radius`;
   const frameGapPref = `${addressbarPrefBranch}frame-gap`;
   const framePaddingDisabledPref = `${addressbarPrefBranch}frame-padding.disabled`;
   const frameShadowPref = `${addressbarPrefBranch}frame-shadow`;
+  const framePrefNames = Object.freeze(new Set([
+    frameRadiusPref,
+    frameGapPref,
+    framePaddingDisabledPref,
+    frameShadowPref
+  ]));
   const windowTintEnabledPref = `${addressbarPrefBranch}window-tint.enabled`;
   const windowTintStrengthPref = `${addressbarPrefBranch}window-tint.strength`;
   const legacySidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
@@ -59,35 +72,16 @@
     '--zen-main-browser-background',
     '--zen-main-browser-background-toolbar'
   ];
+  const nativeZenThemeDebugAttributes = Object.freeze([
+    'data-blended-addressbar-native-theme-bg',
+    'data-blended-addressbar-native-theme-fg',
+    'data-blended-addressbar-native-theme-accent',
+    'data-blended-addressbar-native-theme-tint',
+    'data-blended-addressbar-native-theme-material',
+    'data-blended-addressbar-native-theme-opacity',
+    'data-blended-addressbar-native-theme-reason'
+  ]);
   const chromeDoc = document;
-  const paneCornerSelector = '#tabbrowser-tabpanels > .browserSidebarContainer:not(.zen-glance-overlay)';
-  const paneCornerNeighborSelector = `${paneCornerSelector}, #sidebar-box[sidebar-panel-open]:not([hidden])`;
-  const paneCornerRadiusProperties = [
-    '--blended-addressbar-split-radius-top-left',
-    '--blended-addressbar-split-radius-top-right',
-    '--blended-addressbar-split-radius-bottom-right',
-    '--blended-addressbar-split-radius-bottom-left'
-  ];
-  const colorSourcePolicies = Object.freeze({
-    'selector-rule': Object.freeze({ sourceClass: 'explicit', rendered: true, confidence: 7, preferred: true }),
-    'dark-reader': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 5, modifier: true }),
-    'top-visible': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
-    'pixel-top-edge': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
-    pixel: Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
-    'theme-color': Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 7, preferred: true }),
-    body: Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 3 }),
-    html: Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 3 }),
-    'document-canvas': Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 2 }),
-    sampler: Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 1 }),
-    'host-cache': Object.freeze({ sourceClass: 'cache', rendered: false, confidence: 4 }),
-    'chrome-contrast-fallback': Object.freeze({ sourceClass: 'fallback', rendered: false, confidence: 1 }),
-    'toolbar-fallback': Object.freeze({ sourceClass: 'fallback', rendered: false, confidence: 0 })
-  });
-  const unknownColorSourcePolicy = Object.freeze({
-    sourceClass: 'unknown',
-    rendered: false,
-    confidence: 0
-  });
   let themeCache = new WeakMap();
   let pageThemeCache = new Map();
   let hostThemeCache = new Map();
@@ -124,30 +118,98 @@
   let scheduledActiveUpdateAt = 0;
   let scheduledActiveUpdateRaf = 0;
   let scheduledActiveUpdateTimer = 0;
-  let paneCornerMutationObserver = null;
-  let paneCornerUpdateTimer = 0;
   let zenBoostMutationObserver = null;
   let lastZenBoostActive = false;
 
-  function setStylePropertyIfChanged(style, name, value, priority = '') {
-    if (!style || !name) return false;
+  function getServices() {
+    try {
+      if (typeof Services !== 'undefined') return Services;
+    } catch {}
 
-    const nextValue = String(value ?? '');
-    const nextPriority = String(priority || '');
-    if (style.getPropertyValue(name) === nextValue && style.getPropertyPriority(name) === nextPriority) {
-      return false;
+    try {
+      if (!servicesModule && typeof ChromeUtils !== 'undefined') {
+        servicesModule = ChromeUtils.importESModule('resource://gre/modules/Services.sys.mjs').Services;
+      }
+      return servicesModule || null;
+    } catch {}
+
+    return null;
+  }
+
+  function loadBlendedAddressbarModule(filename, options = {}) {
+    const target = {
+      BlendedAddressbarModuleOptions: options,
+      console
+    };
+    const scriptLoader = getServices()?.scriptloader;
+    if (!scriptLoader?.loadSubScript) {
+      throw new Error(`[blended-addressbar:urlbar] Unable to load ${filename}: scriptloader unavailable`);
     }
 
-    style.setProperty(name, nextValue, nextPriority);
-    return true;
+    scriptLoader.loadSubScript(`${scriptModuleBaseUrl}${filename}`, target, 'UTF-8');
+    if (!target.BlendedAddressbarModule) {
+      throw new Error(`[blended-addressbar:urlbar] Unable to load ${filename}: module export missing`);
+    }
+
+    return target.BlendedAddressbarModule;
   }
 
-  function removeStylePropertyIfChanged(style, name) {
-    if (!style || !name || !style.getPropertyValue(name)) return false;
+  const {
+    removeStylePropertyIfChanged,
+    setStylePropertyIfChanged
+  } = loadBlendedAddressbarModule('style-state.js');
 
-    style.removeProperty(name);
-    return true;
-  }
+  const {
+    cleanupPaneCornerRadii,
+    observePaneCornerRadii,
+    schedulePaneCornerRadiiUpdate
+  } = loadBlendedAddressbarModule('pane-layout.js', {
+    chromeDoc,
+    removeStylePropertyIfChanged,
+    setStylePropertyIfChanged
+  });
+
+  const {
+    getCachedColorSourceName,
+    getColorSourceName,
+    getColorSourcePolicy,
+    getThemeSourceConfidence,
+    isPreferredSemanticThemeSource,
+    isRenderedThemeSource
+  } = loadBlendedAddressbarModule('theme-source-policy.js');
+
+  const {
+    clearUserPref,
+    cssSupports,
+    getPrefs,
+    normalizeCssColor,
+    normalizeCssLength,
+    normalizeFrameShadowPreset,
+    normalizeOpacity,
+    normalizePercent,
+    prefHasUserValue,
+    readBoolPref,
+    readIntPref,
+    readStringPref,
+    writeStringPref
+  } = loadBlendedAddressbarModule('prefs.js', {
+    getServices,
+    window
+  });
+
+  const {
+    chooseForeground,
+    extractCssColor,
+    getContrastRatio,
+    getCssColorAlpha,
+    getReadableForeground,
+    getRelativeLuminance,
+    hasVisibleColor,
+    parseCssRgb
+  } = loadBlendedAddressbarModule('color-utils.js', {
+    cssSupports: (property, value) => cssSupports(property, value),
+    sampledColorMinAlpha
+  });
 
   function setVar(value, foreground) {
     const rootStyle = chromeDoc.documentElement.style;
@@ -163,6 +225,18 @@
     const rootStyle = chromeDoc.documentElement.style;
     removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-background');
     removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-foreground');
+  }
+
+  function setThemeDebugAttributes(reason = '', theme = null, href = '') {
+    if (!DEBUG_THEME) return;
+
+    const root = chromeDoc.documentElement;
+    root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
+    root.setAttribute('data-blended-addressbar-theme-bridge', theme?.bridge || '');
+    root.setAttribute('data-blended-addressbar-theme-source', theme?.source || '');
+    root.setAttribute('data-blended-addressbar-theme-bg', theme?.bg || '');
+    root.setAttribute('data-blended-addressbar-theme-fg', theme?.fg || '');
+    root.setAttribute('data-blended-addressbar-theme-href', href || theme?.href || '');
   }
 
   function isPageThemeEligibleHref(href) {
@@ -233,16 +307,7 @@
     clearWindowTintBackground();
     chromeDoc.documentElement.style.removeProperty('--blended-addressbar-frame-background');
     setPageLoadbarColors(null);
-
-    if (DEBUG_THEME) {
-      const root = chromeDoc.documentElement;
-      root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
-      root.setAttribute('data-blended-addressbar-theme-bridge', '');
-      root.setAttribute('data-blended-addressbar-theme-source', '');
-      root.setAttribute('data-blended-addressbar-theme-bg', '');
-      root.setAttribute('data-blended-addressbar-theme-fg', '');
-      root.setAttribute('data-blended-addressbar-theme-href', href || '');
-    }
+    setThemeDebugAttributes(reason, null, href);
   }
 
   function applyInternalPageTheme(browser, reason = 'internal-page') {
@@ -273,16 +338,7 @@
     lastCss = theme.bg;
     setVar(theme.bg, theme.fg);
     setPageLoadbarColors(theme);
-
-    if (DEBUG_THEME) {
-      const root = chromeDoc.documentElement;
-      root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
-      root.setAttribute('data-blended-addressbar-theme-bridge', theme.bridge || '');
-      root.setAttribute('data-blended-addressbar-theme-source', theme.source || '');
-      root.setAttribute('data-blended-addressbar-theme-bg', theme.bg || '');
-      root.setAttribute('data-blended-addressbar-theme-fg', theme.fg || '');
-      root.setAttribute('data-blended-addressbar-theme-href', href || '');
-    }
+    setThemeDebugAttributes(reason, theme, href);
 
     return true;
   }
@@ -308,16 +364,7 @@
     lastCss = theme.bg;
     setVar(theme.bg, theme.fg);
     setPageLoadbarColors(theme);
-
-    if (DEBUG_THEME) {
-      const root = chromeDoc.documentElement;
-      root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
-      root.setAttribute('data-blended-addressbar-theme-bridge', theme.bridge || '');
-      root.setAttribute('data-blended-addressbar-theme-source', theme.source || '');
-      root.setAttribute('data-blended-addressbar-theme-bg', theme.bg || '');
-      root.setAttribute('data-blended-addressbar-theme-fg', theme.fg || '');
-      root.setAttribute('data-blended-addressbar-theme-href', href || '');
-    }
+    setThemeDebugAttributes(reason, theme, href);
 
     return true;
   }
@@ -332,13 +379,7 @@
 
     if (!DEBUG_THEME) return;
 
-    const root = chromeDoc.documentElement;
-    root.setAttribute('data-blended-addressbar-theme-reason', reason || '');
-    root.setAttribute('data-blended-addressbar-theme-bridge', theme.bridge || '');
-    root.setAttribute('data-blended-addressbar-theme-source', theme.source || '');
-    root.setAttribute('data-blended-addressbar-theme-bg', theme.bg || '');
-    root.setAttribute('data-blended-addressbar-theme-fg', theme.fg || '');
-    root.setAttribute('data-blended-addressbar-theme-href', theme.href || '');
+    setThemeDebugAttributes(reason, theme, theme.href || '');
 
     console.info('[blended-addressbar:urlbar] Theme resolved', {
       reason,
@@ -393,13 +434,9 @@
     clearWindowTintBackground(root);
     root.style.removeProperty('--blended-addressbar-frame-background');
     root.setAttribute('data-blended-addressbar-native-theme', 'restored');
-    root.removeAttribute('data-blended-addressbar-native-theme-bg');
-    root.removeAttribute('data-blended-addressbar-native-theme-fg');
-    root.removeAttribute('data-blended-addressbar-native-theme-accent');
-    root.removeAttribute('data-blended-addressbar-native-theme-tint');
-    root.removeAttribute('data-blended-addressbar-native-theme-material');
-    root.removeAttribute('data-blended-addressbar-native-theme-opacity');
-    root.removeAttribute('data-blended-addressbar-native-theme-reason');
+    for (const attribute of nativeZenThemeDebugAttributes) {
+      root.removeAttribute(attribute);
+    }
   }
 
   function getWindowTintBackground(bg, tintStrengthPercent) {
@@ -457,108 +494,6 @@
     return browser?.currentURI?.spec || '';
   }
 
-  function clearPaneCornerRadii(pane) {
-    for (const property of paneCornerRadiusProperties) {
-      pane.style.removeProperty(property);
-    }
-  }
-
-  function overlapsRange(startA, endA, startB, endB, tolerance) {
-    return Math.max(startA, startB) <= Math.min(endA, endB) + tolerance;
-  }
-
-  function hasPaneNeighborAtCorner(paneRects, pane, rect, corner, tolerance) {
-    const checksLeft = corner.endsWith('left');
-    const checksTop = corner.startsWith('top');
-    const verticalEdge = checksLeft ? rect.left : rect.right;
-    const horizontalEdge = checksTop ? rect.top : rect.bottom;
-
-    return paneRects.some(item => {
-      if (item.pane === pane) return false;
-
-      const other = item.rect;
-      const touchesVerticalEdge = checksLeft
-        ? Math.abs(other.right - verticalEdge) <= tolerance
-        : Math.abs(other.left - verticalEdge) <= tolerance;
-      const touchesHorizontalEdge = checksTop
-        ? Math.abs(other.bottom - horizontalEdge) <= tolerance
-        : Math.abs(other.top - horizontalEdge) <= tolerance;
-
-      return (touchesVerticalEdge && overlapsRange(other.top, other.bottom, horizontalEdge, horizontalEdge, tolerance))
-        || (touchesHorizontalEdge && overlapsRange(other.left, other.right, verticalEdge, verticalEdge, tolerance));
-    });
-  }
-
-  function updatePaneCornerRadii() {
-    paneCornerUpdateTimer = 0;
-
-    const tabpanels = chromeDoc.getElementById('tabbrowser-tabpanels');
-    const tabbox = chromeDoc.getElementById('tabbrowser-tabbox');
-    const sidebarBox = chromeDoc.getElementById('sidebar-box');
-    const panes = Array.from(chromeDoc.querySelectorAll(paneCornerSelector));
-
-    if (!tabpanels || !panes.length) {
-      for (const pane of chromeDoc.querySelectorAll('.browserSidebarContainer')) {
-        clearPaneCornerRadii(pane);
-      }
-      return;
-    }
-
-    const frame = tabpanels.getBoundingClientRect();
-    if (!frame.width || !frame.height) return;
-
-    const tolerance = 1.5;
-    const radius = 'var(--blended-addressbar-inner-radius)';
-    const allowTopRadius = tabpanels.getAttribute('zen-split-view') === 'true';
-    const sidebarPanelOpen = !!sidebarBox
-      && !sidebarBox.hidden
-      && sidebarBox.hasAttribute('sidebar-panel-open');
-    const sidebarOnRight = sidebarPanelOpen
-      && (sidebarBox.hasAttribute('sidebar-positionend') || tabbox?.hasAttribute('sidebar-positionend'));
-    const sidebarBlocksLeftEdge = sidebarPanelOpen && !sidebarOnRight;
-    const sidebarBlocksRightEdge = sidebarPanelOpen && sidebarOnRight;
-    const paneRects = panes
-      .map(pane => ({ pane, rect: pane.getBoundingClientRect() }))
-      .filter(item => item.rect.width && item.rect.height);
-    const cornerNeighborRects = Array.from(chromeDoc.querySelectorAll(paneCornerNeighborSelector))
-      .map(pane => ({ pane, rect: pane.getBoundingClientRect() }))
-      .filter(item => item.rect.width && item.rect.height);
-
-    for (const { pane, rect } of paneRects) {
-      const touchesTop = Math.abs(rect.top - frame.top) <= tolerance;
-      const touchesRight = Math.abs(rect.right - frame.right) <= tolerance;
-      const touchesBottom = Math.abs(rect.bottom - frame.bottom) <= tolerance;
-      const touchesLeft = Math.abs(rect.left - frame.left) <= tolerance;
-
-      pane.style.setProperty('--blended-addressbar-split-radius-top-left', allowTopRadius && touchesTop && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'top-left', tolerance) ? radius : '0px');
-      pane.style.setProperty('--blended-addressbar-split-radius-top-right', allowTopRadius && touchesTop && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'top-right', tolerance) ? radius : '0px');
-      pane.style.setProperty('--blended-addressbar-split-radius-bottom-right', touchesBottom && touchesRight && !sidebarBlocksRightEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'bottom-right', tolerance) ? radius : '0px');
-      pane.style.setProperty('--blended-addressbar-split-radius-bottom-left', touchesBottom && touchesLeft && !sidebarBlocksLeftEdge && !hasPaneNeighborAtCorner(cornerNeighborRects, pane, rect, 'bottom-left', tolerance) ? radius : '0px');
-    }
-  }
-
-  function schedulePaneCornerRadiiUpdate() {
-    if (paneCornerUpdateTimer) clearTimeout(paneCornerUpdateTimer);
-    paneCornerUpdateTimer = setTimeout(updatePaneCornerRadii, 0);
-  }
-
-  function observePaneCornerRadii() {
-    const tabpanels = chromeDoc.getElementById('tabbrowser-tabpanels');
-    if (!tabpanels || typeof MutationObserver === 'undefined') return;
-    const paneCornerObserverRoot = chromeDoc.getElementById('tabbrowser-tabbox') || tabpanels;
-
-    if (paneCornerMutationObserver) paneCornerMutationObserver.disconnect();
-    paneCornerMutationObserver = new MutationObserver(schedulePaneCornerRadiiUpdate);
-    paneCornerMutationObserver.observe(paneCornerObserverRoot, {
-      attributes: true,
-      attributeFilter: ['class', 'style', 'zen-split-view', 'is-zen-split', 'zen-split', 'sidebar-panel-open', 'sidebar-positionend', 'checked'],
-      childList: true,
-      subtree: true
-    });
-
-    schedulePaneCornerRadiiUpdate();
-  }
-
   function normalizeAlphaForKey(alpha) {
     const value = Number(alpha);
     if (!Number.isFinite(value)) return '1';
@@ -608,37 +543,6 @@
       ...theme,
       fg: foreground
     };
-  }
-
-  function getColorSourceName(themeOrSource) {
-    return typeof themeOrSource === 'string'
-      ? themeOrSource
-      : (themeOrSource?.source || '');
-  }
-
-  function getCachedColorSourceName(themeOrSource) {
-    return typeof themeOrSource === 'string'
-      ? ''
-      : (themeOrSource?.cachedSource || '');
-  }
-
-  function getColorSourcePolicy(themeOrSource) {
-    return colorSourcePolicies[getColorSourceName(themeOrSource)] || unknownColorSourcePolicy;
-  }
-
-  function isRenderedThemeSource(source) {
-    const sourceName = getColorSourceName(source);
-    if (getColorSourcePolicy(sourceName).rendered) return true;
-
-    return sourceName === 'host-cache' && getColorSourcePolicy(getCachedColorSourceName(source)).rendered;
-  }
-
-  function isPreferredSemanticThemeSource(source) {
-    return getColorSourcePolicy(source).preferred === true;
-  }
-
-  function getThemeSourceConfidence(themeOrSource) {
-    return getColorSourcePolicy(themeOrSource).confidence;
   }
 
   function clearPendingThemeCandidate() {
@@ -1176,87 +1080,6 @@
     return applyThemeCandidateNow(browser, visibleTheme, reason, expectedHref, decision);
   }
 
-  function getPrefs() {
-    try {
-      if (typeof Services !== 'undefined') return Services.prefs;
-    } catch {}
-
-    try {
-      if (!servicesModule && typeof ChromeUtils !== 'undefined') {
-        servicesModule = ChromeUtils.importESModule('resource://gre/modules/Services.sys.mjs').Services;
-      }
-      return servicesModule?.prefs || null;
-    } catch {}
-
-    return null;
-  }
-
-  function readStringPref(name, fallback) {
-    const prefs = getPrefs();
-    if (!prefs) return fallback;
-
-    try {
-      return prefs.getStringPref(name, fallback);
-    } catch {}
-
-    try {
-      return prefs.getCharPref(name, fallback);
-    } catch {}
-
-    return fallback;
-  }
-
-  function writeStringPref(name, value) {
-    const prefs = getPrefs();
-    if (!prefs) return false;
-
-    try {
-      prefs.setStringPref(name, value);
-      return true;
-    } catch {}
-
-    try {
-      prefs.setCharPref(name, value);
-      return true;
-    } catch {}
-
-    return false;
-  }
-
-  function clearUserPref(name) {
-    const prefs = getPrefs();
-    if (!prefs?.clearUserPref) return false;
-
-    try {
-      prefs.clearUserPref(name);
-      return true;
-    } catch {}
-
-    return false;
-  }
-
-  function readBoolPref(name, fallback) {
-    const prefs = getPrefs();
-    if (!prefs) return fallback;
-
-    try {
-      return prefs.getBoolPref(name, fallback);
-    } catch {}
-
-    return fallback;
-  }
-
-  function prefHasUserValue(name) {
-    const prefs = getPrefs();
-    if (!prefs?.prefHasUserValue) return false;
-
-    try {
-      return prefs.prefHasUserValue(name);
-    } catch {}
-
-    return false;
-  }
-
   function readWindowTintEnabled() {
     if (prefHasUserValue(windowTintEnabledPref)) {
       return readBoolPref(windowTintEnabledPref, false);
@@ -1279,107 +1102,40 @@
     } catch {}
   }
 
-  function readIntPref(name, fallback) {
-    const prefs = getPrefs();
-    if (!prefs) return fallback;
-
-    try {
-      return prefs.getIntPref(name, fallback);
-    } catch {}
-
-    return fallback;
-  }
-
-  function cssSupports(property, value) {
-    try {
-      return !!window.CSS?.supports?.(property, value);
-    } catch {
-      return false;
-    }
-  }
-
-  function normalizeCssLength(value, fallback) {
-    const raw = String(value || '').trim();
-    if (!raw) return fallback;
-
-    const normalized = /^\d+(?:\.\d+)?$/.test(raw) ? `${raw}px` : raw;
-    return cssSupports('height', normalized) ? normalized : fallback;
-  }
-
-  function normalizeFrameShadowPreset(value) {
-    const preset = String(value || '').trim();
-    return ['standard', 'minimal', 'medium', 'none'].includes(preset) ? preset : 'standard';
-  }
-
-  function normalizeCssColor(value, fallback) {
-    const raw = String(value || '').trim();
-    if (!raw) return fallback;
-
-    return cssSupports('color', raw) ? raw : fallback;
-  }
-
-  function normalizeOpacity(value, fallback) {
-    const raw = String(value || '').trim();
-    if (!raw) return fallback;
-
-    const match = raw.match(/^(\d+(?:\.\d+)?)\s*(%)?$/);
-    if (!match) return fallback;
-
-    const amount = Number(match[1]);
-    if (!Number.isFinite(amount)) return fallback;
-
-    const alpha = (match[2] || amount > 1) ? amount / 100 : amount;
-    const clamped = Math.max(0, Math.min(1, alpha));
-    return `${Math.round(clamped * 1000) / 1000}`;
-  }
-
-  function normalizePercent(value, fallback, min = 0, max = 100) {
-    const raw = String(value || '').trim();
-    if (!raw) return fallback;
-
-    const match = raw.match(/^(\d+(?:\.\d+)?)\s*%?$/);
-    if (!match) return fallback;
-
-    const amount = Number(match[1]);
-    if (!Number.isFinite(amount)) return fallback;
-
-    const clamped = Math.max(min, Math.min(max, amount));
-    return Math.round(clamped * 1000) / 1000;
-  }
-
   function readWindowTintStrengthPercent() {
     return normalizePercent(readStringPref(windowTintStrengthPref, String(defaultWindowTintStrengthPercent)), defaultWindowTintStrengthPercent, 0, 100);
   }
 
   function setPageLoadbarColors(theme) {
-    const root = chromeDoc.documentElement;
+    const rootStyle = chromeDoc.documentElement.style;
     if (hasVisibleColor(theme?.bg)) {
-      root.style.setProperty('--blended-addressbar-page-loadbar-background', theme.bg);
+      setStylePropertyIfChanged(rootStyle, '--blended-addressbar-page-loadbar-background', theme.bg);
     } else {
-      root.style.removeProperty('--blended-addressbar-page-loadbar-background');
+      removeStylePropertyIfChanged(rootStyle, '--blended-addressbar-page-loadbar-background');
     }
 
     if (hasVisibleColor(theme?.fg)) {
-      root.style.setProperty('--blended-addressbar-page-loadbar-foreground', theme.fg);
+      setStylePropertyIfChanged(rootStyle, '--blended-addressbar-page-loadbar-foreground', theme.fg);
       return;
     }
 
     const bgRgb = parseCssRgb(theme?.bg);
     if (bgRgb) {
-      root.style.setProperty('--blended-addressbar-page-loadbar-foreground', chooseForeground(bgRgb));
+      setStylePropertyIfChanged(rootStyle, '--blended-addressbar-page-loadbar-foreground', chooseForeground(bgRgb));
     } else {
-      root.style.removeProperty('--blended-addressbar-page-loadbar-foreground');
+      removeStylePropertyIfChanged(rootStyle, '--blended-addressbar-page-loadbar-foreground');
     }
   }
 
   function applyFramePrefs() {
     const root = chromeDoc.documentElement;
+    const rootStyle = root.style;
     const radius = normalizeCssLength(readStringPref(frameRadiusPref, '14px'), '14px');
     const gap = readBoolPref(framePaddingDisabledPref, false) ? '0px' : normalizeCssLength(readStringPref(frameGapPref, '5px'), '5px');
     const shadowPreset = normalizeFrameShadowPreset(readStringPref(frameShadowPref, 'standard'));
 
-    root.style.setProperty('--blended-addressbar-frame-radius', radius);
-    root.style.setProperty('--blended-addressbar-frame-gap', gap);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-frame-radius', radius);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-frame-gap', gap);
     root.setAttribute('data-blended-addressbar-frame-shadow', shadowPreset);
 
     if (DEBUG_THEME) {
@@ -1394,7 +1150,7 @@
 
     const observer = {
       observe(_subject, topic, prefName) {
-        if (topic === 'nsPref:changed' && [frameRadiusPref, frameGapPref, framePaddingDisabledPref, frameShadowPref].includes(String(prefName || ''))) {
+        if (topic === 'nsPref:changed' && framePrefNames.has(String(prefName || ''))) {
           applyFramePrefs();
         }
       }
@@ -1466,22 +1222,17 @@
 
   function applyLoadbarPrefs() {
     const root = chromeDoc.documentElement;
+    const rootStyle = root.style;
     const height = normalizeCssLength(readStringPref(loadbarHeightPref, '2px'), '2px');
     const opacity = normalizeOpacity(readStringPref(loadbarOpacityPref, '85'), '0.85');
     const customColor = normalizeCssColor(readStringPref(loadbarColorPref, '#3b82f6'), '#3b82f6');
     const colorSource = readStringPref(loadbarColorSourcePref, 'zen');
+    const colorValue = loadbarColorSourceValues[colorSource] || loadbarColorSourceValues.zen;
 
-    const colorValue = {
-      custom: 'var(--blended-addressbar-loadbar-custom-color)',
-      'page-background': 'var(--blended-addressbar-page-loadbar-background, var(--zen-primary-color))',
-      'page-foreground': 'var(--blended-addressbar-page-loadbar-foreground, var(--zen-primary-color))',
-      zen: 'var(--zen-primary-color)'
-    }[colorSource] || 'var(--zen-primary-color)';
-
-    root.style.setProperty('--blended-addressbar-loadbar-height', height);
-    root.style.setProperty('--blended-addressbar-loadbar-opacity', opacity);
-    root.style.setProperty('--blended-addressbar-loadbar-custom-color', customColor);
-    root.style.setProperty('--blended-addressbar-loadbar-color', colorValue);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-height', height);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-opacity', opacity);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-custom-color', customColor);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-color', colorValue);
 
     if (DEBUG_THEME) {
       root.setAttribute('data-blended-addressbar-loadbar-height', height);
@@ -1513,104 +1264,6 @@
         });
       }
     } catch {}
-  }
-
-  function getRelativeLuminance({ r, g, b }) {
-    const toLinear = (c) => {
-      const v = c / 255;
-      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-  }
-
-  function getContrastRatio(colorA, colorB) {
-    const lumA = getRelativeLuminance(colorA);
-    const lumB = getRelativeLuminance(colorB);
-    const lighter = Math.max(lumA, lumB);
-    const darker = Math.min(lumA, lumB);
-    return (lighter + 0.05) / (darker + 0.05);
-  }
-
-  function chooseForeground({ r, g, b }) {
-    const luminance = getRelativeLuminance({ r, g, b });
-    return luminance > 0.6 ? 'rgba(11, 13, 16, 0.92)' : 'rgba(245, 247, 251, 0.96)';
-  }
-
-  function parseCssRgb(input) {
-    if (!input) return null;
-    const raw = String(input).trim();
-    const perceptual = raw.match(/^ok(?:lab|lch)\(\s*(\d+(?:\.\d+)?%?)/i);
-    if (perceptual) {
-      const channel = perceptual[1];
-      const lightness = channel.endsWith('%')
-        ? parseFloat(channel) / 100
-        : parseFloat(channel);
-      if (Number.isFinite(lightness)) {
-        const value = Math.max(0, Math.min(255, Math.round(lightness * 255)));
-        return { r: value, g: value, b: value };
-      }
-    }
-
-    const hex = raw.match(/^#([0-9a-f]{3,8})$/i);
-    if (hex) {
-      const value = hex[1];
-      const expand = (part) => part.length === 1 ? `${part}${part}` : part;
-      const r = parseInt(expand(value.length <= 4 ? value[0] : value.slice(0, 2)), 16);
-      const g = parseInt(expand(value.length <= 4 ? value[1] : value.slice(2, 4)), 16);
-      const b = parseInt(expand(value.length <= 4 ? value[2] : value.slice(4, 6)), 16);
-      return { r, g, b };
-    }
-
-    const m = raw.match(/^rgba?\(([^)]+)\)$/i);
-    if (!m) return null;
-    const parts = m[1].replace(/\s*\/\s*[\d.]+%?$/, '').split(/[,\s]+/).filter(Boolean);
-    if (parts.length < 3) return null;
-    const readChannel = (part) => {
-      const value = parseFloat(part);
-      const scaled = String(part).trim().endsWith('%') ? value * 2.55 : value;
-      return Math.max(0, Math.min(255, Math.round(scaled)));
-    };
-    const r = readChannel(parts[0]);
-    const g = readChannel(parts[1]);
-    const b = readChannel(parts[2]);
-    return { r, g, b };
-  }
-
-  function getCssColorAlpha(value) {
-    const match = String(value || '').trim().match(/^[a-z-]+\(([^)]+)\)$/i);
-    if (!match) return null;
-
-    const body = match[1].trim();
-    let alpha = null;
-    if (body.includes('/')) {
-      alpha = body.slice(body.lastIndexOf('/') + 1).trim();
-    } else {
-      const parts = body.split(',');
-      if (parts.length === 4) alpha = parts[3].trim();
-    }
-
-    if (alpha === null) return null;
-
-    const amount = parseFloat(alpha);
-    if (!Number.isFinite(amount)) return null;
-    return alpha.endsWith('%') ? amount / 100 : amount;
-  }
-
-  function hasVisibleColor(input) {
-    if (!input) return false;
-    const value = String(input).trim().toLowerCase();
-    if (!value || value === 'transparent') return false;
-    const alpha = getCssColorAlpha(value);
-    if (alpha !== null && alpha < sampledColorMinAlpha) return false;
-    return true;
-  }
-
-  function extractCssColor(input) {
-    const value = String(input || '').trim();
-    if (!value || value === 'none') return null;
-
-    const candidates = value.match(/[a-z-]+\([^)]*\)|#[0-9a-f]{3,8}\b/gi) || [];
-    return candidates.find(color => hasVisibleColor(color) && cssSupports('color', color)) || null;
   }
 
   function getStyleBackground(style) {
@@ -1783,47 +1436,6 @@
     }
 
     return candidates;
-  }
-
-  function getReadableForeground(bg, candidates = []) {
-    const bgRgb = parseCssRgb(bg);
-    if (!bgRgb) {
-      const fallback = candidates.find(candidate => hasVisibleColor(
-        typeof candidate === 'string' ? candidate : candidate?.value
-      ));
-      return typeof fallback === 'string' ? fallback : (fallback?.value || null);
-    }
-
-    const minimumReadableContrast = 3;
-    const preferredReadableContrast = 4.5;
-    const seen = new Set();
-    let best = null;
-
-    for (const candidate of candidates) {
-      const value = typeof candidate === 'string' ? candidate : candidate?.value;
-      const priority = typeof candidate === 'string' ? 'text' : candidate?.priority;
-      if (!hasVisibleColor(value)) continue;
-      const key = String(value).trim().toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      const rgb = parseCssRgb(value);
-      if (!rgb) continue;
-
-      const ratio = getContrastRatio(bgRgb, rgb);
-      if (priority === 'link' && ratio >= minimumReadableContrast) return value;
-      if (ratio >= preferredReadableContrast) return value;
-      if (ratio >= minimumReadableContrast && (!best || ratio > best.ratio)) {
-        best = { value, ratio };
-      }
-    }
-
-    if (best) return best.value;
-
-    const fallbacks = ['rgba(11, 13, 16, 0.92)', 'rgba(245, 247, 251, 0.96)'];
-    return fallbacks
-      .map(value => ({ value, ratio: getContrastRatio(bgRgb, parseCssRgb(value)) }))
-      .sort((a, b) => b.ratio - a.ratio)[0].value;
   }
 
   function getThemeFromElement(view, element, source = 'element', allowPageFallback = true) {
@@ -3497,8 +3109,9 @@
     probe.style.backgroundColor = 'var(--zen-main-browser-background-toolbar)';
     probe.style.color = 'var(--toolbox-textcolor)';
     chromeDoc.documentElement.appendChild(probe);
-    const toolbarBg = getComputedStyle(probe).backgroundColor;
-    const toolbarFg = getComputedStyle(probe).color;
+    const probeStyle = getComputedStyle(probe);
+    const toolbarBg = probeStyle.backgroundColor;
+    const toolbarFg = probeStyle.color;
     probe.remove();
 
     const rootStyle = getComputedStyle(chromeDoc.documentElement);
@@ -3738,9 +3351,10 @@
     const hasStableCachedTabTheme = keepCachedTheme
       && !zenBoostActive
       && !!(targetCachedTheme || retainedHostTheme);
+    const deferUnknownFallback = keepCachedTheme && !zenBoostActive;
     if (hasStableCachedTabTheme) return;
 
-    if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme) {
+    if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback) {
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown');
       return;
     }
@@ -3766,7 +3380,7 @@
       });
     } else if (fastOnly) {
       return;
-    } else if (!cachedTheme && !retainedHostTheme && !skipToolbarFallback) {
+    } else if (!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback) {
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), 'unknown-page');
     }
 
@@ -4030,8 +3644,7 @@
             if (scheduledActiveUpdateRaf) cancelAnimationFrame(scheduledActiveUpdateRaf);
           } catch {}
           if (viewportResizeObserver) viewportResizeObserver.disconnect();
-          if (paneCornerUpdateTimer) clearTimeout(paneCornerUpdateTimer);
-          if (paneCornerMutationObserver) paneCornerMutationObserver.disconnect();
+          cleanupPaneCornerRadii();
           if (zenBoostMutationObserver) zenBoostMutationObserver.disconnect();
           stopLoadingThemePolling();
           clearPendingThemeCandidate();

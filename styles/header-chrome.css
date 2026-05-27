@@ -1,0 +1,64 @@
+:root:not([zen-single-toolbar="true"]) {
+    #navigator-toolbox[tabs-hidden],
+    &:has(#navigator-toolbox[tabs-hidden]) #zen-sidebar-top-buttons-customization-target {
+        --blended-addressbar-header-chrome-foreground: var(--zen-tab-header-foreground, currentColor);
+        --blended-addressbar-header-chrome-icon-fill: color-mix(in srgb, var(--blended-addressbar-header-chrome-foreground) 60%, transparent);
+        --blended-addressbar-header-muted-foreground: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 42%, transparent);
+        color: var(--blended-addressbar-header-chrome-foreground);
+        --toolbox-textcolor: var(--blended-addressbar-header-chrome-foreground);
+        --toolbarbutton-icon-fill: var(--blended-addressbar-header-chrome-icon-fill) !important;
+        --toolbar-color: var(--blended-addressbar-header-chrome-foreground);
+        --toolbar-field-color: var(--blended-addressbar-header-chrome-foreground);
+        --urlbar-icon-fill-opacity: 0.6;
+    }
+
+    #navigator-toolbox[tabs-hidden] :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack, image, .titlebar-button),
+    #navigator-toolbox[tabs-hidden] #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
+    #navigator-toolbox[tabs-hidden] #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack, image),
+    #navigator-toolbox[tabs-hidden] #zen-sidebar-top-buttons-customization-target :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack, image, .titlebar-button),
+    &:has(#navigator-toolbox[tabs-hidden]) #zen-sidebar-top-buttons-customization-target :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack, image, .titlebar-button) {
+        color: var(--blended-addressbar-header-chrome-icon-fill) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
+        --toolbox-textcolor: var(--blended-addressbar-header-chrome-icon-fill);
+        --toolbarbutton-icon-fill: currentColor !important;
+        --toolbar-color: var(--blended-addressbar-header-chrome-icon-fill);
+        --toolbar-field-color: var(--blended-addressbar-header-chrome-foreground);
+    }
+
+    #navigator-toolbox[tabs-hidden] :is(.urlbar-icon, .identity-box-button, .urlbar-page-action) {
+        color: var(--blended-addressbar-header-chrome-foreground) !important;
+        fill: currentColor !important;
+        fill-opacity: 0.6 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 0.6 !important;
+        --toolbarbutton-icon-fill: currentColor !important;
+        --urlbar-icon-fill-opacity: 0.6;
+    }
+
+    #navigator-toolbox[tabs-hidden] :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled], [disabled] .toolbarbutton-icon, [disabled="true"] .toolbarbutton-icon),
+    #navigator-toolbox[tabs-hidden] #nav-bar-customization-target :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled], [disabled] .toolbarbutton-icon, [disabled="true"] .toolbarbutton-icon),
+    #navigator-toolbox[tabs-hidden] #zen-sidebar-top-buttons-customization-target :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled], [disabled] .toolbarbutton-icon, [disabled="true"] .toolbarbutton-icon),
+    &:has(#navigator-toolbox[tabs-hidden]) #zen-sidebar-top-buttons-customization-target :is([disabled], [disabled="true"], [muted], [soundplaying], .toolbarbutton-icon[disabled], [disabled] .toolbarbutton-icon, [disabled="true"] .toolbarbutton-icon) {
+        color: var(--blended-addressbar-header-muted-foreground) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
+        --toolbox-textcolor: var(--blended-addressbar-header-muted-foreground);
+        --toolbarbutton-icon-fill: currentColor !important;
+        --toolbar-color: var(--blended-addressbar-header-muted-foreground);
+    }
+
+    &:has([zen-compact-mode="true"]):not(:has(#navigator-toolbox[tabs-hidden])) #zen-appcontent-navbar-wrapper {
+        :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .urlbar-icon) {
+            color: inherit !important;
+            fill: currentColor !important;
+            --toolbarbutton-icon-fill: currentColor;
+        }
+    }
+}
