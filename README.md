@@ -17,6 +17,14 @@ Blended Addressbar is a Zen Browser mod that reshapes the dual-toolbar addressba
 - Preference-driven loading bar height, opacity, and color source.
 - Coalesced active-tab color refreshes using `requestAnimationFrame` plus a timeout fallback, backed by a persistent content sampler and bounded page-color cache.
 
+## Installation
+
+Blended Addressbar is distributed through [Sine](https://github.com/CosmoCreeper/Sine). Install it from Sine, then enable `Blended Addressbar` in Sine settings.
+
+## Compatibility
+
+This mod targets Zen Browser dual-toolbar layouts. Compact mode is supported, but visual validation is still recommended after Zen updates because browser chrome selectors can change.
+
 ## Preferences
 
 The mod exposes its settings through `preferences.json`.
@@ -36,18 +44,6 @@ The mod exposes its settings through `preferences.json`.
 - `uc.loadbar.opacity`: loading bar opacity as a percentage.
 - `uc.loadbar.roundedcorner`: enable rounded loading bar corners.
 - `uc.loadbar.shadow`: enable loading bar shadow.
-
-## Manual Installation
-
-Blended Addressbar is installed through [Sine](https://github.com/CosmoCreeper/Sine). Install and enable Sine first, then:
-
-1. Copy this folder into your Zen profile's `chrome/sine-mods` directory.
-2. Reload Sine mods or restart Zen Browser.
-3. Enable `Blended Addressbar` from Sine settings.
-
-## Compatibility
-
-This mod targets Zen Browser dual-toolbar layouts. Compact mode is supported, but visual validation is still recommended after Zen updates because browser chrome selectors can change.
 
 ## Credits
 
