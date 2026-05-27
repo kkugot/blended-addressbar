@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1 - 2026-05-27
+
+- Split repeated chrome script helper logic into focused modules loaded from the existing Zen script entry point.
+- Centralized adaptive theme debug attributes and native Zen theme metadata cleanup.
+- Moved hidden-tabs chrome foreground styling into `styles/header-chrome.css`.
+- Added regression coverage for helper module exports, CSS import order, and the refactored debug/metadata behavior.
+
 ## 1.2.0 - 2026-05-26
 
 - Added a persistent content sampler inspired by `caezium/zen-page-tint` to pick up rendered page colors and theme mutations without repeated one-off frame-script setup.
