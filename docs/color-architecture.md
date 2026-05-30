@@ -26,8 +26,8 @@ flowchart TD
   Event["Browser event"] --> Kind{"Event kind"}
 
   Kind -->|init, tab select, resize, color-scheme change| Schedule["scheduleActiveUpdate"]
-  Kind -->|location change or load start| Loading["startLoadingThemePolling + early fastOnly updates"]
-  Kind -->|load stop| Settled["stop loading poll + settled full updates"]
+  Kind -->|location change or load start| Loading["startLoadingThemeTracking + one early fastOnly update"]
+  Kind -->|load stop| Settled["stop loading tracking + one settled full update"]
   Kind -->|persistent frame message| Persistent["apply persistent frame candidate"]
   Kind -->|Zen Boost attribute change| Boost["clear active cache + request rendered sample"]
 
@@ -64,7 +64,7 @@ flowchart TD
   TargetApply --> Loading
   Retain --> Loading
 
-  Loading{"loading and no cache/retained color?"} -->|Yes| Neutral["apply neutral loading header and return"]
+  Loading{"loading and no cache/retained color?"} -->|Yes| Neutral["request persistent sample + apply neutral loading header"]
   Loading -->|No| Fast["read fast chrome page theme"]
 
   Fast --> Found{"fast theme found?"}
@@ -94,12 +94,12 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 
 | Source | Class | Rendered/trusted? | Confidence | Notes |
 | --- | --- | --- | --- | --- |
-| `selector-rule` | explicit semantic | yes | 7 | User-defined selector override. Treated as trusted even though it is not a pixel sample. |
-| `theme-color` | preferred semantic | no | 7 | Preferred during normal active loads so semantic site color can stay stable. Ignored while Boost requires rendered sources. |
-| `top-visible` | visual DOM | yes | 6 | Top visible element from chrome-side DOM read or persistent-frame ancestor sampling. |
+| `selector-rule` | explicit semantic | yes, but not pixel-derived | 7 | User-defined selector override. Treated as trusted during normal browsing, but ignored while Boost requires actual pixels. |
+| `theme-color` | preferred semantic | no | 7 | Preferred during normal active loads so semantic site color can stay stable. Ignored while Boost requires pixel-derived sources. |
+| `top-visible` | visual DOM | yes, but not pixel-derived | 6 | Top visible element from chrome-side DOM read or persistent-frame ancestor sampling. Ignored while Boost requires actual pixels. |
 | `pixel-top-edge` / `pixel` | visual pixel | yes | 6 | Persistent content or chrome snapshot of rendered top edge. |
-| `dark-reader` | modifier-derived visual | yes | 5 | Uses Dark Reader CSS variables. Treated as rendered because it reflects transformed page colors. |
-| `host-cache` | cache fallback | maybe | 4 | Rendered only when its `cachedSource` was rendered. |
+| `dark-reader` | modifier-derived visual | yes, but not pixel-derived | 5 | Uses Dark Reader CSS variables. Treated as rendered because it reflects transformed page colors, but ignored while Boost requires actual pixels. |
+| `host-cache` | cache fallback | maybe | 4 | Rendered only when its `cachedSource` was rendered; Boost accepts it only when `cachedSource` was pixel-derived. |
 | `body` / `html` | weak semantic | no | 3 | Useful fallback, but prone to blink when later visual samples arrive. |
 | `document-canvas` | weak semantic | no | 2 | Last document-level fallback before chrome fallback. |
 | `sampler` | visual fallback | yes | 1 | Legacy periodic snapshot path. |
@@ -126,9 +126,9 @@ Modifiers change which candidates are trusted and how quickly they can commit.
 
 | Modifier | Current behavior |
 | --- | --- |
-| Loading | Starts fast polling and early `fastOnly` updates. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
+| Loading | Marks active load state and schedules one early `fastOnly` update, then one settled update at load stop. The persistent frame handles follow-up `load`/`pageshow` samples. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
 | Tab switch | Coalesces updates, applies exact target cache first, then same-host retained color, then host fallback. Exact or retained cached tab colors are kept without immediately forcing a fresh persistent page sample only after the cache paint succeeds. Equivalent color keys are no-ops to avoid CSS rewrite blink. |
-| Zen Boost | Detected through `#zen-site-data-icon-button[boosting]` in `blended-bar.uc.js`, then folded into `createResolveContext` as `boostActive` / `requireRendered`. Boost changes clear active page cache, request a persistent rendered sample, and require rendered sources. Non-rendered semantic sources are ignored while Boost is active. |
+| Zen Boost | Detected through `#zen-site-data-icon-button[boosting]` in `blended-bar.uc.js`, then folded into `createResolveContext` as `boostActive`, `requireRendered`, and `requirePixel`. Boost changes clear active page cache, request a persistent rendered sample, and require pixel-derived sources such as `pixel-top-edge`, `pixel`, `sampler`, or host cache entries from those sources. Computed-style sources such as `top-visible`, `body`, `html`, and `theme-color` are ignored while Boost is active. |
 | Dark Reader | Detected through `--darkreader-neutral-background` and `--darkreader-neutral-text`. Treated as rendered and allowed through Boost gates. |
 | Persistent frame | Sends top-edge pixel, theme-color, body/html, or ancestor top-visible samples when the page loads, mutates theme attributes/head metadata, or fires pageshow/load. It does not listen to scroll events. |
 | Foreground stability | Background and foreground are applied together. Early candidates can reuse a stable readable foreground to avoid addressbar text blinking before samples catch up. |
@@ -153,9 +153,11 @@ The first refactor phase is implemented across `blended-bar.uc.js` and the helpe
 
 - Color source metadata now lives in `scripts/theme-source-policy.js`.
 - `isRenderedThemeSource`, `isPreferredSemanticThemeSource`, and `getThemeSourceConfidence` read from the same registry.
+- `isPixelThemeSource` keeps Zen Boost resolution on actual pixel samples instead of computed-style color sources.
 - `createResolveContext` centralizes loading, Boost, stable-delay, and pending-candidate inputs before arbitration.
 - Fast loading semantic skips now use `shouldSkipFastLoadingTheme` instead of duplicating the condition inline.
 - Cached tab switches can now return after successfully painting the cached/retained color, avoiding an immediate persistent-frame sample on switch while still continuing if the cached candidate is rejected.
+- Navigation no longer runs a repeating loading poll loop; active loads use one coalesced early update, one settled update, and persistent-frame `load`/`pageshow` refreshes.
 - Repeated CSS property writes use `scripts/style-state.js` so equivalent values are no-ops.
 - Host-cache preference serialization now lives in `scripts/site-theme-cache.js` and writes compact bounded payloads.
 - Hidden-tabs chrome foreground styling now lives in `styles/header-chrome.css`, imported by `style.css`.

@@ -16,6 +16,11 @@ var BlendedAddressbarModule = (() => {
     'chrome-contrast-fallback': Object.freeze({ sourceClass: 'fallback', rendered: false, confidence: 1 }),
     'toolbar-fallback': Object.freeze({ sourceClass: 'fallback', rendered: false, confidence: 0 })
   });
+  const pixelThemeSources = Object.freeze(new Set([
+    'pixel-top-edge',
+    'pixel',
+    'sampler'
+  ]));
   const unknownColorSourcePolicy = Object.freeze({
     sourceClass: 'unknown',
     rendered: false,
@@ -45,6 +50,13 @@ var BlendedAddressbarModule = (() => {
     return sourceName === 'host-cache' && getColorSourcePolicy(getCachedColorSourceName(source)).rendered;
   }
 
+  function isPixelThemeSource(source) {
+    const sourceName = getColorSourceName(source);
+    if (pixelThemeSources.has(sourceName)) return true;
+
+    return sourceName === 'host-cache' && isPixelThemeSource(getCachedColorSourceName(source));
+  }
+
   function isPreferredSemanticThemeSource(source) {
     return getColorSourcePolicy(source).preferred === true;
   }
@@ -58,6 +70,7 @@ var BlendedAddressbarModule = (() => {
     getColorSourceName,
     getColorSourcePolicy,
     getThemeSourceConfidence,
+    isPixelThemeSource,
     isPreferredSemanticThemeSource,
     isRenderedThemeSource
   });

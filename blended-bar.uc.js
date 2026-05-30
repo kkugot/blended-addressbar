@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.3.0
+// @version        1.3.1
 // ==/UserScript==
 
 (() => {
@@ -15,15 +15,9 @@
   const samplingIntervalMs = 120;
   const postLoadSamplingIntervalMs = 200;
   const postLoadSamplingEnabled = true;
-  const earlyThemeUpdateDelays = [0, 50, 120, 250, 500, 900, 1400];
-  const settledThemeUpdateDelays = [50, 300, 1000];
+  const earlyThemeUpdateDelays = [0];
+  const settledThemeUpdateDelays = [50];
   const viewportThemeUpdateDelays = [0, 100, 300, 700];
-  const loadingThemePollFastIntervalMs = 140;
-  const loadingThemePollSlowIntervalMs = 650;
-  const loadingThemePollAggressiveWindowMs = 3500;
-  const loadingThemePollMaxMs = 45000;
-  const loadingSamplingEnabled = false;
-  const loadingSamplingIntervalMs = 120;
   const sampledColorMinAlpha = 0.08;
   const fallbackThemeStableDelayMs = 350;
   const visualThemeSettleDelayMs = 180;
@@ -109,10 +103,9 @@
   let scheduledThemeTimers = [];
   let viewportThemeUpdateTimer = 0;
   let viewportResizeObserver = null;
-  let loadingThemePollTimer = 0;
-  let loadingThemePollStartedAt = 0;
-  let loadingThemePollBrowser = null;
-  let loadingThemePollHref = '';
+  let loadingThemeStartedAt = 0;
+  let loadingThemeBrowser = null;
+  let loadingThemeHref = '';
   let activeThemeUpdateInFlight = false;
   let pendingActiveThemeUpdateOptions = null;
   let scheduledActiveUpdate = false;
@@ -176,6 +169,7 @@
     getColorSourceName,
     getColorSourcePolicy,
     getThemeSourceConfidence,
+    isPixelThemeSource,
     isPreferredSemanticThemeSource,
     isRenderedThemeSource
   } = loadBlendedAddressbarModule('theme-source-policy.js');
@@ -590,12 +584,15 @@
       pendingKey: options.pendingKey ?? (themeApplyState.pending?.key || ''),
       pendingSince: options.pendingSince ?? (themeApplyState.pending?.since || 0),
       phase: options.phase || (loading ? 'loading' : 'settled'),
+      requirePixel: options.requirePixel ?? (options.boostActive ?? isZenBoostActive()),
       requireRendered: options.requireRendered ?? (options.boostActive ?? isZenBoostActive()),
       stableDelay: options.stableDelay ?? fallbackThemeStableDelayMs
     };
   }
 
   function shouldSkipFastLoadingTheme(theme, resolveContext) {
+    if (resolveContext.requirePixel && !isPixelThemeSource(theme)) return true;
+
     return resolveContext.fastOnly
       && resolveContext.loading
       && !isRenderedThemeSource(theme.source)
@@ -612,6 +609,7 @@
       now = Date.now(),
       pendingKey = themeApplyState.pending?.key || '',
       pendingSince = themeApplyState.pending?.since || 0,
+      requirePixel = false,
       requireRendered = false,
       stableDelay = fallbackThemeStableDelayMs
     } = options;
@@ -621,6 +619,11 @@
     const replacingHostCache = themeApplyState.applied?.source === 'host-cache'
       && source !== 'host-cache'
       && confidence > 0;
+    const requirePixelTheme = requirePixel && !isPixelThemeSource(theme);
+    if (requirePixelTheme) {
+      return { action: 'ignore', confidence, key };
+    }
+
     const requireRenderedTheme = requireRendered && !isRenderedThemeSource(theme);
     if (requireRenderedTheme) {
       return { action: 'ignore', confidence, key };
@@ -982,9 +985,9 @@
 
   function isLoadingThemeFor(browser) {
     return !!browser
-      && browser === loadingThemePollBrowser
-      && !!loadingThemePollStartedAt
-      && getBrowserHref(browser) === loadingThemePollHref;
+      && browser === loadingThemeBrowser
+      && !!loadingThemeStartedAt
+      && getBrowserHref(browser) === loadingThemeHref;
   }
 
   function applyThemeCandidateNow(browser, theme, reason, expectedHref, decision) {
@@ -1016,6 +1019,7 @@
     const now = Date.now();
     const resolveContext = createResolveContext(browser, options);
     const loading = resolveContext.loading;
+    const requirePixel = resolveContext.requirePixel;
     const requireRendered = resolveContext.requireRendered;
     const stableDelay = resolveContext.stableDelay;
     const pending = themeApplyState.pending;
@@ -1031,6 +1035,7 @@
       options: {
         deferNonVisual: Boolean(options.deferNonVisual),
         loading,
+        requirePixel,
         requireRendered,
         stableDelay
       },
@@ -1047,6 +1052,7 @@
       void applyResolvedTheme(browser, queued.theme, queued.reason, queued.expectedHref, {
         deferNonVisual: queued.options?.deferNonVisual ?? false,
         loading: queued.options?.loading ?? true,
+        requirePixel: queued.options?.requirePixel ?? false,
         requireRendered: queued.options?.requireRendered ?? false,
         stableDelay: queued.options?.stableDelay ?? fallbackThemeStableDelayMs,
         now: Date.now()
@@ -3354,6 +3360,7 @@
     if (hasStableCachedTabTheme) return;
 
     if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback) {
+      requestPersistentFrameTheme(browser, true);
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown', expectedHref);
       return;
     }
@@ -3494,56 +3501,26 @@
     scheduledActiveUpdateTimer = setTimeout(run, scheduleSafetyMs);
   }
 
-  function stopLoadingThemePolling() {
-    if (loadingThemePollTimer) clearTimeout(loadingThemePollTimer);
-    loadingThemePollTimer = 0;
-    loadingThemePollStartedAt = 0;
-    loadingThemePollBrowser = null;
-    loadingThemePollHref = '';
+  function stopLoadingThemeTracking() {
+    loadingThemeStartedAt = 0;
+    loadingThemeBrowser = null;
+    loadingThemeHref = '';
     if (!samplingEnabled) stopSampling();
   }
 
-  function scheduleLoadingThemePollTick() {
-    if (!loadingThemePollBrowser || !loadingThemePollStartedAt) return;
-
-    const browser = loadingThemePollBrowser;
-    const elapsed = Date.now() - loadingThemePollStartedAt;
-    const active = gBrowser?.selectedBrowser || null;
-    if (browser !== active || getBrowserHref(browser) !== loadingThemePollHref || elapsed > loadingThemePollMaxMs) {
-      stopLoadingThemePolling();
-      return;
-    }
-
-    void updateActive({
-      enableSampler: loadingSamplingEnabled,
-      reason: elapsed < loadingThemePollAggressiveWindowMs ? 'loading-poll-fast' : 'loading-poll',
-      samplingInterval: loadingSamplingIntervalMs,
-      skipToolbarFallback: true
-    }).finally(() => {
-      if (!loadingThemePollBrowser || getBrowserHref(browser) !== loadingThemePollHref) return;
-
-      const nextElapsed = Date.now() - loadingThemePollStartedAt;
-      const interval = nextElapsed < loadingThemePollAggressiveWindowMs
-        ? loadingThemePollFastIntervalMs
-        : loadingThemePollSlowIntervalMs;
-      loadingThemePollTimer = setTimeout(scheduleLoadingThemePollTick, interval);
-    });
-  }
-
-  function startLoadingThemePolling(browser = gBrowser?.selectedBrowser || null) {
+  function startLoadingThemeTracking(browser = gBrowser?.selectedBrowser || null) {
     if (!browser) return;
 
     const href = getBrowserHref(browser);
-    const sameLoadingTarget = loadingThemePollBrowser === browser && loadingThemePollHref === href;
-    stopLoadingThemePolling();
+    const sameLoadingTarget = loadingThemeBrowser === browser && loadingThemeHref === href;
+    stopLoadingThemeTracking();
     if (!sameLoadingTarget) {
       resetThemeArbitration(href);
     }
 
-    loadingThemePollBrowser = browser;
-    loadingThemePollHref = href;
-    loadingThemePollStartedAt = Date.now();
-    loadingThemePollTimer = setTimeout(scheduleLoadingThemePollTick, 60);
+    loadingThemeBrowser = browser;
+    loadingThemeHref = href;
+    loadingThemeStartedAt = Date.now();
   }
 
   function clearScheduledThemeUpdates() {
@@ -3645,7 +3622,7 @@
           if (viewportResizeObserver) viewportResizeObserver.disconnect();
           cleanupPaneCornerRadii();
           if (zenBoostMutationObserver) zenBoostMutationObserver.disconnect();
-          stopLoadingThemePolling();
+          stopLoadingThemeTracking();
           clearPendingThemeCandidate();
           restoreNativeZenTheme();
         });
@@ -3665,7 +3642,7 @@
           if (isTop) schedulePaneCornerRadiiUpdate();
           const matches = browserArg === active;
           if (isTop && matches) {
-            startLoadingThemePolling(browserArg);
+            startLoadingThemeTracking(browserArg);
             scheduleActiveUpdates(
               earlyThemeUpdateDelays,
               { fastOnly: true, reason: 'early-location' },
@@ -3687,7 +3664,7 @@
           const startFlag = listener ? listener.STATE_START : 0x00000001;
           const stopFlag = listener ? listener.STATE_STOP : 0x00000010;
           if (flags & startFlag) {
-            startLoadingThemePolling(browserArg);
+            startLoadingThemeTracking(browserArg);
             scheduleActiveUpdates(
               earlyThemeUpdateDelays,
               { fastOnly: true, reason: 'early-load' },
@@ -3698,7 +3675,7 @@
             if (samplingEnabled) {
               enterPostLoadSampling();
             }
-            stopLoadingThemePolling();
+            stopLoadingThemeTracking();
             scheduleActiveUpdates(
               settledThemeUpdateDelays,
               { reason: 'settled-load' },

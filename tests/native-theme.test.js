@@ -167,9 +167,16 @@ test('focused helper modules expose the expected subscript contract', () => {
   assert.equal(typeof sourcePolicy.getColorSourceName, 'function');
   assert.equal(typeof sourcePolicy.getColorSourcePolicy, 'function');
   assert.equal(typeof sourcePolicy.getThemeSourceConfidence, 'function');
+  assert.equal(typeof sourcePolicy.isPixelThemeSource, 'function');
   assert.equal(typeof sourcePolicy.isPreferredSemanticThemeSource, 'function');
   assert.equal(typeof sourcePolicy.isRenderedThemeSource, 'function');
   assert.equal(sourcePolicy.isRenderedThemeSource({ source: 'host-cache', cachedSource: 'pixel-top-edge' }), true);
+  assert.equal(sourcePolicy.isPixelThemeSource('pixel-top-edge'), true);
+  assert.equal(sourcePolicy.isPixelThemeSource('pixel'), true);
+  assert.equal(sourcePolicy.isPixelThemeSource('sampler'), true);
+  assert.equal(sourcePolicy.isPixelThemeSource('top-visible'), false);
+  assert.equal(sourcePolicy.isPixelThemeSource({ source: 'host-cache', cachedSource: 'pixel-top-edge' }), true);
+  assert.equal(sourcePolicy.isPixelThemeSource({ source: 'host-cache', cachedSource: 'top-visible' }), false);
 
   const siteThemeCache = loadScriptModule('site-theme-cache.js');
   assert.equal(typeof siteThemeCache.normalizeHostThemeCacheEntry, 'function');
@@ -221,6 +228,21 @@ test('adaptive header background and foreground keep the existing short transiti
   assert.match(css, /#zen-appcontent-navbar-wrapper\s*\{[\s\S]*transition:\s*background-color var\(--blended-addressbar-color-transition\),\s*color var\(--blended-addressbar-color-transition\)/);
   assert.match(css, /transition:\s*color var\(--blended-addressbar-color-transition\),\s*fill var\(--blended-addressbar-color-transition\),\s*stroke var\(--blended-addressbar-color-transition\)/);
   assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
+});
+
+test('navigation color refreshes avoid repeated loading poll work', () => {
+  const script = read('blended-bar.uc.js');
+
+  assert.match(script, /const earlyThemeUpdateDelays = \[0\];/);
+  assert.match(script, /const settledThemeUpdateDelays = \[50\];/);
+  assert.doesNotMatch(script, /loadingThemePollFastIntervalMs/);
+  assert.doesNotMatch(script, /loadingThemePollSlowIntervalMs/);
+  assert.doesNotMatch(script, /loadingThemePollAggressiveWindowMs/);
+  assert.doesNotMatch(script, /loadingThemePollMaxMs/);
+  assert.doesNotMatch(script, /function scheduleLoadingThemePollTick\(/);
+  assert.doesNotMatch(script, /setTimeout\(scheduleLoadingThemePollTick/);
+  assert.match(script, /function startLoadingThemeTracking\(/);
+  assert.match(script, /requestPersistentFrameTheme\(browser,\s*true\);\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);/);
 });
 
 test('split-pane and focus-ring treatments are absent from runtime and chrome CSS', () => {
@@ -717,6 +739,19 @@ test('Zen Boost active state requires rendered color sources and fresh samples',
   assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
 });
 
+test('Zen Boost active state requires pixel-derived color sources', () => {
+  const script = `${read('blended-bar.uc.js')}\n${read('scripts/theme-source-policy.js')}`;
+
+  assert.match(script, /function isPixelThemeSource\(source\)/);
+  assert.match(script, /const pixelThemeSources = Object\.freeze\(new Set\(\[\s*'pixel-top-edge',\s*'pixel',\s*'sampler'\s*\]\)\)/);
+  assert.match(script, /requirePixel:\s*options\.requirePixel \?\? \(options\.boostActive \?\? isZenBoostActive\(\)\)/);
+  assert.match(script, /const requirePixelTheme = requirePixel && !isPixelThemeSource\(theme\)/);
+  assert.match(script, /if \(requirePixelTheme\) \{\s*return \{ action: 'ignore', confidence, key \};\s*\}/);
+  assert.match(script, /resolveContext\.requirePixel && !isPixelThemeSource\(theme\)/);
+  assert.match(script, /requirePixel:\s*queued\.options\?\.requirePixel \?\? false/);
+  assert.match(script, /sourceName === 'host-cache' && isPixelThemeSource\(getCachedColorSourceName\(source\)\)/);
+});
+
 test('navigation and color-scheme hooks avoid stale or redundant page samples', () => {
   const script = read('blended-bar.uc.js');
 
@@ -771,7 +806,7 @@ test('unknown page colors use a translucent neutral header without native window
   assert.match(script, /setVar\(theme\.bg,\s*theme\.fg\)/);
   assert.match(script, /clearWindowTintBackground\(\)/);
   assert.match(script, /setStylePropertyIfChanged\(chromeDoc\.documentElement\.style,\s*'--blended-addressbar-frame-background',\s*'transparent',\s*'important'\)/);
-  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);\s*return;\s*\}/s);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*requestPersistentFrameTheme\(browser,\s*true\);\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);\s*return;\s*\}/s);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*'unknown-page',\s*expectedHref\)/);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason,\s*expectedHref\)/);
 });

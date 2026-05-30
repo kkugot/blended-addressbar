@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1 - 2026-05-30
+
+- Reduced navigation color refresh work by replacing the repeating loading poll loop with one early update, one settled update, and persistent-frame `load`/`pageshow` samples.
+- Requested the persistent frame sampler before showing the neutral loading header so loading pages can still resolve to page colors without polling.
+- Required actual pixel-derived color sources while Zen Boost is active, ignoring computed-style fallbacks such as `top-visible`, `body`, `html`, `theme-color`, selector rules, and Dark Reader variables.
+- Added regression coverage for reduced navigation scheduling and Boost pixel-only color arbitration.
+- Updated adaptive color architecture notes for the loading tracker and Boost pixel-source gate.
+
 ## 1.3.0 - 2026-05-27
 
 - Split repeated chrome script helper logic into focused modules loaded from the existing Zen script entry point.
