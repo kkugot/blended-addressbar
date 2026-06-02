@@ -102,18 +102,14 @@
         box-shadow: none;
         --blended-addressbar-header-muted-foreground: color-mix(in srgb, var(--zen-tab-header-foreground, currentColor) 42%, transparent);
         transition: background-color var(--blended-addressbar-color-transition), color var(--blended-addressbar-color-transition);
-
-        #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
-        #PersonalToolbar,
-        #PanelUI-button {
-            -moz-window-dragging: drag;
-            color: var(--zen-tab-header-foreground, inherit);
-            fill: currentColor;
-            transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
-            --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
-            --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
-            --toolbar-color: var(--zen-tab-header-foreground, currentColor);
-            --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
+        -moz-window-dragging: drag;
+        color: var(--zen-tab-header-foreground, inherit);
+        fill: currentColor;
+        transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
+        --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
+        --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
+        --toolbar-color: var(--zen-tab-header-foreground, currentColor);
+        --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
         }
 
         :is(
