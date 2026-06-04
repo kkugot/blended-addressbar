@@ -84,6 +84,14 @@
         }
     }
 
+    &[inDOMFullscreen="true"] {
+        #zen-appcontent-wrapper {
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none;
+        }
+    }
+
     &[chromehidden~="toolbar"],
     &:has(#navigator-toolbox[tabs-hidden]) {
         #zen-appcontent-wrapper {

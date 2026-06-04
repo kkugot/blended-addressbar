@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2 - 2026-06-04
+
+- Removed the browser frame gap, rounded corners, and shadow while DOM fullscreen is active so fullscreen video fills the window cleanly.
+- Added regression coverage for DOM fullscreen frame styling.
+
 ## 1.3.1 - 2026-05-30
 
 - Reduced navigation color refresh work by replacing the repeating loading poll loop with one early update, one settled update, and persistent-frame `load`/`pageshow` samples.

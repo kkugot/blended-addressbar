@@ -311,6 +311,14 @@ test('frame gap, remove-padding checkbox, and inner radius settings coexist', ()
   assert.match(prefs, /uc\.blended-addressbar\.frame-padding\.disabled/);
 });
 
+test('DOM fullscreen removes the framed browser surface', () => {
+  const css = read('style.css');
+
+  assert.match(css, /&\[inDOMFullscreen="true"\]\s*\{\s*#zen-appcontent-wrapper\s*\{[^}]*margin:\s*0\s*!important/s);
+  assert.match(css, /&\[inDOMFullscreen="true"\]\s*\{\s*#zen-appcontent-wrapper\s*\{[^}]*border-radius:\s*0\s*!important/s);
+  assert.match(css, /&\[inDOMFullscreen="true"\]\s*\{\s*#zen-appcontent-wrapper\s*\{[^}]*box-shadow:\s*none/s);
+});
+
 test('expanded sidebar toolbox keeps chrome icons vertically aligned', () => {
   const css = read('style.css');
 
