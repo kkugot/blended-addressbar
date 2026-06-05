@@ -116,7 +116,6 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   const prefs = read('scripts/prefs.js');
   const paneLayout = read('scripts/pane-layout.js');
   const sourcePolicy = read('scripts/theme-source-policy.js');
-  const siteThemeCache = read('scripts/site-theme-cache.js');
 
   assert.match(theme, /"scripts":\s*\{\s*"blended-bar\.uc\.js"/);
   assert.match(script, /const scriptModuleBaseUrl = 'chrome:\/\/sine\/content\/blended-addressbar\/scripts\/'/);
@@ -126,7 +125,6 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   assert.match(script, /loadBlendedAddressbarModule\('prefs\.js'/);
   assert.match(script, /loadBlendedAddressbarModule\('pane-layout\.js'/);
   assert.match(script, /loadBlendedAddressbarModule\('theme-source-policy\.js'\)/);
-  assert.match(script, /loadBlendedAddressbarModule\('site-theme-cache\.js'/);
   assert.match(styleState, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
   assert.match(styleState, /function removeStylePropertyIfChanged\(style,\s*name\)/);
   assert.match(colorUtils, /function parseCssRgb\(input\)/);
@@ -137,14 +135,11 @@ test('chrome script loads focused helper modules from one manifest entrypoint', 
   assert.match(paneLayout, /function cleanupPaneCornerRadii\(\)/);
   assert.match(sourcePolicy, /const colorSourcePolicies = Object\.freeze\(\{/);
   assert.match(sourcePolicy, /function getThemeSourceConfidence\(themeOrSource\)/);
-  assert.match(siteThemeCache, /function serializeHostThemeCacheEntries\(hostThemeCache/);
-  assert.match(siteThemeCache, /function normalizeSerializedHostThemeCacheItem\(item/);
   assert.doesNotMatch(script, /function parseCssRgb\(input\)/);
   assert.doesNotMatch(script, /function setStylePropertyIfChanged\(style,\s*name,\s*value,\s*priority = ''\)/);
   assert.doesNotMatch(script, /function readStringPref\(name,\s*fallback\)/);
   assert.doesNotMatch(script, /function updatePaneCornerRadii\(\)/);
   assert.doesNotMatch(script, /const colorSourcePolicies = Object\.freeze\(\{/);
-  assert.doesNotMatch(script, /function serializeHostThemeCacheEntries\(hostThemeCache/);
 });
 
 test('focused helper modules expose the expected subscript contract', () => {
@@ -177,11 +172,6 @@ test('focused helper modules expose the expected subscript contract', () => {
   assert.equal(sourcePolicy.isPixelThemeSource('top-visible'), false);
   assert.equal(sourcePolicy.isPixelThemeSource({ source: 'host-cache', cachedSource: 'pixel-top-edge' }), true);
   assert.equal(sourcePolicy.isPixelThemeSource({ source: 'host-cache', cachedSource: 'top-visible' }), false);
-
-  const siteThemeCache = loadScriptModule('site-theme-cache.js');
-  assert.equal(typeof siteThemeCache.normalizeHostThemeCacheEntry, 'function');
-  assert.equal(typeof siteThemeCache.normalizeSerializedHostThemeCacheItem, 'function');
-  assert.equal(typeof siteThemeCache.serializeHostThemeCacheEntries, 'function');
 
   const prefs = loadScriptModule('prefs.js', {
     getServices: () => null,
@@ -221,10 +211,14 @@ test('native theme debug metadata is cleared from one property list', () => {
   assert.equal(countOccurrences(script, "root.removeAttribute('data-blended-addressbar-native-theme-"), 0);
 });
 
-test('adaptive header background and foreground keep the existing short transition', () => {
+test('adaptive header background and foreground keep short confirmed transitions and calmer fallback transitions', () => {
   const css = read('style.css');
+  const script = read('blended-bar.uc.js');
 
   assert.match(css, /--blended-addressbar-color-transition:\s*100ms linear/);
+  assert.match(script, /const uncertainSources = new Set\(\[/);
+  assert.match(script, /\? '180ms ease-out'\s*: '100ms linear'/);
+  assert.match(script, /setStylePropertyIfChanged\(\s*chromeDoc\.documentElement\.style,\s*'--blended-addressbar-color-transition',\s*getThemeColorTransition\(theme,\s*reason\)\s*\)/);
   assert.match(css, /#zen-appcontent-navbar-wrapper\s*\{[\s\S]*transition:\s*background-color var\(--blended-addressbar-color-transition\),\s*color var\(--blended-addressbar-color-transition\)/);
   assert.match(css, /transition:\s*color var\(--blended-addressbar-color-transition\),\s*fill var\(--blended-addressbar-color-transition\),\s*stroke var\(--blended-addressbar-color-transition\)/);
   assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
@@ -390,98 +384,59 @@ test('frame shadow is selected through constrained dropdown presets', () => {
   assert.match(prefs, /"label": "Medium"/);
 });
 
-test('page color caching is always enabled while long-lived site colors remain optional', () => {
+test('page color caching is in-memory only and has no long-lived site color preference', () => {
   const script = read('blended-bar.uc.js');
   const prefs = read('preferences.json');
   const readme = read('README.md');
 
   assert.doesNotMatch(script, /rememberPageColorsPref/);
-  assert.match(script, /const rememberSiteColorsLongerPref = `\$\{addressbarPrefBranch\}remember-site-colors-longer`/);
-  assert.match(script, /const siteThemeCachePref = `\$\{addressbarPrefBranch\}site-theme-cache`/);
+  assert.doesNotMatch(script, /rememberSiteColorsLongerPref/);
+  assert.doesNotMatch(script, /siteThemeCachePref/);
   assert.match(script, /let themeCache = new WeakMap\(\)/);
   assert.match(script, /let pageThemeCache = new Map\(\)/);
-  assert.match(script, /let hostThemeCache = new Map\(\)/);
+  assert.doesNotMatch(script, /let hostThemeCache = new Map\(\)/);
   assert.doesNotMatch(script, /function readRememberPageColors\(\)/);
-  assert.match(script, /function readRememberSiteColorsLonger\(\)/);
-  assert.match(script, /return readBoolPref\(rememberSiteColorsLongerPref,\s*true\)/);
+  assert.doesNotMatch(script, /function readRememberSiteColorsLonger\(\)/);
   assert.match(script, /function getThemeHostKey\(href\)/);
   assert.match(script, /function cachePageTheme\(theme,\s*href\)/);
   assert.match(script, /function getCachedPageTheme\(browser\)/);
   assert.match(script, /function getCachedTargetTheme\(browser\)/);
-  assert.match(script, /return getCachedTargetTheme\(browser\) \|\| getCachedHostTheme\(browser\)/);
-  assert.match(script, /function getCachedHostTheme\(browser\)/);
+  assert.doesNotMatch(script, /return getCachedTargetTheme\(browser\) \|\| getCachedHostTheme\(browser\)/);
+  assert.doesNotMatch(script, /function getCachedHostTheme\(browser\)/);
   assert.match(script, /source:\s*'host-cache'/);
-  assert.match(script, /function persistHostThemeCache\(\)/);
-  assert.match(script, /const shouldMigrate = parsed\?\.version !== 2 \|\| raw\.length > hostThemeCachePrefMaxBytes/);
-  assert.match(script, /writeStringPref\(siteThemeCachePref/);
-  assert.match(script, /function clearHostThemeCache\(reason = 'clear-cache'\)/);
-  assert.match(script, /clearUserPref\(siteThemeCachePref\)/);
+  assert.doesNotMatch(script, /function persistHostThemeCache\(\)/);
+  assert.doesNotMatch(script, /writeStringPref\(siteThemeCachePref/);
+  assert.doesNotMatch(script, /function clearHostThemeCache\(reason = 'clear-cache'\)/);
   assert.doesNotMatch(script, /page-cache-disabled/);
   assert.doesNotMatch(script, /page-cache-enabled/);
-  assert.match(script, /if \(changedPref === rememberSiteColorsLongerPref && !readRememberSiteColorsLonger\(\)\)/);
   assert.doesNotMatch(script, /clearCacheRequestPref/);
   assert.doesNotMatch(script, /clear-cache-request/);
   assert.doesNotMatch(prefs, /uc\.blended-addressbar\.remember-page-colors/);
   assert.doesNotMatch(prefs, /Remember page colors while browsing/);
-  assert.match(prefs, /uc\.blended-addressbar\.remember-site-colors-longer/);
-  assert.match(prefs, /Remember site colors longer/);
-  assert.match(prefs, /"defaultValue": true/);
+  assert.doesNotMatch(prefs, /uc\.blended-addressbar\.remember-site-colors-longer/);
+  assert.doesNotMatch(prefs, /Remember site colors longer/);
   assert.doesNotMatch(prefs, /uc\.blended-addressbar\.clear-cache-request/);
   assert.doesNotMatch(prefs, /Clear cached page colors/);
   assert.doesNotMatch(readme, /uc\.blended-addressbar\.remember-page-colors/);
   assert.match(readme, /Page colors are always remembered in memory while browsing/);
-  assert.match(readme, /uc\.blended-addressbar\.remember-site-colors-longer/);
-  assert.match(readme, /defaults on/);
+  assert.doesNotMatch(readme, /uc\.blended-addressbar\.remember-site-colors-longer/);
+  assert.doesNotMatch(readme, /remembered site colors across browser restarts/);
   assert.doesNotMatch(readme, /uc\.blended-addressbar\.clear-cache-request/);
 });
 
-test('long-lived host color cache writes compact bounded preference payloads', () => {
-  const now = Date.now();
-  const siteThemeCache = loadScriptModule('site-theme-cache.js', {
-    hostThemeCacheTtlMs: 7 * 24 * 60 * 60 * 1000
-  });
-  const entries = new Map();
-
-  for (let index = 0; index < 100; index += 1) {
-    entries.set(`example-${index}.test`, {
-      savedAt: now - index,
-      theme: {
-        bg: `rgb(${index}, ${index}, ${index})`,
-        fg: 'rgb(255, 255, 255)',
-        bridge: 'persistent-frame',
-        href: `https://example-${index}.test/a/very/long/path/that/should/not/be/persisted/${index}`,
-        source: 'pixel-top-edge'
-      }
-    });
-  }
-
-  const serialized = siteThemeCache.serializeHostThemeCacheEntries(entries, now);
-  const parsed = JSON.parse(serialized);
-
-  assert.ok(serialized.length <= 8192, `cache pref payload was ${serialized.length} bytes`);
-  assert.equal(parsed.version, 2);
-  assert.ok(parsed.entries.length <= 40);
-  assert.doesNotMatch(serialized, /very\/long\/path/);
-  assert.equal(parsed.entries.at(-1)[0], 'example-99.test');
-  const normalizedItem = siteThemeCache.normalizeSerializedHostThemeCacheItem(parsed.entries.at(-1), now);
-  assert.equal(normalizedItem[0], 'example-99.test');
-  assert.equal(normalizedItem[1].savedAt, now - 99);
-  assert.equal(normalizedItem[1].theme.bg, 'rgb(99, 99, 99)');
-  assert.equal(normalizedItem[1].theme.fg, 'rgb(255, 255, 255)');
-  assert.equal(normalizedItem[1].theme.bridge, 'cache');
-  assert.equal(normalizedItem[1].theme.href, '');
-  assert.equal(normalizedItem[1].theme.source, 'pixel-top-edge');
-});
-
-test('long-lived host color cache is a fallback instead of the first tab-switch paint', () => {
+test('remembered tab colors are delayed in-session fallbacks instead of the first tab-switch paint', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /const targetCachedTheme = getCachedTargetTheme\(browser\)/);
-  assert.match(script, /const cachedTheme = targetCachedTheme \|\| getCachedHostTheme\(browser\)/);
-  assert.match(script, /const cachedThemeIsHost = cachedTheme\?\.source === 'host-cache'/);
-  assert.match(script, /const targetCachedThemeApplied = targetCachedTheme\s*\?\s*applyResolvedTheme\(browser,\s*targetCachedTheme,\s*'target-cache',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
+  assert.match(script, /const cachedTheme = targetCachedTheme/);
+  assert.doesNotMatch(script, /hostCachedTheme/);
+  assert.doesNotMatch(script, /cachedThemeIsHost/);
+  assert.match(script, /const deferRememberedFallback = keepCachedTheme\s+&& !zenBoostActive/);
+  assert.match(script, /const targetCachedThemeApplied = !deferRememberedFallback && targetCachedTheme\s*\?\s*applyResolvedTheme\(browser,\s*targetCachedTheme,\s*'target-cache',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
   assert.doesNotMatch(script, /if \(cachedTheme\) \{\s*applyResolvedTheme\(browser,\s*cachedTheme,\s*'cache',\s*expectedHref\);\s*\}\s*const fastTheme = getBrowserPageThemeFromChrome\(browser\)/s);
-  assert.match(script, /if \(pageTheme\?\.bg\) \{\s*applyResolvedTheme\(browser,\s*pageTheme,\s*reason,\s*expectedHref,\s*\{[\s\S]*deferNonVisual:\s*true[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\);\s*\} else if \(cachedThemeIsHost\) \{\s*applyResolvedTheme\(browser,\s*cachedTheme,\s*'host-cache',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\);\s*\}/s);
+  assert.match(script, /const rememberedFallbackTheme = targetCachedTheme \|\| retainedHostTheme/);
+  assert.match(script, /scheduleDelayedThemeFallback\(browser,\s*rememberedFallbackTheme,\s*rememberedFallbackTheme\.source === 'host-cache' \? 'host-cache' : 'target-cache',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)/s);
+  assert.doesNotMatch(script, /else if \(cachedThemeIsHost\)/);
 });
 
 test('target tab cached colors apply before same-host retained fallbacks', () => {
@@ -490,8 +445,9 @@ test('target tab cached colors apply before same-host retained fallbacks', () =>
   assert.match(script, /function getCachedTargetTheme\(browser\)/);
   assert.match(script, /return getCachedPageTheme\(browser\)/);
   assert.match(script, /const targetCachedTheme = getCachedTargetTheme\(browser\)/);
-  assert.match(script, /const retainedHostTheme = targetCachedTheme \? null : getSameHostRetainedTheme\(cachedTheme,\s*expectedHref\)/);
-  assert.match(script, /const targetCachedThemeApplied = targetCachedTheme\s*\?\s*applyResolvedTheme\(browser,\s*targetCachedTheme,\s*'target-cache'/s);
+  assert.match(script, /const retainedHostTheme = targetCachedTheme \? null : getSameHostRetainedTheme\(expectedHref\)/);
+  assert.match(script, /const rememberedFallbackTheme = targetCachedTheme \|\| retainedHostTheme/);
+  assert.match(script, /const targetCachedThemeApplied = !deferRememberedFallback && targetCachedTheme\s*\?\s*applyResolvedTheme\(browser,\s*targetCachedTheme,\s*'target-cache'/s);
   assert.match(script, /const targetCachedThemeApplied[\s\S]*const retainedHostThemeApplied/);
 });
 
@@ -506,21 +462,21 @@ test('early tab-switch themes keep a stable foreground while samples catch up', 
   assert.doesNotMatch(script, /const visibleTheme = hasVisibleColor\(theme\.bg\)\s*\?\s*theme/);
 });
 
-test('same-host tab switches retain host color while uncached tab switches defer only initial neutral fallbacks', () => {
+test('same-host tab switches delay retained in-session color while uncached tab switches delay neutral fallbacks', () => {
   const script = read('blended-bar.uc.js');
 
-  assert.match(script, /function getSameHostRetainedTheme\(cachedTheme,\s*expectedHref\)/);
+  assert.match(script, /function getSameHostRetainedTheme\(expectedHref\)/);
   assert.match(script, /const expectedHost = getThemeHostKey\(expectedHref\)/);
   assert.match(script, /const previousHost = getThemeHostKey\(lastAppliedTheme\?\.href\)/);
   assert.match(script, /if \(previousHost !== expectedHost\) return null/);
-  assert.match(script, /cachedSource:\s*retainedTheme\.source \|\| ''/);
-  assert.match(script, /const retainedHostTheme = targetCachedTheme \? null : getSameHostRetainedTheme\(cachedTheme,\s*expectedHref\)/);
-  assert.match(script, /const retainedHostThemeApplied = retainedHostTheme\s*\?\s*applyResolvedTheme\(browser,\s*retainedHostTheme,\s*'same-host-retained',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
+  assert.match(script, /cachedSource:\s*lastAppliedTheme\.source \|\| ''/);
+  assert.match(script, /const retainedHostTheme = targetCachedTheme \? null : getSameHostRetainedTheme\(expectedHref\)/);
+  assert.match(script, /const retainedHostThemeApplied = !deferRememberedFallback && retainedHostTheme\s*\?\s*applyResolvedTheme\(browser,\s*retainedHostTheme,\s*'same-host-retained',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
   assert.match(script, /const deferUnknownFallback = keepCachedTheme\s+&& !zenBoostActive/);
   assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\)/);
   assert.match(script, /else if \(!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
-  assert.match(script, /else if \(!retainedHostTheme && !skipToolbarFallback\)/);
-  assert.doesNotMatch(script, /else if \(!retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
+  assert.match(script, /scheduleDelayedThemeFallback\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason,\s*expectedHref,\s*\{ headerOnly: true \}\)/);
+  assert.doesNotMatch(script, /else if \(!retainedHostTheme && !skipToolbarFallback\)/);
 });
 
 test('same effective tab theme updates are no-ops to avoid tab-switch blink', () => {
@@ -582,7 +538,7 @@ test('page theme cache uses bounded origin-path LRU entries before host fallback
   assert.match(script, /function getCachedPageTheme\(browser\)/);
   assert.match(script, /pageThemeCache\.delete\(key\);\s*pageThemeCache\.set\(key,\s*entry\)/s);
   assert.match(script, /function getCachedTargetTheme\(browser\)/);
-  assert.match(script, /return getCachedTargetTheme\(browser\) \|\| getCachedHostTheme\(browser\)/);
+  assert.doesNotMatch(script, /getCachedHostTheme\(browser\)/);
   assert.match(script, /pageThemeCache = new Map\(\)/);
 });
 
@@ -611,7 +567,7 @@ test('persistent frame bridge samples rendered page pixels and observes theme mu
   assert.match(script, /function detachPersistentThemeListener\(browser\)/);
   assert.match(script, /function requestPersistentFrameTheme\(browser,\s*forceFresh = false\)/);
   assert.match(script, /messageManager\.loadFrameScript\(themeFrameScriptUrl,\s*false\)/);
-  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
+  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| deferRememberedFallback \|\| !cachedTheme\)/);
   assert.match(script, /gBrowser\.tabContainer\.addEventListener\('TabClose'/);
 
   assert.match(frame, /const MESSAGE_NAME = 'blended-addressbar:persistent-theme'/);
@@ -638,35 +594,36 @@ test('persistent frame bridge does not resample colors while scrolling', () => {
   assert.doesNotMatch(frame, /addEventListener\('scroll'/);
 });
 
-test('cached tab switches do not force a fresh page sample immediately', () => {
+test('cached tab switches request a fresh page sample before using remembered fallbacks', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /gBrowser\.tabContainer\.addEventListener\('TabSelect', \(\) => \{[^}]*scheduleActiveUpdate\(\{ reason: 'tab-select', keepCachedTheme: true \}\)/s);
   assert.match(script, /keepCachedTheme = false/);
-  assert.match(script, /const hasStableCachedTabTheme = keepCachedTheme\s+&& !zenBoostActive\s+&& \(targetCachedThemeApplied \|\| retainedHostThemeApplied\)/);
+  assert.match(script, /const deferRememberedFallback = keepCachedTheme\s+&& !zenBoostActive/);
+  assert.match(script, /const hasStableCachedTabTheme = keepCachedTheme\s+&& !zenBoostActive\s+&& !deferRememberedFallback\s+&& \(targetCachedThemeApplied \|\| retainedHostThemeApplied\)/);
   assert.match(script, /if \(hasStableCachedTabTheme\) return/);
   assert.match(script, /if \(zenBoostActive\) requestPersistentFrameTheme\(browser,\s*true\)/);
-  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
+  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| deferRememberedFallback \|\| !cachedTheme\)/);
 });
 
-test('cached tab switches short-circuit only after a cache paint succeeds', () => {
+test('cached tab switches do not short-circuit while remembered fallbacks are deferred', () => {
   const script = read('blended-bar.uc.js');
 
-  assert.match(script, /const targetCachedThemeApplied = targetCachedTheme\s*\?\s*applyResolvedTheme\(browser,\s*targetCachedTheme,\s*'target-cache',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
-  assert.match(script, /const retainedHostThemeApplied = retainedHostTheme\s*\?\s*applyResolvedTheme\(browser,\s*retainedHostTheme,\s*'same-host-retained',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
-  assert.match(script, /const hasStableCachedTabTheme = keepCachedTheme\s+&& !zenBoostActive\s+&& \(targetCachedThemeApplied \|\| retainedHostThemeApplied\)/);
+  assert.match(script, /const targetCachedThemeApplied = !deferRememberedFallback && targetCachedTheme\s*\?\s*applyResolvedTheme\(browser,\s*targetCachedTheme,\s*'target-cache',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
+  assert.match(script, /const retainedHostThemeApplied = !deferRememberedFallback && retainedHostTheme\s*\?\s*applyResolvedTheme\(browser,\s*retainedHostTheme,\s*'same-host-retained',\s*expectedHref,\s*\{[\s\S]*requireRendered:\s*zenBoostActive[\s\S]*\}\)\s*:\s*false/);
+  assert.match(script, /const hasStableCachedTabTheme = keepCachedTheme\s+&& !zenBoostActive\s+&& !deferRememberedFallback\s+&& \(targetCachedThemeApplied \|\| retainedHostThemeApplied\)/);
   assert.doesNotMatch(script, /const hasStableCachedTabTheme = keepCachedTheme\s+&& !zenBoostActive\s+&& !!\(targetCachedTheme \|\| retainedHostTheme\)/);
 });
 
-test('uncached tab switches skip initial neutral flash but clear stale colors after theme lookup misses', () => {
+test('uncached tab switches skip initial neutral flash and delay neutral fallback after lookup misses', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /const deferUnknownFallback = keepCachedTheme\s+&& !zenBoostActive/);
   assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\)/);
   assert.match(script, /else if \(!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
-  assert.match(script, /else if \(!retainedHostTheme && !skipToolbarFallback\)/);
-  assert.doesNotMatch(script, /else if \(!retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback\)/);
-  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
+  assert.match(script, /scheduleDelayedThemeFallback\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason,\s*expectedHref,\s*\{ headerOnly: true \}\)/);
+  assert.doesNotMatch(script, /else if \(!retainedHostTheme && !skipToolbarFallback\)/);
+  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| deferRememberedFallback \|\| !cachedTheme\)/);
   assert.doesNotMatch(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme\) \{\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\)/s);
 });
 
@@ -727,8 +684,8 @@ test('Zen Boost active state requires rendered color sources and fresh samples',
   assert.match(script, /function clearActivePageThemeCache\(browser = gBrowser\?\.selectedBrowser \|\| null\)/);
   assert.match(script, /themeCache\.delete\(browser\)/);
   assert.match(script, /pageThemeCache\.delete\(pageKey\)/);
-  assert.match(script, /hostThemeCache\.delete\(hostKey\)/);
-  assert.match(script, /persistHostThemeCache\(\)/);
+  assert.doesNotMatch(script, /hostThemeCache\.delete\(hostKey\)/);
+  assert.doesNotMatch(script, /persistHostThemeCache\(\)/);
   assert.match(script, /function handleZenBoostStateChange\(\)/);
   assert.match(script, /requestPersistentFrameTheme\(browser,\s*true\)/);
   assert.match(script, /scheduleActiveUpdate\(\{ reason: 'zen-boost-change', skipToolbarFallback: true \}\)/);
@@ -744,7 +701,7 @@ test('Zen Boost active state requires rendered color sources and fresh samples',
   assert.match(script, /return sourceName === 'host-cache' && getColorSourcePolicy\(getCachedColorSourceName\(source\)\)\.rendered/);
   assert.match(script, /const zenBoostActive = isZenBoostActive\(\)/);
   assert.match(script, /if \(zenBoostActive\) requestPersistentFrameTheme\(browser,\s*true\)/);
-  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| !cachedTheme\)/);
+  assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| deferRememberedFallback \|\| !cachedTheme\)/);
 });
 
 test('Zen Boost active state requires pixel-derived color sources', () => {

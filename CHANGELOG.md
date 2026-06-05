@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.3 - 2026-06-05
+
+- Removed long-lived persisted site color caching and the `Remember site colors longer` preference so restored tabs do not reuse stale cross-session host colors.
+- Kept page color memory limited to exact in-session tab/page cache plus delayed same-host retention when fresh page sampling misses.
+- Delayed remembered and neutral fallback paints during tab switching so fresh rendered page colors can resolve first.
+- Added regression coverage for the in-memory-only cache model and calmer fallback transitions.
+
 ## 1.3.2 - 2026-06-04
 
 - Removed the browser frame gap, rounded corners, and shadow while DOM fullscreen is active so fullscreen video fills the window cleanly.

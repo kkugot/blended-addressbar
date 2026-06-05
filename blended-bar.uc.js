@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.3.2
+// @version        1.3.3
 // ==/UserScript==
 
 (() => {
@@ -21,6 +21,7 @@
   const sampledColorMinAlpha = 0.08;
   const fallbackThemeStableDelayMs = 350;
   const visualThemeSettleDelayMs = 180;
+  const rememberedThemeFallbackDelayMs = 220;
   const immediateThemeConfidenceMin = 4;
   const internalPageHeaderOpacity = 0.72;
   const unknownPageHeaderOpacity = 0.1;
@@ -56,14 +57,8 @@
   const windowTintEnabledPref = `${addressbarPrefBranch}window-tint.enabled`;
   const windowTintStrengthPref = `${addressbarPrefBranch}window-tint.strength`;
   const legacySidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
-  const rememberSiteColorsLongerPref = `${addressbarPrefBranch}remember-site-colors-longer`;
-  const siteThemeCachePref = `${addressbarPrefBranch}site-theme-cache`;
   const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
   const defaultWindowTintStrengthPercent = 25;
-  const hostThemeCacheMaxEntries = 100;
-  const hostThemeCachePersistentMaxEntries = 40;
-  const hostThemeCachePrefMaxBytes = 8192;
-  const hostThemeCacheTtlMs = 7 * 24 * 60 * 60 * 1000;
   const nativeZenThemeProperties = [
     '--zen-main-browser-background',
     '--zen-main-browser-background-toolbar'
@@ -80,8 +75,6 @@
   const chromeDoc = document;
   let themeCache = new WeakMap();
   let pageThemeCache = new Map();
-  let hostThemeCache = new Map();
-  let hostThemeCacheLoaded = false;
   let persistentThemeListeners = new WeakMap();
   let themeRequestSeq = 0;
   let servicesModule = null;
@@ -94,6 +87,7 @@
     pending: null,
     pendingTimer: 0
   };
+  let delayedThemeFallbackTimer = 0;
   let samplingActive = false;
   let samplingTimer = 0;
   let samplingInFlight = false;
@@ -175,16 +169,6 @@
   } = loadBlendedAddressbarModule('theme-source-policy.js');
 
   const {
-    normalizeHostThemeCacheEntry,
-    normalizeSerializedHostThemeCacheItem,
-    serializeHostThemeCacheEntries
-  } = loadBlendedAddressbarModule('site-theme-cache.js', {
-    hostThemeCachePersistentMaxEntries,
-    hostThemeCachePrefMaxBytes,
-    hostThemeCacheTtlMs
-  });
-
-  const {
     clearUserPref,
     cssSupports,
     getPrefs,
@@ -233,6 +217,34 @@
     removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-foreground');
   }
 
+  function getThemeColorTransition(theme, reason = '') {
+    const uncertainSources = new Set([
+      'host-cache',
+      'target-cache',
+      'same-host-retained',
+      'unknown-page',
+      'loading-unknown',
+      'toolbar-fallback'
+    ]);
+    const source = uncertainSources.has(reason) ? reason : (theme?.source || reason || '');
+    return source === 'host-cache'
+      || source === 'target-cache'
+      || source === 'same-host-retained'
+      || source === 'unknown-page'
+      || source === 'loading-unknown'
+      || source === 'toolbar-fallback'
+      ? '180ms ease-out'
+      : '100ms linear';
+  }
+
+  function setThemeColorTransition(theme, reason = '') {
+    setStylePropertyIfChanged(
+      chromeDoc.documentElement.style,
+      '--blended-addressbar-color-transition',
+      getThemeColorTransition(theme, reason)
+    );
+  }
+
   function setThemeDebugAttributes(reason = '', theme = null, href = '') {
     if (!DEBUG_THEME) return;
 
@@ -260,9 +272,7 @@
   }
 
   function getNeutralHeaderShade(browser, source = 'unknown-page') {
-    const rootStyle = getComputedStyle(chromeDoc.documentElement);
-    const colorScheme = rootStyle.getPropertyValue('--toolbar-color-scheme') || rootStyle.colorScheme;
-    const normalizedScheme = String(colorScheme || '').trim().toLowerCase();
+    const normalizedScheme = getCurrentThemeColorScheme();
     const shade = normalizedScheme === 'light'
       ? { r: 255, g: 255, b: 255, a: unknownPageHeaderOpacity }
       : { r: 0, g: 0, b: 0, a: unknownPageHeaderOpacity };
@@ -274,6 +284,19 @@
       href: getBrowserHref(browser),
       source
     };
+  }
+
+  function getCurrentThemeColorScheme() {
+    const rootStyle = getComputedStyle(chromeDoc.documentElement);
+    const colorScheme = rootStyle.getPropertyValue('--toolbar-color-scheme') || rootStyle.colorScheme;
+    const normalizedScheme = String(colorScheme || '').trim().toLowerCase();
+    if (normalizedScheme === 'light' || normalizedScheme === 'dark') return normalizedScheme;
+
+    try {
+      return window.matchMedia?.('(prefers-color-scheme: light)')?.matches ? 'light' : 'dark';
+    } catch {}
+
+    return chromeDoc.documentElement.hasAttribute('zen-should-be-dark-mode') ? 'dark' : 'light';
   }
 
   function getInternalPageTheme(browser) {
@@ -342,6 +365,7 @@
     lastAppliedTheme = theme;
     lastThemeKey = key;
     lastCss = theme.bg;
+    setThemeColorTransition(theme, reason);
     setVar(theme.bg, theme.fg);
     setPageLoadbarColors(theme);
     setThemeDebugAttributes(reason, theme, href);
@@ -369,6 +393,7 @@
     lastAppliedTheme = theme;
     lastThemeKey = key;
     lastCss = theme.bg;
+    setThemeColorTransition(theme, reason);
     setVar(theme.bg, theme.fg);
     setPageLoadbarColors(theme);
     setThemeDebugAttributes(reason, theme, href);
@@ -380,6 +405,7 @@
     if (!theme) return;
 
     lastAppliedTheme = theme;
+    setThemeColorTransition(theme, reason);
     setVar(theme.bg, theme.fg);
     applyNativeZenTheme(theme, reason);
     setPageLoadbarColors(theme);
@@ -558,8 +584,14 @@
     themeApplyState.pending = null;
   }
 
+  function clearDelayedThemeFallback() {
+    if (delayedThemeFallbackTimer) clearTimeout(delayedThemeFallbackTimer);
+    delayedThemeFallbackTimer = 0;
+  }
+
   function resetThemeArbitration(href = '') {
     clearPendingThemeCandidate();
+    clearDelayedThemeFallback();
     themeApplyState.href = href;
     themeApplyState.applied = null;
   }
@@ -733,140 +765,6 @@
     };
   }
 
-  function sanitizeHostTheme(theme, href) {
-    if (!theme?.bg || !isPageThemeEligibleHref(href)) return null;
-    if (theme.source === 'host-cache' || getThemeSourceConfidence(theme) < 2) return null;
-
-    return {
-      bg: theme.bg,
-      fg: theme.fg || null,
-      bridge: theme.bridge || 'cache',
-      href,
-      source: theme.source || ''
-    };
-  }
-
-  function pruneHostThemeCache(now = Date.now()) {
-    for (const [host, entry] of hostThemeCache.entries()) {
-      if (!normalizeHostThemeCacheEntry(entry, now)) {
-        hostThemeCache.delete(host);
-      }
-    }
-
-    while (hostThemeCache.size > hostThemeCacheMaxEntries) {
-      const oldestHost = hostThemeCache.keys().next().value;
-      if (!oldestHost) break;
-      hostThemeCache.delete(oldestHost);
-    }
-  }
-
-  function ensureHostThemeCacheLoaded() {
-    if (hostThemeCacheLoaded) return;
-    hostThemeCacheLoaded = true;
-
-    if (!readRememberSiteColorsLonger()) {
-      hostThemeCache = new Map();
-      return;
-    }
-
-    const raw = readStringPref(siteThemeCachePref, '');
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw);
-      const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
-      const shouldMigrate = parsed?.version !== 2 || raw.length > hostThemeCachePrefMaxBytes;
-      const now = Date.now();
-      for (const item of entries) {
-        const normalizedItem = normalizeSerializedHostThemeCacheItem(item, now);
-        if (normalizedItem) hostThemeCache.set(normalizedItem[0], normalizedItem[1]);
-      }
-      pruneHostThemeCache(now);
-      if (shouldMigrate) persistHostThemeCache();
-    } catch {
-      hostThemeCache = new Map();
-      clearUserPref(siteThemeCachePref);
-    }
-  }
-
-  function persistHostThemeCache() {
-    if (!readRememberSiteColorsLonger()) {
-      clearUserPref(siteThemeCachePref);
-      return;
-    }
-
-    pruneHostThemeCache();
-    if (!hostThemeCache.size) {
-      clearUserPref(siteThemeCachePref);
-      return;
-    }
-
-    const serialized = serializeHostThemeCacheEntries(hostThemeCache);
-    if (serialized) {
-      writeStringPref(siteThemeCachePref, serialized);
-    } else {
-      clearUserPref(siteThemeCachePref);
-    }
-  }
-
-  function clearHostThemeCache(reason = 'clear-cache') {
-    hostThemeCache = new Map();
-    hostThemeCacheLoaded = true;
-    clearUserPref(siteThemeCachePref);
-
-    if (DEBUG_THEME) {
-      const root = chromeDoc.documentElement;
-      root.setAttribute('data-blended-addressbar-host-cache-cleared-at', String(Date.now()));
-      root.setAttribute('data-blended-addressbar-host-cache-clear-reason', reason);
-    }
-  }
-
-  function cacheHostTheme(theme, href) {
-    if (!readRememberSiteColorsLonger()) return;
-
-    const host = getThemeHostKey(href);
-    const cachedTheme = sanitizeHostTheme(theme, href);
-    if (!host || !cachedTheme) return;
-
-    ensureHostThemeCacheLoaded();
-    hostThemeCache.delete(host);
-    hostThemeCache.set(host, {
-      savedAt: Date.now(),
-      theme: cachedTheme
-    });
-    persistHostThemeCache();
-  }
-
-  function getCachedHostTheme(browser) {
-    if (!readRememberSiteColorsLonger()) {
-      if (hostThemeCache.size || prefHasUserValue(siteThemeCachePref)) {
-        clearHostThemeCache('site-cache-disabled');
-      }
-      return null;
-    }
-
-    const href = getBrowserHref(browser);
-    const host = getThemeHostKey(href);
-    if (!host) return null;
-
-    ensureHostThemeCacheLoaded();
-    const entry = normalizeHostThemeCacheEntry(hostThemeCache.get(host));
-    if (!entry?.theme?.bg) {
-      if (hostThemeCache.delete(host)) persistHostThemeCache();
-      return null;
-    }
-
-    hostThemeCache.delete(host);
-    hostThemeCache.set(host, entry);
-    return {
-      ...entry.theme,
-      href,
-      source: 'host-cache',
-      cachedAt: entry.savedAt,
-      cachedSource: entry.theme.source || ''
-    };
-  }
-
   function cacheTheme(browser, theme) {
     if (!browser || !theme?.bg) return;
 
@@ -877,7 +775,6 @@
       theme
     });
     cachePageTheme(theme, href);
-    cacheHostTheme(theme, href);
   }
 
   function getCachedTargetTheme(browser) {
@@ -892,31 +789,22 @@
     return getCachedPageTheme(browser);
   }
 
-  function getCachedTheme(browser) {
-    return getCachedTargetTheme(browser) || getCachedHostTheme(browser);
-  }
-
-  function getSameHostRetainedTheme(cachedTheme, expectedHref) {
+  function getSameHostRetainedTheme(expectedHref) {
     const expectedHost = getThemeHostKey(expectedHref);
     const previousHost = getThemeHostKey(lastAppliedTheme?.href);
     if (!expectedHost) return null;
     if (previousHost !== expectedHost) return null;
 
-    if (cachedTheme?.source === 'host-cache' && cachedTheme.bg) {
-      return {
-        ...cachedTheme,
-        href: expectedHref
-      };
-    }
-
-    const retainedTheme = sanitizeHostTheme(lastAppliedTheme, expectedHref);
-    if (!retainedTheme?.bg) return null;
+    if (!lastAppliedTheme?.bg || !isPageThemeEligibleHref(expectedHref)) return null;
+    if (lastAppliedTheme.source === 'host-cache' || getThemeSourceConfidence(lastAppliedTheme) < 2) return null;
 
     return {
-      ...retainedTheme,
+      bg: lastAppliedTheme.bg,
+      fg: lastAppliedTheme.fg || null,
+      bridge: lastAppliedTheme.bridge || 'cache',
       href: expectedHref,
       source: 'host-cache',
-      cachedSource: retainedTheme.source || ''
+      cachedSource: lastAppliedTheme.source || ''
     };
   }
 
@@ -932,12 +820,6 @@
 
     const pageKey = getThemePageKey(href);
     if (pageKey) pageThemeCache.delete(pageKey);
-
-    const hostKey = getThemeHostKey(href);
-    if (hostKey) {
-      ensureHostThemeCacheLoaded();
-      if (hostThemeCache.delete(hostKey)) persistHostThemeCache();
-    }
 
     clearPendingThemeCandidate();
   }
@@ -972,7 +854,6 @@
   function clearThemeCache(reason = 'clear-cache') {
     themeCache = new WeakMap();
     pageThemeCache = new Map();
-    clearHostThemeCache(reason);
     lastThemeKey = null;
     lastCss = null;
     clearPendingThemeCandidate();
@@ -993,6 +874,7 @@
   function applyThemeCandidateNow(browser, theme, reason, expectedHref, decision) {
     cacheTheme(browser, theme);
     clearPendingThemeCandidate();
+    clearDelayedThemeFallback();
 
     const key = getThemeKey(theme);
     themeApplyState.applied = {
@@ -1085,16 +967,43 @@
     return applyThemeCandidateNow(browser, visibleTheme, reason, expectedHref, decision);
   }
 
+  function hasFreshAppliedTheme(expectedHref) {
+    const applied = themeApplyState.applied;
+    return !!applied
+      && applied.href === expectedHref
+      && applied.source !== 'host-cache';
+  }
+
+  function scheduleDelayedThemeFallback(browser, theme, reason, expectedHref, options = {}) {
+    if (!theme?.bg || !browser) return false;
+
+    clearDelayedThemeFallback();
+    delayedThemeFallbackTimer = setTimeout(() => {
+      delayedThemeFallbackTimer = 0;
+      if (browser !== gBrowser?.selectedBrowser) return;
+      if (expectedHref && getBrowserHref(browser) !== expectedHref) return;
+      if (hasFreshAppliedTheme(expectedHref)) return;
+
+      if (options.headerOnly) {
+        applyHeaderOnlyTheme(browser, theme, reason, expectedHref);
+        return;
+      }
+
+      applyResolvedTheme(browser, theme, reason, expectedHref, {
+        ...options,
+        loading: isLoadingThemeFor(browser)
+      });
+    }, options.delay ?? rememberedThemeFallbackDelayMs);
+
+    return true;
+  }
+
   function readWindowTintEnabled() {
     if (prefHasUserValue(windowTintEnabledPref)) {
       return readBoolPref(windowTintEnabledPref, false);
     }
 
     return readBoolPref(legacySidebarEnabledPref, false);
-  }
-
-  function readRememberSiteColorsLonger() {
-    return readBoolPref(rememberSiteColorsLongerPref, true);
   }
 
   function migrateWindowTintPref() {
@@ -1183,21 +1092,7 @@
         if (topic !== 'nsPref:changed'
           || (changedPref !== windowTintEnabledPref
             && changedPref !== windowTintStrengthPref
-            && changedPref !== legacySidebarEnabledPref
-            && changedPref !== rememberSiteColorsLongerPref)) {
-          return;
-        }
-
-        if (changedPref === rememberSiteColorsLongerPref && !readRememberSiteColorsLonger()) {
-          clearHostThemeCache('site-cache-disabled');
-          void updateActive({ reason: 'site-cache-disabled' });
-          return;
-        }
-
-        if (changedPref === rememberSiteColorsLongerPref) {
-          hostThemeCacheLoaded = false;
-          ensureHostThemeCacheLoaded();
-          void updateActive({ reason: 'site-cache-enabled' });
+            && changedPref !== legacySidebarEnabledPref)) {
           return;
         }
 
@@ -3339,15 +3234,15 @@
     if (zenBoostActive) requestPersistentFrameTheme(browser, true);
 
     const targetCachedTheme = getCachedTargetTheme(browser);
-    const cachedTheme = targetCachedTheme || getCachedHostTheme(browser);
-    const cachedThemeIsHost = cachedTheme?.source === 'host-cache';
-    const retainedHostTheme = targetCachedTheme ? null : getSameHostRetainedTheme(cachedTheme, expectedHref);
-    const targetCachedThemeApplied = targetCachedTheme
+    const cachedTheme = targetCachedTheme;
+    const deferRememberedFallback = keepCachedTheme && !zenBoostActive;
+    const retainedHostTheme = targetCachedTheme ? null : getSameHostRetainedTheme(expectedHref);
+    const targetCachedThemeApplied = !deferRememberedFallback && targetCachedTheme
       ? applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {
         requireRendered: zenBoostActive
       })
       : false;
-    const retainedHostThemeApplied = retainedHostTheme
+    const retainedHostThemeApplied = !deferRememberedFallback && retainedHostTheme
       ? applyResolvedTheme(browser, retainedHostTheme, 'same-host-retained', expectedHref, {
         requireRendered: zenBoostActive
       })
@@ -3355,6 +3250,7 @@
 
     const hasStableCachedTabTheme = keepCachedTheme
       && !zenBoostActive
+      && !deferRememberedFallback
       && (targetCachedThemeApplied || retainedHostThemeApplied);
     const deferUnknownFallback = keepCachedTheme && !zenBoostActive;
     if (hasStableCachedTabTheme) return;
@@ -3380,10 +3276,6 @@
           stableDelay: visualThemeSettleDelayMs
         });
       }
-    } else if (cachedThemeIsHost && fastOnly) {
-      applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref, {
-        requireRendered: zenBoostActive
-      });
     } else if (fastOnly) {
       return;
     } else if (!cachedTheme && !retainedHostTheme && !skipToolbarFallback && !deferUnknownFallback) {
@@ -3391,7 +3283,7 @@
     }
 
     if (!fastOnly) {
-      requestPersistentFrameTheme(browser, zenBoostActive || !cachedTheme);
+      requestPersistentFrameTheme(browser, zenBoostActive || deferRememberedFallback || !cachedTheme);
       const pageTheme = await getBrowserPageTheme(browser);
       if (pageTheme?.bg) {
         applyResolvedTheme(browser, pageTheme, reason, expectedHref, {
@@ -3399,11 +3291,16 @@
           requireRendered: zenBoostActive,
           stableDelay: visualThemeSettleDelayMs
         });
-      } else if (cachedThemeIsHost) {
-        applyResolvedTheme(browser, cachedTheme, 'host-cache', expectedHref, {
-          requireRendered: zenBoostActive
-        });
-      } else if (!retainedHostTheme && !skipToolbarFallback) {
+      } else if (deferRememberedFallback) {
+        const rememberedFallbackTheme = targetCachedTheme || retainedHostTheme;
+        if (rememberedFallbackTheme?.bg) {
+          scheduleDelayedThemeFallback(browser, rememberedFallbackTheme, rememberedFallbackTheme.source === 'host-cache' ? 'host-cache' : 'target-cache', expectedHref, {
+            requireRendered: zenBoostActive
+          });
+        } else if (!skipToolbarFallback) {
+          scheduleDelayedThemeFallback(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason, expectedHref, { headerOnly: true });
+        }
+      } else if (!cachedTheme && !retainedHostTheme && !skipToolbarFallback) {
         applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'unknown-page'), reason, expectedHref);
       }
     }

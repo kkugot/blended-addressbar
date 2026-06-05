@@ -63,12 +63,6 @@
     "defaultValue": "25"
   },
   {
-    "property": "uc.blended-addressbar.remember-site-colors-longer",
-    "label": "Remember site colors longer",
-    "type": "checkbox",
-    "defaultValue": true
-  },
-  {
     "type": "separator",
     "label": "Loading Bar",
     "margin": "20px 0 12px 0"
