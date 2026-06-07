@@ -501,6 +501,60 @@ test('same effective tab theme updates are no-ops to avoid tab-switch blink', ()
   assert.doesNotMatch(script, /const key = getThemeKey\(theme\);\s*chromeDoc\.documentElement\.style\.setProperty\('--blended-addressbar-frame-background',\s*'transparent',\s*'important'\);\s*if \(key === lastThemeKey\)/);
 });
 
+test('loadbar modes customize the native Zen loading progress element', () => {
+  const script = read('blended-bar.uc.js');
+  const css = readStyleWithImports();
+  const prefs = read('preferences.json');
+  const prefsJson = JSON.parse(prefs);
+  const loadbarModePreference = prefsJson.find((pref) => pref.property === 'uc.loadbar.mode');
+  const readme = read('README.md');
+
+  assert.match(script, /const loadbarModePref = `\$\{loadbarPrefBranch\}mode`/);
+  assert.match(script, /const loadbarModeValues = Object\.freeze\(new Set\(\['hidden', 'progress', 'glow', 'edge'\]\)\)/);
+  assert.match(script, /const normalizedMode = loadbarModeValues\.has\(mode\) \? mode : ''/);
+  assert.match(script, /data-blended-addressbar-loadbar-mode/);
+  assert.match(css, /#zen-loading-progress-bar/);
+  assert.match(css, /@media \(-moz-pref\("uc\.loadbar\.mode", "hidden"\)\)/);
+  assert.match(css, /@media \(-moz-pref\("uc\.loadbar\.mode", "progress"\)\)/);
+  assert.match(css, /@media \(-moz-pref\("uc\.loadbar\.mode", "edge"\)\)/);
+  assert.match(css, /@media \(-moz-pref\("uc\.loadbar\.mode", "glow"\)\)/);
+  assert.match(css, /&\[long-load="false"\]/);
+  assert.match(css, /&\[long-load="true"\]/);
+  assert.match(css, /:root:has\(#zen-loading-progress-bar\[long-load="false"\]\)/);
+  assert.match(css, /:root:has\(#zen-loading-progress-bar\[long-load="true"\]\)/);
+  assert.doesNotMatch(css, /--blended-addressbar-loadbar-progress:\s*max\(var\(--blended-addressbar-loadbar-progress\)/);
+  assert.match(css, /#zen-appcontent-navbar-wrapper::before/);
+  assert.match(css, /max-width:\s*100%\s*!important/);
+  assert.match(css, /background:\s*var\(--zen-tab-header-foreground,\s*var\(--blended-addressbar-page-loadbar-foreground/);
+  assert.match(css, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*width 0\.7s ease-in-out/s);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend="true"\]\) > \.urlbar-background::before/);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend="true"\]\) > \.urlbar-background::after/);
+  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend="true"\]\) > \.urlbar-background\s*\{[^}]*overflow:\s*hidden\s*!important/s);
+  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend="true"\]\) > \.urlbar-background\s*\{[^}]*position:\s*relative/s);
+  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend="true"\]\) > \.urlbar-background\s*\{[^}]*background:/s);
+  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) \.urlbar-background\s*\{[^}]*overflow:\s*hidden/s);
+  assert.match(css, /height:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)\s*!important/);
+  assert.match(css, /border-radius:\s*0\s*!important/);
+  assert.match(css, /color-mix\(in srgb, var\(--blended-addressbar-loadbar-color, var\(--zen-primary-color\)\) 70%, white 30%\)/);
+  assert.doesNotMatch(css, /white\s+\d+%,\s*transparent/);
+  assert.match(css, /color-mix\(in srgb, var\(--blended-addressbar-loadbar-color, var\(--zen-primary-color\)\) 96%, white 4%\)/);
+  assert.doesNotMatch(css, /border-bottom:\s*var\(--blended-addressbar-loadbar-height/);
+  assert.match(css, /mask-image:\s*linear-gradient\(90deg,\s*black 0%,\s*black calc\(100% - 5rem\),\s*transparent 100%\)/);
+  assert.match(css, /:root:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\)/);
+  assert.match(css, /--blended-addressbar-loadbar-progress:\s*95%/);
+  assert.doesNotMatch(css, /uc\.loadbar\.mode", "zen"/);
+  assert.match(css, /:root\[inDOMFullscreen="true"\] #zen-loading-progress-bar/);
+  assert.doesNotMatch(css, /\.browserSidebarContainer\.deck-selected::before/);
+  assert.match(prefs, /uc\.loadbar\.mode/);
+  assert.equal(loadbarModePreference.defaultValue, undefined);
+  assert.deepEqual(loadbarModePreference.options.map((option) => option.value), ['hidden', 'progress', 'glow', 'edge']);
+  assert.deepEqual(loadbarModePreference.options.map((option) => option.label), ['Hidden', 'Progress bar', 'URL bar glow', 'Window edge']);
+  assert.doesNotMatch(prefs, /uc\.loadbar\.position/);
+  assert.match(readme, /uc\.loadbar\.mode/);
+  assert.match(readme, /Sine's built-in None keeps Zen's default loader/);
+  assert.doesNotMatch(readme, /uc\.loadbar\.position/);
+});
+
 test('theme debug attributes are written through one helper', () => {
   const script = read('blended-bar.uc.js');
 

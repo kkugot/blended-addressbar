@@ -68,18 +68,25 @@
     "margin": "20px 0 12px 0"
   },
   {
-    "property": "uc.loadbar.position",
-    "label": "Loading bar layout",
+    "property": "uc.loadbar.mode",
+    "label": "Loading indicator",
     "type": "dropdown",
-    "defaultValue": "full",
     "options": [
       {
-        "label": "Full width",
-        "value": "full"
+        "label": "Hidden",
+        "value": "hidden"
       },
       {
-        "label": "Centered",
-        "value": "center"
+        "label": "Progress bar",
+        "value": "progress"
+      },
+      {
+        "label": "URL bar glow",
+        "value": "glow"
+      },
+      {
+        "label": "Window edge",
+        "value": "edge"
       }
     ]
   },

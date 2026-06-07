@@ -37,6 +37,8 @@
   const loadbarOpacityPref = `${loadbarPrefBranch}opacity`;
   const loadbarColorPref = `${loadbarPrefBranch}color`;
   const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
+  const loadbarModePref = `${loadbarPrefBranch}mode`;
+  const loadbarModeValues = Object.freeze(new Set(['hidden', 'progress', 'glow', 'edge']));
   const loadbarColorSourceValues = Object.freeze({
     custom: 'var(--blended-addressbar-loadbar-custom-color)',
     'page-background': 'var(--blended-addressbar-page-loadbar-background, var(--zen-primary-color))',
@@ -1127,6 +1129,8 @@
     const opacity = normalizeOpacity(readStringPref(loadbarOpacityPref, '85'), '0.85');
     const customColor = normalizeCssColor(readStringPref(loadbarColorPref, '#3b82f6'), '#3b82f6');
     const colorSource = readStringPref(loadbarColorSourcePref, 'zen');
+    const mode = readStringPref(loadbarModePref, '');
+    const normalizedMode = loadbarModeValues.has(mode) ? mode : '';
     const colorValue = loadbarColorSourceValues[colorSource] || loadbarColorSourceValues.zen;
 
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-height', height);
@@ -1139,6 +1143,7 @@
       root.setAttribute('data-blended-addressbar-loadbar-opacity', opacity);
       root.setAttribute('data-blended-addressbar-loadbar-color-source', colorSource);
       root.setAttribute('data-blended-addressbar-loadbar-custom-color', customColor);
+      root.setAttribute('data-blended-addressbar-loadbar-mode', normalizedMode);
     }
   }
 

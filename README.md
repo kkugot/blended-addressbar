@@ -36,7 +36,7 @@ The mod exposes its settings through `preferences.json`.
 - `uc.blended-addressbar.frame-gap`: spacing around the browser frame as a CSS length, such as `5px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
 - `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: no shadow, standard, minimal, or medium.
-- `uc.loadbar.position`: choose a full-width left-to-right loading bar or a centered loading bar.
+- `uc.loadbar.mode`: choose Hidden, Progress bar, URL bar glow, or Window edge; Sine's built-in None keeps Zen's default loader.
 - `uc.loadbar.color-source`: choose Zen primary color, page foreground, page background, or a custom color.
 - `uc.loadbar.color`: custom loading bar color.
 - `uc.loadbar.height`: loading bar height.
