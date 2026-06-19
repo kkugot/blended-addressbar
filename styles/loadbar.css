@@ -5,6 +5,7 @@
     --blended-addressbar-loadbar-progress: 0%;
     --blended-addressbar-dynamic-loadbar-color: var(--zen-tab-header-foreground, var(--blended-addressbar-page-loadbar-foreground, var(--blended-addressbar-loadbar-static-color, var(--zen-primary-color))));
     --blended-addressbar-loadbar-right-radius: 0px;
+    --blended-addressbar-loadbar-edge-top-offset: 0px;
     --blended-addressbar-loadbar-track-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 8%, transparent);
     --blended-addressbar-loadbar-glow-strong-mix: 27.2%;
     --blended-addressbar-loadbar-glow-medium-mix: 14.4%;
@@ -18,6 +19,12 @@
   @media (-moz-bool-pref: "uc.loadbar.roundedcorner") {
     :root {
       --blended-addressbar-loadbar-right-radius: var(--blended-addressbar-loadbar-height, 2px);
+    }
+  }
+
+  @media (-moz-bool-pref: "uc.blended-addressbar.frame-padding.disabled") {
+    :root {
+      --blended-addressbar-loadbar-edge-top-offset: var(--blended-addressbar-loadbar-height, 2px);
     }
   }
 
@@ -147,7 +154,7 @@
     }
 
     #zen-appcontent-navbar-wrapper::before {
-      top: 0 !important;
+      top: var(--blended-addressbar-loadbar-edge-top-offset, 0px) !important;
       height: var(--blended-addressbar-loadbar-height, 2px) !important;
       background: var(--blended-addressbar-dynamic-loadbar-color) !important;
       opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
@@ -156,7 +163,7 @@
     }
 
     #zen-appcontent-navbar-wrapper::after {
-      top: var(--blended-addressbar-loadbar-height, 2px) !important;
+      top: calc(var(--blended-addressbar-loadbar-edge-top-offset, 0px) + var(--blended-addressbar-loadbar-height, 2px)) !important;
       height: 24px !important;
       opacity: 1 !important;
       background:

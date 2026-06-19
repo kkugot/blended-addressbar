@@ -596,6 +596,8 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.doesNotMatch(css, /--blended-addressbar-loadbar-progress:\s*max\(var\(--blended-addressbar-loadbar-progress\)/);
   assert.match(css, /--blended-addressbar-dynamic-loadbar-color:\s*var\(--zen-tab-header-foreground,\s*var\(--blended-addressbar-page-loadbar-foreground,\s*var\(--blended-addressbar-loadbar-static-color,\s*var\(--zen-primary-color\)\)\)\)/);
   assert.match(css, /--blended-addressbar-loadbar-right-radius:\s*0px/);
+  assert.match(css, /--blended-addressbar-loadbar-edge-top-offset:\s*0px/);
+  assert.match(css, /@media \(-moz-bool-pref: "uc\.blended-addressbar\.frame-padding\.disabled"\)\s*\{[\s\S]*--blended-addressbar-loadbar-edge-top-offset:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/);
   assert.match(css, /@media \(-moz-bool-pref: "uc\.loadbar\.roundedcorner"\)\s*\{[\s\S]*--blended-addressbar-loadbar-right-radius:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/);
   assert.match(css, /:root\[data-blended-addressbar-loadbar-focus-color="true"\]\s*\{[^}]*--blended-addressbar-dynamic-loadbar-color:\s*var\(--zen-primary-color\)/);
   assert.match(css, /--blended-addressbar-loadbar-glow-strong-mix:\s*27\.2%/);
@@ -617,8 +619,8 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*position:\s*absolute\s*!important/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*width:\s*var\(--blended-addressbar-loadbar-progress\)\s*!important/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*max-width:\s*100%\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*top:\s*0\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*top:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*top:\s*var\(--blended-addressbar-loadbar-edge-top-offset,\s*0px\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*top:\s*calc\(var\(--blended-addressbar-loadbar-edge-top-offset,\s*0px\) \+ var\(--blended-addressbar-loadbar-height,\s*2px\)\)\s*!important/);
   assert.doesNotMatch(edgeModeBlock, /#zen-loading-progress-bar::before/);
   assert.doesNotMatch(css, /#zen-appcontent-wrapper::before/);
   assert.doesNotMatch(css, /#zen-appcontent-wrapper::after/);

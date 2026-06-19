@@ -6,6 +6,7 @@
 - Reworked Progress bar, URL bar glow, and Window edge loadbar styles to share color, opacity, glow intensity, thickness, right-side radius, and width transition behavior.
 - Added a focus-color loadbar preference, set focus color on by default, and changed default loadbar height to `2px` with `80%` opacity.
 - Moved Progress bar to the full window top edge and fixed Window edge placement so it draws on the browser chrome edge instead of tab content.
+- Kept the Window edge loadbar body visible when browser frame padding is disabled.
 - Added a preference to collapse the addressbar/bookmarks separator and kept bookmark folder popups readable with native menu colors.
 - Removed obsolete selector-rule and legacy loadbar color-source handling from the color pipeline.
 
