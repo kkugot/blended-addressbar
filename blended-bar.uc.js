@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.3.3
+// @version        1.4.0
 // ==/UserScript==
 
 (() => {
@@ -36,13 +36,9 @@
   const loadbarHeightPref = `${loadbarPrefBranch}height`;
   const loadbarOpacityPref = `${loadbarPrefBranch}opacity`;
   const loadbarColorPref = `${loadbarPrefBranch}color`;
-  const loadbarColorSourcePref = `${loadbarPrefBranch}color-source`;
-  const loadbarColorSourceValues = Object.freeze({
-    custom: 'var(--blended-addressbar-loadbar-custom-color)',
-    'page-background': 'var(--blended-addressbar-page-loadbar-background, var(--zen-primary-color))',
-    'page-foreground': 'var(--blended-addressbar-page-loadbar-foreground, var(--zen-primary-color))',
-    zen: 'var(--zen-primary-color)'
-  });
+  const loadbarModePref = `${loadbarPrefBranch}mode`;
+  const loadbarFocusColorPref = `${loadbarPrefBranch}focus-color`;
+  const defaultLoadbarMode = 'glow';
   const addressbarPrefBranch = 'uc.blended-addressbar.';
   const frameRadiusPref = `${addressbarPrefBranch}frame-radius`;
   const frameGapPref = `${addressbarPrefBranch}frame-gap`;
@@ -56,8 +52,6 @@
   ]));
   const windowTintEnabledPref = `${addressbarPrefBranch}window-tint.enabled`;
   const windowTintStrengthPref = `${addressbarPrefBranch}window-tint.strength`;
-  const legacySidebarEnabledPref = `${addressbarPrefBranch}sidebar.enabled`;
-  const selectorRulePref = `${addressbarPrefBranch}selector-rule`;
   const defaultWindowTintStrengthPercent = 25;
   const nativeZenThemeProperties = [
     '--zen-main-browser-background',
@@ -169,19 +163,16 @@
   } = loadBlendedAddressbarModule('theme-source-policy.js');
 
   const {
-    clearUserPref,
     cssSupports,
     getPrefs,
     normalizeCssColor,
     normalizeCssLength,
     normalizeFrameShadowPreset,
+    normalizeLoadbarMode,
     normalizeOpacity,
     normalizePercent,
-    prefHasUserValue,
     readBoolPref,
-    readIntPref,
-    readStringPref,
-    writeStringPref
+    readStringPref
   } = loadBlendedAddressbarModule('prefs.js', {
     getServices,
     window
@@ -999,21 +990,7 @@
   }
 
   function readWindowTintEnabled() {
-    if (prefHasUserValue(windowTintEnabledPref)) {
-      return readBoolPref(windowTintEnabledPref, false);
-    }
-
-    return readBoolPref(legacySidebarEnabledPref, false);
-  }
-
-  function migrateWindowTintPref() {
-    const prefs = getPrefs();
-    if (!prefs?.setBoolPref) return;
-    if (prefHasUserValue(windowTintEnabledPref) || !prefHasUserValue(legacySidebarEnabledPref)) return;
-
-    try {
-      prefs.setBoolPref(windowTintEnabledPref, readBoolPref(legacySidebarEnabledPref, false));
-    } catch {}
+    return readBoolPref(windowTintEnabledPref, false);
   }
 
   function readWindowTintStrengthPercent() {
@@ -1091,8 +1068,7 @@
         const changedPref = String(prefName || '');
         if (topic !== 'nsPref:changed'
           || (changedPref !== windowTintEnabledPref
-            && changedPref !== windowTintStrengthPref
-            && changedPref !== legacySidebarEnabledPref)) {
+            && changedPref !== windowTintStrengthPref)) {
           return;
         }
 
@@ -1120,25 +1096,36 @@
     } catch {}
   }
 
+  function getLoadbarGlowMix(opacity, percent) {
+    const alpha = Number(opacity);
+    const clamped = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 1;
+    return `${Math.round(clamped * percent * 1000) / 1000}%`;
+  }
+
   function applyLoadbarPrefs() {
     const root = chromeDoc.documentElement;
     const rootStyle = root.style;
     const height = normalizeCssLength(readStringPref(loadbarHeightPref, '2px'), '2px');
-    const opacity = normalizeOpacity(readStringPref(loadbarOpacityPref, '85'), '0.85');
-    const customColor = normalizeCssColor(readStringPref(loadbarColorPref, '#3b82f6'), '#3b82f6');
-    const colorSource = readStringPref(loadbarColorSourcePref, 'zen');
-    const colorValue = loadbarColorSourceValues[colorSource] || loadbarColorSourceValues.zen;
+    const opacity = normalizeOpacity(readStringPref(loadbarOpacityPref, '100'), '1');
+    const customColor = normalizeCssColor(readStringPref(loadbarColorPref, 'var(--zen-primary-color)'), 'var(--zen-primary-color)');
+    const mode = readStringPref(loadbarModePref, defaultLoadbarMode);
+    const normalizedMode = normalizeLoadbarMode(mode);
+    const useFocusColor = readBoolPref(loadbarFocusColorPref, true);
 
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-height', height);
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-opacity', opacity);
-    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-custom-color', customColor);
-    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-color', colorValue);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-static-color', customColor);
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-glow-strong-mix', getLoadbarGlowMix(opacity, 34));
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-glow-medium-mix', getLoadbarGlowMix(opacity, 18));
+    setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-glow-weak-mix', getLoadbarGlowMix(opacity, 7));
+    root.setAttribute('data-blended-addressbar-loadbar-mode', normalizedMode);
+    root.setAttribute('data-blended-addressbar-loadbar-focus-color', String(useFocusColor));
 
     if (DEBUG_THEME) {
       root.setAttribute('data-blended-addressbar-loadbar-height', height);
       root.setAttribute('data-blended-addressbar-loadbar-opacity', opacity);
-      root.setAttribute('data-blended-addressbar-loadbar-color-source', colorSource);
       root.setAttribute('data-blended-addressbar-loadbar-custom-color', customColor);
+      root.setAttribute('data-blended-addressbar-loadbar-focus-color-enabled', String(useFocusColor));
     }
   }
 
@@ -1434,78 +1421,6 @@
     return null;
   }
 
-  function parseSelectorRule(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return null;
-
-    try {
-      const rule = JSON.parse(raw);
-      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return null;
-
-      const url = String(rule.url || '').trim();
-      const bg = String(rule.bg || '').trim();
-      const fg = String(rule.fg || '').trim();
-      return url && bg ? { url, bg, fg } : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function wildcardMatches(pattern, value) {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-    return new RegExp(`^${escaped}$`).test(value);
-  }
-
-  function selectorRuleMatchesUrl(pattern, href) {
-    const ruleUrl = String(pattern || '').trim();
-    if (!ruleUrl || !href) return false;
-    if (ruleUrl.includes('*')) return wildcardMatches(ruleUrl, href);
-
-    try {
-      if (ruleUrl.includes('://')) return href.startsWith(ruleUrl);
-      return new URL(href).hostname === ruleUrl;
-    } catch {
-      return href.startsWith(ruleUrl);
-    }
-  }
-
-  function getSelectorRuleElement(view, doc, selector) {
-    const raw = String(selector || '').trim();
-    if (!raw) return null;
-
-    try {
-      return getFirstRenderedElement(view, doc, raw);
-    } catch {
-      return null;
-    }
-  }
-
-  function getSelectorRuleTheme(doc, view, href, value) {
-    if (!doc || !view) return null;
-
-    const rule = parseSelectorRule(value);
-    if (!rule || !selectorRuleMatchesUrl(rule.url, href || doc.location?.href || '')) return null;
-
-    const bgElement = getSelectorRuleElement(view, doc, rule.bg);
-    const bgTheme = getThemeFromElement(view, bgElement, 'selector-rule', false);
-    if (!bgTheme?.bg) return null;
-
-    const foregroundCandidates = [];
-    const fgElement = getSelectorRuleElement(view, doc, rule.fg);
-    if (fgElement) {
-      foregroundCandidates.push(...collectForegroundCandidates(view, fgElement, false));
-    }
-    foregroundCandidates.push(...collectForegroundCandidates(view, bgElement, false));
-    foregroundCandidates.push(bgTheme.fg);
-
-    return {
-      bg: bgTheme.bg,
-      fg: getReadableForeground(bgTheme.bg, foregroundCandidates),
-      source: 'selector-rule',
-      selectorRule: rule
-    };
-  }
-
   function getTopVisibleTheme(doc, view) {
     if (!doc || !view) return null;
 
@@ -1576,9 +1491,7 @@
         candidates
       });
 
-      const selectorRuleValue = readStringPref(selectorRulePref, '');
-      return withMeta(getSelectorRuleTheme(doc, view, href, selectorRuleValue))
-        || withMeta(getDarkReaderTheme(doc, view))
+      return withMeta(getDarkReaderTheme(doc, view))
         || withMeta(getTopVisibleTheme(doc, view))
         || withMeta(getThemeColorTheme(doc, view))
         || withMeta(getThemeFromElement(view, doc.body, 'body'))
@@ -1681,7 +1594,6 @@
       (() => {
         const requestId = ${JSON.stringify(requestId)};
         const messageName = ${JSON.stringify(themeMessageName)};
-        const selectorRuleValue = ${JSON.stringify(readStringPref(selectorRulePref, ''))};
 
         const send = (payload) => {
           sendAsyncMessage(messageName, { requestId, ...payload });
@@ -2087,78 +1999,6 @@
           return null;
         };
 
-        const parseSelectorRule = (value) => {
-          const raw = String(value || '').trim();
-          if (!raw) return null;
-
-          try {
-            const rule = JSON.parse(raw);
-            if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return null;
-
-            const url = String(rule.url || '').trim();
-            const bg = String(rule.bg || '').trim();
-            const fg = String(rule.fg || '').trim();
-            return url && bg ? { url, bg, fg } : null;
-          } catch {
-            return null;
-          }
-        };
-
-        const wildcardMatches = (pattern, value) => {
-          const escaped = pattern.replace(/[|\\{}()[\\]^$+*?.]/g, '\\$&').replace(/\\\*/g, '.*');
-          return new RegExp('^' + escaped + '$').test(value);
-        };
-
-        const selectorRuleMatchesUrl = (pattern, href) => {
-          const ruleUrl = String(pattern || '').trim();
-          if (!ruleUrl || !href) return false;
-          if (ruleUrl.includes('*')) return wildcardMatches(ruleUrl, href);
-
-          try {
-            if (ruleUrl.includes('://')) return href.startsWith(ruleUrl);
-            return new URL(href).hostname === ruleUrl;
-          } catch {
-            return href.startsWith(ruleUrl);
-          }
-        };
-
-        const getSelectorRuleElement = (view, doc, selector) => {
-          const raw = String(selector || '').trim();
-          if (!raw) return null;
-
-          try {
-            return getFirstRenderedElement(view, doc, raw);
-          } catch {
-            return null;
-          }
-        };
-
-        const getSelectorRuleTheme = (doc, view, href, value) => {
-          if (!doc || !view) return null;
-
-          const rule = parseSelectorRule(value);
-          if (!rule || !selectorRuleMatchesUrl(rule.url, href || doc.location?.href || '')) return null;
-
-          const bgElement = getSelectorRuleElement(view, doc, rule.bg);
-          const bgTheme = getThemeFromElement(view, bgElement, 'selector-rule', false);
-          if (!bgTheme?.bg) return null;
-
-          const foregroundCandidates = [];
-          const fgElement = getSelectorRuleElement(view, doc, rule.fg);
-          if (fgElement) {
-            foregroundCandidates.push(...collectForegroundCandidates(view, fgElement, false));
-          }
-          foregroundCandidates.push(...collectForegroundCandidates(view, bgElement, false));
-          foregroundCandidates.push(bgTheme.fg);
-
-          return {
-            bg: bgTheme.bg,
-            fg: getReadableForeground(bgTheme.bg, foregroundCandidates),
-            source: 'selector-rule',
-            selectorRule: rule
-          };
-        };
-
         const getTopVisibleTheme = (doc, view) => {
           if (!doc || !view) return null;
 
@@ -2230,8 +2070,7 @@
           };
 
           const href = content.location.href;
-          const theme = withMeta(getSelectorRuleTheme(doc, view, href, selectorRuleValue), href, candidates)
-            || withMeta(getDarkReaderTheme(doc, view), href, candidates)
+          const theme = withMeta(getDarkReaderTheme(doc, view), href, candidates)
             || withMeta(getTopVisibleTheme(doc, view), href, candidates)
             || withMeta(getThemeColorTheme(doc, view), href, candidates)
             || withMeta(getThemeFromElement(view, doc.body, 'body'), href, candidates)
@@ -2323,10 +2162,8 @@
       return null;
     }
 
-    const selectorRuleValue = readStringPref(selectorRulePref, '');
-
     try {
-      return await ContentTask.spawn(browser, selectorRuleValue, (selectorRuleValue) => {
+      return await ContentTask.spawn(browser, null, () => {
         const describeElementTheme = (view, element) => {
           if (!view || !element) {
             return { found: false, bg: null, fg: null };
@@ -2727,78 +2564,6 @@
           return null;
         };
 
-        const parseSelectorRule = (value) => {
-          const raw = String(value || '').trim();
-          if (!raw) return null;
-
-          try {
-            const rule = JSON.parse(raw);
-            if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return null;
-
-            const url = String(rule.url || '').trim();
-            const bg = String(rule.bg || '').trim();
-            const fg = String(rule.fg || '').trim();
-            return url && bg ? { url, bg, fg } : null;
-          } catch {
-            return null;
-          }
-        };
-
-        const wildcardMatches = (pattern, value) => {
-          const escaped = pattern.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/\\\*/g, '.*');
-          return new RegExp('^' + escaped + '$').test(value);
-        };
-
-        const selectorRuleMatchesUrl = (pattern, href) => {
-          const ruleUrl = String(pattern || '').trim();
-          if (!ruleUrl || !href) return false;
-          if (ruleUrl.includes('*')) return wildcardMatches(ruleUrl, href);
-
-          try {
-            if (ruleUrl.includes('://')) return href.startsWith(ruleUrl);
-            return new URL(href).hostname === ruleUrl;
-          } catch {
-            return href.startsWith(ruleUrl);
-          }
-        };
-
-        const getSelectorRuleElement = (view, doc, selector) => {
-          const raw = String(selector || '').trim();
-          if (!raw) return null;
-
-          try {
-            return getFirstRenderedElement(view, doc, raw);
-          } catch {
-            return null;
-          }
-        };
-
-        const getSelectorRuleTheme = (doc, view, href, value) => {
-          if (!doc || !view) return null;
-
-          const rule = parseSelectorRule(value);
-          if (!rule || !selectorRuleMatchesUrl(rule.url, href || doc.location?.href || '')) return null;
-
-          const bgElement = getSelectorRuleElement(view, doc, rule.bg);
-          const bgTheme = getThemeFromElement(view, bgElement, 'selector-rule', false);
-          if (!bgTheme?.bg) return null;
-
-          const foregroundCandidates = [];
-          const fgElement = getSelectorRuleElement(view, doc, rule.fg);
-          if (fgElement) {
-            foregroundCandidates.push(...collectForegroundCandidates(view, fgElement, false));
-          }
-          foregroundCandidates.push(...collectForegroundCandidates(view, bgElement, false));
-          foregroundCandidates.push(bgTheme.fg);
-
-          return {
-            bg: bgTheme.bg,
-            fg: getReadableForeground(bgTheme.bg, foregroundCandidates),
-            source: 'selector-rule',
-            selectorRule: rule
-          };
-        };
-
         const getTopVisibleTheme = (doc, view) => {
           if (!doc || !view) return null;
 
@@ -2865,8 +2630,7 @@
           };
 
           const href = content.location.href;
-          return withMeta(getSelectorRuleTheme(doc, view, href, selectorRuleValue), href, candidates)
-            || withMeta(getDarkReaderTheme(doc, view), href, candidates)
+          return withMeta(getDarkReaderTheme(doc, view), href, candidates)
             || withMeta(getTopVisibleTheme(doc, view), href, candidates)
             || withMeta(getThemeColorTheme(doc, view), href, candidates)
             || withMeta(getThemeFromElement(view, doc.body, 'body'), href, candidates)
@@ -3474,7 +3238,6 @@
     }
 
     applyFramePrefs();
-    migrateWindowTintPref();
     observeFramePrefs();
     applyLoadbarPrefs();
     observeLoadbarPrefs();

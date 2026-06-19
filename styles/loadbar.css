@@ -1,110 +1,283 @@
-
 /* Loader bar */
 
 @-moz-document url-prefix("chrome:") {
-  /* Assume single-toolbar mode as the base use case */
-  .browserSidebarContainer.deck-selected::before {
-    content: "" !important;
-    position: absolute !important;
-    top: 0px !important; /* This will get overridden if the toolbar is showing */
-    left: 0px !important;
-    transform: none !important;
-    height: var(--blended-addressbar-loadbar-height, 2px) !important; /* Height of the top background */
-    max-width: 100% !important;
-    width: var(--bar-pcent) !important; /* Ensure full width or customizable width */
-    background-color: var(--bar-colour, var(--blended-addressbar-loadbar-color, var(--zen-primary-color))) !important; /* Solid color for the bar */
-    opacity: var(--blended-addressbar-loadbar-opacity, 0.85) !important;
-    @media (-moz-bool-pref: "uc.loadbar.shadow") {
-      filter: drop-shadow(0px 0px 10px black) !important;
-    }
-    border-radius: 0 var(--blended-addressbar-loadbar-height, 2px) var(--blended-addressbar-loadbar-height, 2px) 0 !important;
-    @media not (-moz-bool-pref: "uc.loadbar.roundedcorner") {
-       border-radius: 0 !important; /* Adjust this value to control the roundness of the ends */
-    }
-    z-index: 1 !important;
-    /* Apply smooth transition on width, top, opacity and background */
-    transition: width 0.5s ease-in-out, top 0.1s ease-in-out, left 0.2s ease-in-out, transform 0.2s ease-in-out, opacity 0.2s ease-in-out, background 0.2s ease !important;
-  }
-
-  /* When the toolbar is permanently showing, we move the loading bar under it */
-  @media not (-moz-bool-pref: "zen.view.compact.hide-toolbar") and not (-moz-bool-pref: "zen.view.use-single-toolbar") {
-    .browserSidebarContainer.deck-selected::before {
-      top: 39px !important;
-    }
-  }
-  
-  .browserSidebarContainer.deck-selected:has([zen-glance-selected])::before,
-  .browserSidebarContainer.deck-selected.zen-glance-overlay::before {
-    max-width: calc(85%) !important;
-    left: calc(15%/2) !important;
-    border-radius: 6px !important;
-  }
-
-  @media (-moz-pref("uc.loadbar.position", "center")) {
-    .browserSidebarContainer.deck-selected::before,
-    .browserSidebarContainer.deck-selected:has([zen-glance-selected])::before,
-    .browserSidebarContainer.deck-selected.zen-glance-overlay::before {
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      width: var(--bar-pcent) !important;
-    }
-  }
-  
-  .browserSidebarContainer.deck-selected.zen-glance-background::before {
-    background: transparent !important;
-    height: 0px !important;
-  }
-  
   :root {
-    &:has(.tabbrowser-tab[selected][busy]) {
-      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
-      --bar-pcent: 15%;
+    --blended-addressbar-loadbar-progress: 0%;
+    --blended-addressbar-dynamic-loadbar-color: var(--zen-tab-header-foreground, var(--blended-addressbar-page-loadbar-foreground, var(--blended-addressbar-loadbar-static-color, var(--zen-primary-color))));
+    --blended-addressbar-loadbar-right-radius: 0px;
+    --blended-addressbar-loadbar-edge-top-offset: 0px;
+    --blended-addressbar-loadbar-track-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 8%, transparent);
+    --blended-addressbar-loadbar-glow-strong-mix: 34%;
+    --blended-addressbar-loadbar-glow-medium-mix: 18%;
+    --blended-addressbar-loadbar-glow-weak-mix: 7%;
+  }
+
+  :root[data-blended-addressbar-loadbar-focus-color="true"] {
+    --blended-addressbar-dynamic-loadbar-color: var(--zen-primary-color);
+  }
+
+  @media (-moz-bool-pref: "uc.loadbar.roundedcorner") {
+    :root {
+      --blended-addressbar-loadbar-right-radius: var(--blended-addressbar-loadbar-height, 2px);
     }
-    &:has(.tabbrowser-tab[selected][busy][pendingicon]) {
-      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
-      --bar-pcent: 45%;
+  }
+
+  @media (-moz-bool-pref: "uc.blended-addressbar.frame-padding.disabled") {
+    :root {
+      --blended-addressbar-loadbar-edge-top-offset: var(--blended-addressbar-loadbar-height, 2px);
     }
-    &:has(.tabbrowser-tab[selected][busy][pendingicon][progress]) {
-      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
-      --bar-pcent: 85%;
+  }
+
+  :root:has(#zen-loading-progress-bar[long-load="false"]) {
+    --blended-addressbar-loadbar-progress: 45%;
+  }
+
+  :root:has(#zen-loading-progress-bar[long-load="true"]) {
+    --blended-addressbar-loadbar-progress: 85%;
+  }
+
+  :root:has(.tabbrowser-tab[selected][busy]) {
+    --blended-addressbar-loadbar-progress: 15%;
+  }
+
+  :root:has(.tabbrowser-tab[selected][busy][pendingicon]) {
+    --blended-addressbar-loadbar-progress: 45%;
+  }
+
+  :root:has(.tabbrowser-tab[selected][busy][pendingicon][progress]) {
+    --blended-addressbar-loadbar-progress: 85%;
+  }
+
+  :root:has(.tabbrowser-tab[selected][busy][progress]) {
+    --blended-addressbar-loadbar-progress: 95%;
+  }
+
+  :root[data-blended-addressbar-loadbar-mode="progress"] {
+    #zen-loading-progress-bar {
+      display: block !important;
+      background: var(--blended-addressbar-loadbar-track-color) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
+      height: var(--blended-addressbar-loadbar-height, 2px) !important;
+      z-index: 9 !important;
+      overflow: clip !important;
+      pointer-events: none !important;
+      animation: none !important;
+      contain: content !important;
+      transition:
+        opacity 0.2s ease-in-out,
+        width 0.7s ease-in-out,
+        transform 0.25s ease-in-out,
+        background-color 0.2s ease-in-out !important;
+
+      &::before {
+        content: "" !important;
+        position: absolute !important;
+        inset: 0 auto 0 0 !important;
+        display: block !important;
+        width: var(--blended-addressbar-loadbar-progress) !important;
+        height: 100% !important;
+        background: var(--blended-addressbar-dynamic-loadbar-color) !important;
+        border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
+        opacity: 1 !important;
+        animation: none !important;
+        transition: width 0.7s ease-in-out !important;
+      }
+
+      &[long-load="false"],
+      &:not([long-load="true"]) {
+        background: var(--blended-addressbar-loadbar-track-color) !important;
+        animation: none !important;
+      }
+
+      &[long-load="true"] {
+        background: var(--blended-addressbar-loadbar-track-color) !important;
+        animation: none !important;
+      }
     }
-    &:has(.tabbrowser-tab[selected][busy][progress]) {
-      --bar-colour: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
-      --bar-pcent: 95%;
+
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-loading-progress-bar {
+      opacity: 0 !important;
     }
-    &:has(.tabbrowser-tab[selected][muted]:not([busy])) {
-      --bar-colour: orangered;
-      --bar-pcent: 100%;
-      
-      .browserSidebarContainer.deck-selected::before {
-        border-radius: 0;
+
+    @media (-moz-bool-pref: "uc.loadbar.shadow") {
+      #zen-loading-progress-bar {
+        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 60%, transparent)) !important;
+      }
+    }
+
+    @media not (-moz-bool-pref: "uc.loadbar.roundedcorner") {
+      #zen-loading-progress-bar {
+        border-radius: 0 !important;
       }
     }
   }
 
-  /* 
-     When we are in compact mode, but not in single-toolbar mode,
-     hide the loading bar while the toolbar or URL bubble is currently showing.
+  :root[data-blended-addressbar-loadbar-mode="progress"] {
+    #zen-loading-progress-bar {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      border-radius: 0 !important;
+      transform: none !important;
+    }
 
-     This uses the conditionals found in /src/zen/compact-mode/zen-compact-mode.css
-     to detect if the toolbar is showing.
-  */
-  @media (-moz-bool-pref: "zen.view.compact.hide-toolbar") {
-    :root:not([zen-single-toolbar='true']):has([zen-compact-mode='true']) {
-      &:has(#zen-appcontent-navbar-wrapper[zen-has-hover]),
-      &:has(#zen-appcontent-navbar-wrapper[zen-user-show]),
-      &:has(#zen-appcontent-navbar-wrapper[has-popup-menu]),
-      &:has(*:is(#zen-appcontent-navbar-wrapper[panelopen='true'], 
-                 #zen-appcontent-navbar-wrapper[open='true'], 
-                 #urlbar:focus-within:not(#urlbar[zen-floating-urlbar='true']), 
-                 #zen-appcontent-navbar-wrapper[breakout-extend='true'])
-            :not(.zen-compact-mode-ignore)
-      ) {
-        .browserSidebarContainer.deck-selected::before {
-          opacity: 0 !important;
-          top: 0px !important;
-        }
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-loading-progress-bar {
+      transform: none !important;
+    }
+  }
+
+  :root[data-blended-addressbar-loadbar-mode="edge"] {
+    #zen-loading-progress-bar {
+      display: none !important;
+    }
+
+    #zen-appcontent-navbar-wrapper {
+      position: relative !important;
+      overflow: visible !important;
+    }
+
+    #zen-appcontent-navbar-wrapper::before,
+    #zen-appcontent-navbar-wrapper::after {
+      content: "" !important;
+      position: absolute !important;
+      left: 0 !important;
+      right: auto !important;
+      width: var(--blended-addressbar-loadbar-progress) !important;
+      max-width: 100% !important;
+      pointer-events: none !important;
+      transform: none !important;
+      transition:
+        opacity 0.2s ease-in-out,
+        width 0.7s ease-in-out,
+        background-color 0.2s ease-in-out !important;
+    }
+
+    #zen-appcontent-navbar-wrapper::before {
+      top: var(--blended-addressbar-loadbar-edge-top-offset, 0px) !important;
+      height: var(--blended-addressbar-loadbar-height, 2px) !important;
+      background: var(--blended-addressbar-dynamic-loadbar-color) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
+      border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
+      z-index: 2 !important;
+    }
+
+    #zen-appcontent-navbar-wrapper::after {
+      top: calc(var(--blended-addressbar-loadbar-edge-top-offset, 0px) + var(--blended-addressbar-loadbar-height, 2px)) !important;
+      height: 24px !important;
+      opacity: 1 !important;
+      background:
+        linear-gradient(
+          to bottom,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 34%), transparent) 0%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 18%), transparent) 36%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent) 68%,
+          transparent 100%
+        ) !important;
+      z-index: 1 !important;
+    }
+
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::before,
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::after {
+      width: 0 !important;
+      opacity: 0 !important;
+    }
+
+    @media (-moz-bool-pref: "uc.loadbar.shadow") {
+      #zen-appcontent-navbar-wrapper::before {
+        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 60%, transparent)) !important;
+      }
+    }
+
+    @media not (-moz-bool-pref: "uc.loadbar.roundedcorner") {
+      #zen-appcontent-navbar-wrapper::before {
+        border-radius: 0 !important;
       }
     }
   }
+
+  :root[data-blended-addressbar-loadbar-mode="glow"] {
+    #zen-loading-progress-bar {
+      display: none !important;
+    }
+
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) {
+      position: relative !important;
+      overflow: visible !important;
+    }
+
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background {
+      background-color: transparent !important;
+      overflow: hidden !important;
+      transition: background-color 0.2s ease-in-out !important;
+    }
+
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before,
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
+      content: "" !important;
+      position: absolute !important;
+      pointer-events: none !important;
+    }
+
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before {
+      top: 0 !important;
+      left: 0 !important;
+      right: auto !important;
+      bottom: 0 !important;
+      width: var(--blended-addressbar-loadbar-progress) !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
+      background:
+        linear-gradient(
+          to top,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 34%), transparent) 0%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 18%), transparent) 36%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent) 68%,
+          transparent 100%
+        ) !important;
+      opacity: 0 !important;
+      z-index: 0 !important;
+      transition:
+        opacity 0.2s ease-in-out,
+        width 0.7s ease-in-out !important;
+    }
+
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
+      top: auto !important;
+      left: 0 !important;
+      right: auto !important;
+      bottom: 0 !important;
+      width: var(--blended-addressbar-loadbar-progress) !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      height: var(--blended-addressbar-loadbar-height, 2px) !important;
+      border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
+      opacity: 0 !important;
+      z-index: 1 !important;
+      background: var(--blended-addressbar-dynamic-loadbar-color) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      transition:
+        opacity 0.2s ease-in-out,
+        width 0.7s ease-in-out !important;
+    }
+
+    &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background {
+      background-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent) !important;
+    }
+
+    &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before {
+      opacity: 1 !important;
+    }
+
+    &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
+      opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
+    }
+  }
+
+  :root[inDOMFullscreen="true"] #zen-loading-progress-bar {
+    display: none !important;
+  }
+
 }

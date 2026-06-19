@@ -2,7 +2,6 @@ var BlendedAddressbarModule = (() => {
   'use strict';
 
   const colorSourcePolicies = Object.freeze({
-    'selector-rule': Object.freeze({ sourceClass: 'explicit', rendered: true, confidence: 7, preferred: true }),
     'dark-reader': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 5, modifier: true }),
     'top-visible': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
     'pixel-top-edge': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),

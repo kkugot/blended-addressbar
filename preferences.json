@@ -22,15 +22,16 @@
     "type": "checkbox"
   },
   {
+    "property": "uc.blended-addressbar.addressbar-bookmarks-separator.disabled",
+    "label": "Remove addressbar/bookmarks separator",
+    "type": "checkbox"
+  },
+  {
     "property": "uc.blended-addressbar.frame-shadow",
     "label": "Frame shadow",
     "type": "dropdown",
     "defaultValue": "standard",
     "options": [
-      {
-        "label": "No shadow",
-        "value": "none"
-      },
       {
         "label": "Standard",
         "value": "standard"
@@ -68,51 +69,40 @@
     "margin": "20px 0 12px 0"
   },
   {
-    "property": "uc.loadbar.position",
-    "label": "Loading bar layout",
+    "property": "uc.loadbar.mode",
+    "label": "Loading indicator",
     "type": "dropdown",
-    "defaultValue": "full",
+    "defaultValue": "glow",
     "options": [
       {
-        "label": "Full width",
-        "value": "full"
+        "label": "Default",
+        "value": "default"
       },
       {
-        "label": "Centered",
-        "value": "center"
-      }
-    ]
-  },
-  {
-    "property": "uc.loadbar.color-source",
-    "label": "Color source",
-    "type": "dropdown",
-    "placeholder": "Zen Primary",
-    "defaultValue": "zen",
-    "options": [
-      {
-        "label": "Zen Primary",
-        "value": "zen"
+        "label": "Progress bar",
+        "value": "progress"
       },
       {
-        "label": "Page Foreground",
-        "value": "page-foreground"
+        "label": "URL bar glow",
+        "value": "glow"
       },
       {
-        "label": "Page Background",
-        "value": "page-background"
-      },
-      {
-        "label": "Custom Color",
-        "value": "custom"
+        "label": "Window edge",
+        "value": "edge"
       }
     ]
   },
   {
     "property": "uc.loadbar.color",
-    "label": "Custom color",
+    "label": "Fallback loadbar color",
     "type": "string",
-    "defaultValue": "#3b82f6"
+    "defaultValue": "var(--zen-primary-color)"
+  },
+  {
+    "property": "uc.loadbar.focus-color",
+    "label": "Use focus color",
+    "type": "checkbox",
+    "defaultValue": true
   },
   {
     "property": "uc.loadbar.height",
@@ -124,7 +114,7 @@
     "property": "uc.loadbar.opacity",
     "label": "Opacity (%)",
     "type": "string",
-    "defaultValue": "85"
+    "defaultValue": "100"
   },
   {
     "property": "uc.loadbar.roundedcorner",

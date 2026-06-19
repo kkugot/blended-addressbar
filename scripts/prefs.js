@@ -2,6 +2,8 @@ var BlendedAddressbarModule = ((options) => {
   'use strict';
 
   options = options || {};
+  const loadbarModeFallback = 'glow';
+  const loadbarModeValues = Object.freeze(new Set(['default', 'progress', 'glow', 'edge']));
   const getServices = typeof options.getServices === 'function'
     ? options.getServices
     : (() => null);
@@ -30,63 +32,12 @@ var BlendedAddressbarModule = ((options) => {
     return fallback;
   }
 
-  function writeStringPref(name, value) {
-    const prefs = getPrefs();
-    if (!prefs) return false;
-
-    try {
-      prefs.setStringPref(name, value);
-      return true;
-    } catch {}
-
-    try {
-      prefs.setCharPref(name, value);
-      return true;
-    } catch {}
-
-    return false;
-  }
-
-  function clearUserPref(name) {
-    const prefs = getPrefs();
-    if (!prefs?.clearUserPref) return false;
-
-    try {
-      prefs.clearUserPref(name);
-      return true;
-    } catch {}
-
-    return false;
-  }
-
   function readBoolPref(name, fallback) {
     const prefs = getPrefs();
     if (!prefs) return fallback;
 
     try {
       return prefs.getBoolPref(name, fallback);
-    } catch {}
-
-    return fallback;
-  }
-
-  function prefHasUserValue(name) {
-    const prefs = getPrefs();
-    if (!prefs?.prefHasUserValue) return false;
-
-    try {
-      return prefs.prefHasUserValue(name);
-    } catch {}
-
-    return false;
-  }
-
-  function readIntPref(name, fallback) {
-    const prefs = getPrefs();
-    if (!prefs) return fallback;
-
-    try {
-      return prefs.getIntPref(name, fallback);
     } catch {}
 
     return fallback;
@@ -110,7 +61,13 @@ var BlendedAddressbarModule = ((options) => {
 
   function normalizeFrameShadowPreset(value) {
     const preset = String(value || '').trim();
-    return ['standard', 'minimal', 'medium', 'none'].includes(preset) ? preset : 'standard';
+    return ['standard', 'minimal', 'medium'].includes(preset) ? preset : 'standard';
+  }
+
+  function normalizeLoadbarMode(value) {
+    const mode = String(value || '').trim();
+    if (mode === 'none') return 'default';
+    return loadbarModeValues.has(mode) ? mode : loadbarModeFallback;
   }
 
   function normalizeCssColor(value, fallback) {
@@ -150,18 +107,15 @@ var BlendedAddressbarModule = ((options) => {
   }
 
   return Object.freeze({
-    clearUserPref,
     cssSupports,
     getPrefs,
     normalizeCssColor,
     normalizeCssLength,
     normalizeFrameShadowPreset,
+    normalizeLoadbarMode,
     normalizeOpacity,
     normalizePercent,
-    prefHasUserValue,
     readBoolPref,
-    readIntPref,
-    readStringPref,
-    writeStringPref
+    readStringPref
   });
 })(BlendedAddressbarModuleOptions);
