@@ -22,15 +22,16 @@
     "type": "checkbox"
   },
   {
+    "property": "uc.blended-addressbar.addressbar-bookmarks-separator.disabled",
+    "label": "Remove addressbar/bookmarks separator",
+    "type": "checkbox"
+  },
+  {
     "property": "uc.blended-addressbar.frame-shadow",
     "label": "Frame shadow",
     "type": "dropdown",
     "defaultValue": "standard",
     "options": [
-      {
-        "label": "No shadow",
-        "value": "none"
-      },
       {
         "label": "Standard",
         "value": "standard"
@@ -71,10 +72,11 @@
     "property": "uc.loadbar.mode",
     "label": "Loading indicator",
     "type": "dropdown",
+    "defaultValue": "glow",
     "options": [
       {
-        "label": "Hidden",
-        "value": "hidden"
+        "label": "Default",
+        "value": "default"
       },
       {
         "label": "Progress bar",
@@ -91,35 +93,16 @@
     ]
   },
   {
-    "property": "uc.loadbar.color-source",
-    "label": "Color source",
-    "type": "dropdown",
-    "placeholder": "Zen Primary",
-    "defaultValue": "zen",
-    "options": [
-      {
-        "label": "Zen Primary",
-        "value": "zen"
-      },
-      {
-        "label": "Page Foreground",
-        "value": "page-foreground"
-      },
-      {
-        "label": "Page Background",
-        "value": "page-background"
-      },
-      {
-        "label": "Custom Color",
-        "value": "custom"
-      }
-    ]
+    "property": "uc.loadbar.color",
+    "label": "Fallback loadbar color",
+    "type": "string",
+    "defaultValue": "var(--zen-primary-color)"
   },
   {
-    "property": "uc.loadbar.color",
-    "label": "Custom color",
-    "type": "string",
-    "defaultValue": "#3b82f6"
+    "property": "uc.loadbar.focus-color",
+    "label": "Use focus color",
+    "type": "checkbox",
+    "defaultValue": true
   },
   {
     "property": "uc.loadbar.height",
@@ -131,7 +114,7 @@
     "property": "uc.loadbar.opacity",
     "label": "Opacity (%)",
     "type": "string",
-    "defaultValue": "85"
+    "defaultValue": "80"
   },
   {
     "property": "uc.loadbar.roundedcorner",

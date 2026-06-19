@@ -16,6 +16,9 @@
         0 5px 12px rgba(0, 0, 0, 0.10),
         0 1px 2px rgba(0, 0, 0, 0.10);
     --blended-addressbar-frame-shadow: var(--blended-addressbar-frame-shadow-standard);
+    --blended-addressbar-toolbar-separator-shadow: 0 -1px 0 0 inset rgba(128, 128, 128, 0.09);
+    --blended-addressbar-bookmark-popup-radius: 8px;
+    --blended-addressbar-bookmark-popup-border-color: color-mix(in srgb, MenuText 18%, transparent);
 }
 
 :root[data-blended-addressbar-frame-shadow="minimal"] {
@@ -24,10 +27,6 @@
 
 :root[data-blended-addressbar-frame-shadow="medium"] {
     --blended-addressbar-frame-shadow: var(--blended-addressbar-frame-shadow-medium);
-}
-
-:root[data-blended-addressbar-frame-shadow="none"] {
-    --blended-addressbar-frame-shadow: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -172,6 +171,47 @@
             --toolbarbutton-icon-fill: currentColor;
         }
 
+        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"] {
+            --panel-background: Menu !important;
+            --panel-color: MenuText !important;
+            --panel-border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
+            --panel-border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
+            --arrowpanel-background: Menu !important;
+            --arrowpanel-color: MenuText !important;
+            --arrowpanel-border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
+            --arrowpanel-border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
+            color: MenuText !important;
+            fill: currentColor !important;
+            stroke: currentColor !important;
+            --toolbox-textcolor: MenuText;
+            --toolbarbutton-icon-fill: currentColor;
+            --toolbar-color: MenuText;
+        }
+
+        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"]::part(content) {
+            background: Menu !important;
+            color: MenuText !important;
+            border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
+            border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
+            overflow: hidden !important;
+        }
+
+        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"] :is(menu, menuitem, .menu-iconic, .menuitem-iconic, .bookmark-item) {
+            color: MenuText !important;
+            fill: currentColor !important;
+            stroke: currentColor !important;
+            --toolbox-textcolor: MenuText;
+            --toolbarbutton-icon-fill: currentColor;
+            --toolbar-color: MenuText;
+        }
+
+        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled], [disabled="true"]) {
+            color: GrayText !important;
+            fill: currentColor !important;
+            stroke: currentColor !important;
+            --toolbarbutton-icon-fill: currentColor;
+        }
+
         #urlbar:not([zen-floating-urlbar="true"]) {
             color: var(--zen-tab-header-foreground, inherit);
             transition: color var(--blended-addressbar-color-transition);
@@ -210,10 +250,17 @@
         margin-inline-end: 0 !important;
         padding-inline-start: var(--zen-element-separation) !important;
         padding-inline-end: 0 !important;
+        box-shadow: var(--blended-addressbar-toolbar-separator-shadow);
     }
-    #nav-bar,
-    #PersonalToolbar {
-        box-shadow: 0 -1px 0 0 inset rgba(128,128,128, 0.09);
+
+    #nav-bar:not([hidden]):not([collapsed="true"]) + #PersonalToolbar:not([hidden]):not([collapsed="true"]) {
+        box-shadow: var(--blended-addressbar-toolbar-separator-shadow);
+    }
+
+    @media (-moz-bool-pref: "uc.blended-addressbar.addressbar-bookmarks-separator.disabled") {
+        #nav-bar:not([hidden]):not([collapsed="true"]):has(+ #PersonalToolbar:not([hidden]):not([collapsed="true"])) {
+            box-shadow: none !important;
+        }
     }
 
     /* The webpage content wrapper */

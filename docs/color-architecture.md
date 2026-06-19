@@ -10,12 +10,11 @@ This document describes the current adaptive color pipeline for Blended Addressb
 - `scripts/prefs.js` owns preference access and preference value normalization.
 - `scripts/pane-layout.js` owns split-pane/browser-frame corner radius observation and updates.
 - `scripts/theme-source-policy.js` owns color source policy metadata, confidence lookup, preferred semantic checks, and rendered-source checks.
-- `scripts/site-theme-cache.js` owns host-cache preference serialization and deserialization, including compact bounded persistence.
 - `frame.js` runs in page content through a persistent frame listener. It watches page theme mutations, load, and pageshow events, then sends lightweight color samples back to chrome. Scroll does not trigger color updates.
 - `style.css` consumes chrome CSS variables such as `--zen-tab-header-background`, `--zen-tab-header-foreground`, `--blended-addressbar-frame-background`, and `--blended-addressbar-window-tint-background`.
 - `styles/header-chrome.css` consumes the header foreground variables for hidden-tabs and compact-mode chrome icon styling.
 - `styles/loadbar.css` consumes loadbar variables and preferences.
-- `preferences.json` exposes user settings. Exact tab and page colors are remembered in memory. Host-level fallback caching, including persistence across restarts, is enabled only while `uc.blended-addressbar.remember-site-colors-longer` is true.
+- `preferences.json` exposes user settings. Exact tab and page colors are remembered in memory while browsing.
 
 ## Current Event Flow
 
@@ -94,7 +93,6 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 
 | Source | Class | Rendered/trusted? | Confidence | Notes |
 | --- | --- | --- | --- | --- |
-| `selector-rule` | explicit semantic | yes, but not pixel-derived | 7 | User-defined selector override. Treated as trusted during normal browsing, but ignored while Boost requires actual pixels. |
 | `theme-color` | preferred semantic | no | 7 | Preferred during normal active loads so semantic site color can stay stable. Ignored while Boost requires pixel-derived sources. |
 | `top-visible` | visual DOM | yes, but not pixel-derived | 6 | Top visible element from chrome-side DOM read or persistent-frame ancestor sampling. Ignored while Boost requires actual pixels. |
 | `pixel-top-edge` / `pixel` | visual pixel | yes | 6 | Persistent content or chrome snapshot of rendered top edge. |
@@ -109,8 +107,6 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 
 - `themeCache`: per-browser `WeakMap` for the current exact tab and href.
 - `pageThemeCache`: bounded in-memory cache by origin and pathname. This is the preferred tab-switch fallback after exact tab cache.
-- `hostThemeCache`: host-level fallback. The in-memory map is capped separately from persistence and can persist across restarts when `remember-site-colors-longer` is enabled.
-- `site-theme-cache` preference payload: compact versioned JSON written by `scripts/site-theme-cache.js`. Persistence keeps only the newest bounded host entries, omits hrefs entirely, and clears the preference if no serialized payload fits the byte budget.
 - Same-host retention: if the next tab has the same host as the last applied theme, the previous theme can be retained briefly instead of flashing neutral while an unloaded tab restores.
 
 Cache precedence on tab switch is:
@@ -159,7 +155,6 @@ The first refactor phase is implemented across `blended-bar.uc.js` and the helpe
 - Cached tab switches can now return after successfully painting the cached/retained color, avoiding an immediate persistent-frame sample on switch while still continuing if the cached candidate is rejected.
 - Navigation no longer runs a repeating loading poll loop; active loads use one coalesced early update, one settled update, and persistent-frame `load`/`pageshow` refreshes.
 - Repeated CSS property writes use `scripts/style-state.js` so equivalent values are no-ops.
-- Host-cache preference serialization now lives in `scripts/site-theme-cache.js` and writes compact bounded payloads.
 - Hidden-tabs chrome foreground styling now lives in `styles/header-chrome.css`, imported by `style.css`.
 
 The larger pipeline split below is still proposed.
@@ -199,7 +194,7 @@ The resolver can then be a small policy matrix instead of scattered booleans:
 | --- | --- |
 | Tab switch with exact cache | Paint exact tab/page cache immediately and do not force a fresh sample in the same switch turn. |
 | Tab switch same host, no exact cache | Retain previous same-host visual color and do not force a fresh sample in the same switch turn. |
-| Loading, no cache | Prefer `selector-rule`, `theme-color`, `dark-reader`, or rendered visual source. Avoid neutral unless no useful candidate exists. |
+| Loading, no cache | Prefer `theme-color`, `dark-reader`, or rendered visual source. Avoid neutral unless no useful candidate exists. |
 | Loading with weak semantic source | Defer or ignore `body`, `html`, and `document-canvas` until stable. |
 | Boost active | Rendered-only mode: accept visual pixel/top-visible/Dark Reader/rendered cache; reject non-rendered semantic and broad host fallbacks. |
 | Settled page | Allow semantic preferred sources and rendered sources, but use hysteresis so small or lower-confidence changes do not disturb the UI. |

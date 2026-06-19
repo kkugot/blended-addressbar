@@ -35,14 +35,15 @@ The mod exposes its settings through `preferences.json`.
 - `uc.blended-addressbar.frame-radius`: outer browser frame corner radius as a CSS length, such as `8px` or `0`.
 - `uc.blended-addressbar.frame-gap`: spacing around the browser frame as a CSS length, such as `5px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
-- `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: no shadow, standard, minimal, or medium.
-- `uc.loadbar.mode`: choose Hidden, Progress bar, URL bar glow, or Window edge; Sine's built-in None keeps Zen's default loader.
-- `uc.loadbar.color-source`: choose Zen primary color, page foreground, page background, or a custom color.
-- `uc.loadbar.color`: custom loading bar color.
-- `uc.loadbar.height`: loading bar height.
-- `uc.loadbar.opacity`: loading bar opacity as a percentage.
-- `uc.loadbar.roundedcorner`: enable rounded loading bar corners.
-- `uc.loadbar.shadow`: enable loading bar shadow.
+- `uc.blended-addressbar.addressbar-bookmarks-separator.disabled`: remove the separator between the addressbar and visible bookmarks bar.
+- `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: standard, minimal, or medium.
+- `uc.loadbar.mode`: choose Default, Progress bar, URL bar glow, or Window edge. Default keeps Zen's native loader; the mod defaults to URL bar glow.
+- `uc.loadbar.color`: fallback loadbar color when no page or header color is available.
+- `uc.loadbar.focus-color`: use the browser focus color for Progress bar, URL bar glow, and Window edge instead of the header foreground; enabled by default.
+- `uc.loadbar.height`: loading bar thickness for all custom loadbar styles.
+- `uc.loadbar.opacity`: loading bar body opacity and glow intensity for all custom loadbar styles.
+- `uc.loadbar.roundedcorner`: enable right-side rounded corners for Progress bar, URL bar glow, and Window edge.
+- `uc.loadbar.shadow`: enable shadow for Progress bar and Window edge.
 
 ## Credits
 

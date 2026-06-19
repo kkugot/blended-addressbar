@@ -1,20 +1,24 @@
 /* Loader bar */
 
 @-moz-document url-prefix("chrome:") {
-  @keyframes blended-addressbar-loadbar-glow-sweep {
-    from {
-      background-position: -6rem 0, 0 0;
-    }
-
-    to {
-      background-position: calc(100% + 6rem) 0, 0 0;
-    }
-  }
-
   :root {
     --blended-addressbar-loadbar-progress: 0%;
-    --blended-addressbar-loadbar-track-color: color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 16%, transparent);
-    --blended-addressbar-loadbar-glow-color: color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 46%, transparent);
+    --blended-addressbar-dynamic-loadbar-color: var(--zen-tab-header-foreground, var(--blended-addressbar-page-loadbar-foreground, var(--blended-addressbar-loadbar-static-color, var(--zen-primary-color))));
+    --blended-addressbar-loadbar-right-radius: 0px;
+    --blended-addressbar-loadbar-track-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 8%, transparent);
+    --blended-addressbar-loadbar-glow-strong-mix: 27.2%;
+    --blended-addressbar-loadbar-glow-medium-mix: 14.4%;
+    --blended-addressbar-loadbar-glow-weak-mix: 5.6%;
+  }
+
+  :root[data-blended-addressbar-loadbar-focus-color="true"] {
+    --blended-addressbar-dynamic-loadbar-color: var(--zen-primary-color);
+  }
+
+  @media (-moz-bool-pref: "uc.loadbar.roundedcorner") {
+    :root {
+      --blended-addressbar-loadbar-right-radius: var(--blended-addressbar-loadbar-height, 2px);
+    }
   }
 
   :root:has(#zen-loading-progress-bar[long-load="false"]) {
@@ -41,20 +45,11 @@
     --blended-addressbar-loadbar-progress: 95%;
   }
 
-  @media (-moz-pref("uc.loadbar.mode", "hidden")) {
+  :root[data-blended-addressbar-loadbar-mode="progress"] {
     #zen-loading-progress-bar {
-      display: none !important;
-    }
-  }
-
-  @media (-moz-pref("uc.loadbar.mode", "progress")),
-    (-moz-pref("uc.loadbar.mode", "edge")) {
-    #zen-loading-progress-bar {
-      --zen-loading-progress-bar-color: var(--blended-addressbar-loadbar-color, var(--zen-primary-color));
-
       display: block !important;
       background: var(--blended-addressbar-loadbar-track-color) !important;
-      opacity: var(--blended-addressbar-loadbar-opacity, 0.85) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
       height: var(--blended-addressbar-loadbar-height, 2px) !important;
       z-index: 9 !important;
       overflow: clip !important;
@@ -63,7 +58,7 @@
       contain: content !important;
       transition:
         opacity 0.2s ease-in-out,
-        width 0.35s ease-in-out,
+        width 0.7s ease-in-out,
         transform 0.25s ease-in-out,
         background-color 0.2s ease-in-out !important;
 
@@ -74,11 +69,11 @@
         display: block !important;
         width: var(--blended-addressbar-loadbar-progress) !important;
         height: 100% !important;
-        background: var(--zen-loading-progress-bar-color) !important;
-        border-radius: inherit !important;
+        background: var(--blended-addressbar-dynamic-loadbar-color) !important;
+        border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
         opacity: 1 !important;
         animation: none !important;
-        transition: width 0.35s ease-in-out !important;
+        transition: width 0.7s ease-in-out !important;
       }
 
       &[long-load="false"],
@@ -93,13 +88,13 @@
       }
     }
 
-    :root:not(:has(.tabbrowser-tab[selected][busy])) #zen-loading-progress-bar {
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-loading-progress-bar {
       opacity: 0 !important;
     }
 
     @media (-moz-bool-pref: "uc.loadbar.shadow") {
       #zen-loading-progress-bar {
-        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--zen-loading-progress-bar-color) 60%, transparent)) !important;
+        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 60%, transparent)) !important;
       }
     }
 
@@ -110,43 +105,40 @@
     }
   }
 
-  @media (-moz-pref("uc.loadbar.mode", "progress")) {
+  :root[data-blended-addressbar-loadbar-mode="progress"] {
     #zen-loading-progress-bar {
       position: fixed !important;
-      top: calc(var(--blended-addressbar-frame-gap, 5px) + var(--urlbar-container-height, 40px) - var(--blended-addressbar-loadbar-height, 2px)) !important;
-      left: 50% !important;
-      width: min(18rem, 42vw) !important;
-      border-radius: 100px !important;
-      transform: translateX(-50%) !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      border-radius: 0 !important;
+      transform: none !important;
     }
 
-    :root:not(:has(.tabbrowser-tab[selected][busy])) #zen-loading-progress-bar {
-      transform: translateX(-50%) scaleX(0.98) !important;
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-loading-progress-bar {
+      transform: none !important;
     }
   }
 
-  @media (-moz-pref("uc.loadbar.mode", "edge")) {
+  :root[data-blended-addressbar-loadbar-mode="edge"] {
     #zen-loading-progress-bar {
       display: none !important;
     }
 
     #zen-appcontent-navbar-wrapper {
       position: relative !important;
+      overflow: visible !important;
     }
 
-    #zen-appcontent-navbar-wrapper::before {
+    #zen-appcontent-navbar-wrapper::before,
+    #zen-appcontent-navbar-wrapper::after {
       content: "" !important;
       position: absolute !important;
-      top: 0 !important;
       left: 0 !important;
+      right: auto !important;
       width: var(--blended-addressbar-loadbar-progress) !important;
       max-width: 100% !important;
-      height: var(--blended-addressbar-loadbar-height, 2px) !important;
-      background: var(--zen-tab-header-foreground, var(--blended-addressbar-page-loadbar-foreground, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)))) !important;
-      opacity: var(--blended-addressbar-loadbar-opacity, 0.85) !important;
-      z-index: 2 !important;
       pointer-events: none !important;
-      border-radius: 0 var(--blended-addressbar-loadbar-height, 2px) var(--blended-addressbar-loadbar-height, 2px) 0 !important;
       transform: none !important;
       transition:
         opacity 0.2s ease-in-out,
@@ -154,14 +146,39 @@
         background-color 0.2s ease-in-out !important;
     }
 
-    :root:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::before {
+    #zen-appcontent-navbar-wrapper::before {
+      top: 0 !important;
+      height: var(--blended-addressbar-loadbar-height, 2px) !important;
+      background: var(--blended-addressbar-dynamic-loadbar-color) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
+      border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
+      z-index: 2 !important;
+    }
+
+    #zen-appcontent-navbar-wrapper::after {
+      top: var(--blended-addressbar-loadbar-height, 2px) !important;
+      height: 24px !important;
+      opacity: 1 !important;
+      background:
+        linear-gradient(
+          to bottom,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 27.2%), transparent) 0%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 14.4%), transparent) 36%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 5.6%), transparent) 68%,
+          transparent 100%
+        ) !important;
+      z-index: 1 !important;
+    }
+
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::before,
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::after {
       width: 0 !important;
       opacity: 0 !important;
     }
 
     @media (-moz-bool-pref: "uc.loadbar.shadow") {
       #zen-appcontent-navbar-wrapper::before {
-        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--zen-tab-header-foreground, var(--blended-addressbar-page-loadbar-foreground, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)))) 60%, transparent)) !important;
+        filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 60%, transparent)) !important;
       }
     }
 
@@ -172,36 +189,55 @@
     }
   }
 
-  @media (-moz-pref("uc.loadbar.mode", "glow")) {
+  :root[data-blended-addressbar-loadbar-mode="glow"] {
     #zen-loading-progress-bar {
       display: none !important;
     }
 
-    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) {
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) {
       position: relative !important;
+      overflow: visible !important;
     }
 
-    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background {
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background {
+      background-color: transparent !important;
       overflow: hidden !important;
+      transition: background-color 0.2s ease-in-out !important;
     }
 
-    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background::before,
-    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background::after {
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before,
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
       content: "" !important;
       position: absolute !important;
       pointer-events: none !important;
     }
 
-    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background::before {
-      inset: 0 !important;
-      border-radius: inherit !important;
-      background: color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 9%, transparent) !important;
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before {
+      top: 0 !important;
+      left: 0 !important;
+      right: auto !important;
+      bottom: 0 !important;
+      width: var(--blended-addressbar-loadbar-progress) !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
+      background:
+        linear-gradient(
+          to top,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 27.2%), transparent) 0%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 14.4%), transparent) 36%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 5.6%), transparent) 68%,
+          transparent 100%
+        ) !important;
       opacity: 0 !important;
       z-index: 0 !important;
-      transition: opacity 0.2s ease-in-out !important;
+      transition:
+        opacity 0.2s ease-in-out,
+        width 0.7s ease-in-out !important;
     }
 
-    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background::after {
+    #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
+      top: auto !important;
       left: 0 !important;
       right: auto !important;
       bottom: 0 !important;
@@ -209,36 +245,27 @@
       min-width: 0 !important;
       max-width: 100% !important;
       height: var(--blended-addressbar-loadbar-height, 2px) !important;
-      border-radius: 0 !important;
+      border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
       opacity: 0 !important;
       z-index: 1 !important;
-      background:
-        linear-gradient(
-          90deg,
-          transparent 0%,
-          color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 70%, white 30%) 46%,
-          transparent 76%
-        ),
-        color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 96%, white 4%) !important;
+      background: var(--blended-addressbar-dynamic-loadbar-color) !important;
       background-repeat: no-repeat !important;
-      background-size: 6rem 100%, 100% 100% !important;
-      background-position: -6rem 0, 0 0;
-      box-shadow:
-        0 -8px 18px 5px color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 34%, transparent),
-        0 -2px 8px 1px color-mix(in srgb, var(--blended-addressbar-loadbar-color, var(--zen-primary-color)) 62%, transparent) !important;
-      mask-image: linear-gradient(90deg, black 0%, black calc(100% - 5rem), transparent 100%) !important;
+      background-size: 100% 100% !important;
       transition:
         opacity 0.2s ease-in-out,
-        width 0.35s ease-in-out !important;
+        width 0.7s ease-in-out !important;
     }
 
-    :root:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background::before {
+    &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background {
+      background-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 5.6%), transparent) !important;
+    }
+
+    &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before {
       opacity: 1 !important;
     }
 
-    :root:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend="true"]) > .urlbar-background::after {
-      animation: blended-addressbar-loadbar-glow-sweep 1.35s ease-in-out infinite !important;
-      opacity: var(--blended-addressbar-loadbar-opacity, 0.85) !important;
+    &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
+      opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
     }
   }
 
@@ -246,7 +273,4 @@
     display: none !important;
   }
 
-  :root[inDOMFullscreen="true"] #zen-appcontent-navbar-wrapper::before {
-    display: none !important;
-  }
 }
