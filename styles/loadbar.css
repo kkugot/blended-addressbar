@@ -7,9 +7,9 @@
     --blended-addressbar-loadbar-right-radius: 0px;
     --blended-addressbar-loadbar-edge-top-offset: 0px;
     --blended-addressbar-loadbar-track-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 8%, transparent);
-    --blended-addressbar-loadbar-glow-strong-mix: 27.2%;
-    --blended-addressbar-loadbar-glow-medium-mix: 14.4%;
-    --blended-addressbar-loadbar-glow-weak-mix: 5.6%;
+    --blended-addressbar-loadbar-glow-strong-mix: 34%;
+    --blended-addressbar-loadbar-glow-medium-mix: 18%;
+    --blended-addressbar-loadbar-glow-weak-mix: 7%;
   }
 
   :root[data-blended-addressbar-loadbar-focus-color="true"] {
@@ -56,7 +56,7 @@
     #zen-loading-progress-bar {
       display: block !important;
       background: var(--blended-addressbar-loadbar-track-color) !important;
-      opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
       height: var(--blended-addressbar-loadbar-height, 2px) !important;
       z-index: 9 !important;
       overflow: clip !important;
@@ -157,7 +157,7 @@
       top: var(--blended-addressbar-loadbar-edge-top-offset, 0px) !important;
       height: var(--blended-addressbar-loadbar-height, 2px) !important;
       background: var(--blended-addressbar-dynamic-loadbar-color) !important;
-      opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
       border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0 !important;
       z-index: 2 !important;
     }
@@ -169,9 +169,9 @@
       background:
         linear-gradient(
           to bottom,
-          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 27.2%), transparent) 0%,
-          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 14.4%), transparent) 36%,
-          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 5.6%), transparent) 68%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 34%), transparent) 0%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 18%), transparent) 36%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent) 68%,
           transparent 100%
         ) !important;
       z-index: 1 !important;
@@ -231,9 +231,9 @@
       background:
         linear-gradient(
           to top,
-          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 27.2%), transparent) 0%,
-          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 14.4%), transparent) 36%,
-          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 5.6%), transparent) 68%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-strong-mix, 34%), transparent) 0%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-medium-mix, 18%), transparent) 36%,
+          color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent) 68%,
           transparent 100%
         ) !important;
       opacity: 0 !important;
@@ -264,7 +264,7 @@
     }
 
     &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background {
-      background-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 5.6%), transparent) !important;
+      background-color: color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent) !important;
     }
 
     &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before {
@@ -272,7 +272,7 @@
     }
 
     &:is(:has(.tabbrowser-tab[selected][busy]), :has(#zen-loading-progress-bar[long-load])) #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after {
-      opacity: var(--blended-addressbar-loadbar-opacity, 0.8) !important;
+      opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
     }
   }
 

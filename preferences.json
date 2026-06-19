@@ -114,7 +114,7 @@
     "property": "uc.loadbar.opacity",
     "label": "Opacity (%)",
     "type": "string",
-    "defaultValue": "80"
+    "defaultValue": "100"
   },
   {
     "property": "uc.loadbar.roundedcorner",

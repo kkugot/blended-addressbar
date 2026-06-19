@@ -571,7 +571,7 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(script, /const mode = readStringPref\(loadbarModePref,\s*defaultLoadbarMode\)/);
   assert.match(script, /const normalizedMode = normalizeLoadbarMode\(mode\)/);
   assert.match(script, /const height = normalizeCssLength\(readStringPref\(loadbarHeightPref,\s*'2px'\),\s*'2px'\)/);
-  assert.match(script, /const opacity = normalizeOpacity\(readStringPref\(loadbarOpacityPref,\s*'80'\),\s*'0\.8'\)/);
+  assert.match(script, /const opacity = normalizeOpacity\(readStringPref\(loadbarOpacityPref,\s*'100'\),\s*'1'\)/);
   assert.match(script, /const customColor = normalizeCssColor\(readStringPref\(loadbarColorPref,\s*'var\(--zen-primary-color\)'\),\s*'var\(--zen-primary-color\)'\)/);
   assert.match(script, /const useFocusColor = readBoolPref\(loadbarFocusColorPref,\s*true\)/);
   assert.match(script, /setStylePropertyIfChanged\(rootStyle,\s*'--blended-addressbar-loadbar-static-color',\s*customColor\)/);
@@ -600,9 +600,9 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(css, /@media \(-moz-bool-pref: "uc\.blended-addressbar\.frame-padding\.disabled"\)\s*\{[\s\S]*--blended-addressbar-loadbar-edge-top-offset:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/);
   assert.match(css, /@media \(-moz-bool-pref: "uc\.loadbar\.roundedcorner"\)\s*\{[\s\S]*--blended-addressbar-loadbar-right-radius:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/);
   assert.match(css, /:root\[data-blended-addressbar-loadbar-focus-color="true"\]\s*\{[^}]*--blended-addressbar-dynamic-loadbar-color:\s*var\(--zen-primary-color\)/);
-  assert.match(css, /--blended-addressbar-loadbar-glow-strong-mix:\s*27\.2%/);
-  assert.match(css, /--blended-addressbar-loadbar-glow-medium-mix:\s*14\.4%/);
-  assert.match(css, /--blended-addressbar-loadbar-glow-weak-mix:\s*5\.6%/);
+  assert.match(css, /--blended-addressbar-loadbar-glow-strong-mix:\s*34%/);
+  assert.match(css, /--blended-addressbar-loadbar-glow-medium-mix:\s*18%/);
+  assert.match(css, /--blended-addressbar-loadbar-glow-weak-mix:\s*7%/);
   assert.doesNotMatch(progressModeBlock, /--zen-loading-progress-bar-color/);
   assert.match(css, /--blended-addressbar-loadbar-track-color:\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) 8%,\s*transparent\)/);
   assert.doesNotMatch(progressModeBlock, /--blended-addressbar-loadbar-static-color/);
@@ -632,12 +632,12 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(css, /background:\s*var\(--blended-addressbar-dynamic-loadbar-color\)\s*!important/);
   assert.doesNotMatch(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[^}]*opacity:\s*var\(--blended-addressbar-loadbar-opacity/);
   assert.doesNotMatch(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[^}]*border-radius:/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*opacity:\s*var\(--blended-addressbar-loadbar-opacity,\s*0\.8\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*opacity:\s*var\(--blended-addressbar-loadbar-opacity,\s*1\)\s*!important/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*border-radius:\s*0 var\(--blended-addressbar-loadbar-right-radius,\s*0px\) var\(--blended-addressbar-loadbar-right-radius,\s*0px\) 0\s*!important/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*width 0\.7s ease-in-out/s);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*height:\s*24px\s*!important/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*opacity:\s*1\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*background:\s*linear-gradient\(\s*to bottom,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*27\.2%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*14\.4%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*5\.6%\),\s*transparent\) 68%,\s*transparent 100%\s*\)\s*!important/s);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*background:\s*linear-gradient\(\s*to bottom,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)\s*!important/s);
   assert.match(edgeModeBlock, /&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::before,\s*&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::after\s*\{[^}]*width:\s*0\s*!important;[^}]*opacity:\s*0\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::before/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::after/);
@@ -646,7 +646,7 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*overflow:\s*hidden\s*!important/s);
   assert.match(urlbarGlowBackgroundBlock, /background-color:\s*transparent\s*!important/);
   assert.match(urlbarGlowBackgroundBlock, /transition:\s*background-color 0\.2s ease-in-out\s*!important/);
-  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background-color:\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*5\.6%\),\s*transparent\)\s*!important/s);
+  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background-color:\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\)\s*!important/s);
   assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*position:\s*relative/s);
   assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background:/s);
   assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) \.urlbar-background\s*\{[^}]*overflow:\s*hidden/s);
@@ -659,7 +659,7 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(urlbarGlowBeforeBlock, /max-width:\s*100%\s*!important/);
   assert.match(urlbarGlowBeforeBlock, /border-radius:\s*0 var\(--blended-addressbar-loadbar-right-radius,\s*0px\) var\(--blended-addressbar-loadbar-right-radius,\s*0px\) 0\s*!important/);
   assert.doesNotMatch(urlbarGlowBeforeBlock, /inset:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /linear-gradient\(\s*to top,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*27\.2%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*14\.4%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*5\.6%\),\s*transparent\) 68%,\s*transparent 100%\s*\)/s);
+  assert.match(urlbarGlowBeforeBlock, /linear-gradient\(\s*to top,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)/s);
   assert.match(urlbarGlowBeforeBlock, /z-index:\s*0\s*!important/);
   assert.match(urlbarGlowBeforeBlock, /width 0\.7s ease-in-out/);
   assert.doesNotMatch(urlbarGlowBeforeBlock, /height:\s*24px\s*!important/);
@@ -708,7 +708,7 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.equal(loadbarFocusColorPreference.type, 'checkbox');
   assert.equal(loadbarFocusColorPreference.defaultValue, true);
   assert.equal(prefsJson.find((pref) => pref.property === 'uc.loadbar.height').defaultValue, '2px');
-  assert.equal(prefsJson.find((pref) => pref.property === 'uc.loadbar.opacity').defaultValue, '80');
+  assert.equal(prefsJson.find((pref) => pref.property === 'uc.loadbar.opacity').defaultValue, '100');
   assert.doesNotMatch(prefs, /uc\.loadbar\.color-source/);
   assert.doesNotMatch(prefs, /uc\.loadbar\.position/);
   assert.match(readme, /uc\.loadbar\.mode/);

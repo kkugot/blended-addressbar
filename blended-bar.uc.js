@@ -1098,7 +1098,7 @@
 
   function getLoadbarGlowMix(opacity, percent) {
     const alpha = Number(opacity);
-    const clamped = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 0.8;
+    const clamped = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 1;
     return `${Math.round(clamped * percent * 1000) / 1000}%`;
   }
 
@@ -1106,7 +1106,7 @@
     const root = chromeDoc.documentElement;
     const rootStyle = root.style;
     const height = normalizeCssLength(readStringPref(loadbarHeightPref, '2px'), '2px');
-    const opacity = normalizeOpacity(readStringPref(loadbarOpacityPref, '80'), '0.8');
+    const opacity = normalizeOpacity(readStringPref(loadbarOpacityPref, '100'), '1');
     const customColor = normalizeCssColor(readStringPref(loadbarColorPref, 'var(--zen-primary-color)'), 'var(--zen-primary-color)');
     const mode = readStringPref(loadbarModePref, defaultLoadbarMode);
     const normalizedMode = normalizeLoadbarMode(mode);
