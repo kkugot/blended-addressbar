@@ -123,6 +123,17 @@
             --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
         }
 
+        /* Interactive children must stay clickable, not draggable: on a drag
+           region, press-and-hold menus (back/forward session history, bookmark
+           folders) roll up the moment the first pixel of cursor drift starts
+           moving the window, and a click with slight drift drags the window
+           instead of clicking. Spacers and the empty strip remain draggable. */
+        #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]):is(toolbarbutton, toolbaritem),
+        #PersonalToolbar :is(toolbarbutton, .bookmark-item),
+        #PanelUI-button:is(toolbaritem, toolbarbutton) {
+            -moz-window-dragging: no-drag;
+        }
+
         :is(
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon),
