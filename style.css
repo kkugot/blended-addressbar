@@ -10,8 +10,8 @@
         0 4px 16px rgba(0, 0, 0, 0.14),
         0 1px 4px rgba(0, 0, 0, 0.12);
     --blended-addressbar-frame-shadow-minimal:
-        0 0 0 1px rgba(0, 0, 0, 0.08),
-        0 1px 2px rgba(0, 0, 0, 0.05);
+        0 0 0 1px rgba(0, 0, 0, 0.10),
+        0 2px 8px rgba(0, 0, 0, 0.10);
     --blended-addressbar-frame-shadow-medium:
         0 5px 12px rgba(0, 0, 0, 0.10),
         0 1px 2px rgba(0, 0, 0, 0.10);
@@ -35,8 +35,8 @@
             0 6px 18px rgba(0, 0, 0, 0.34),
             0 1px 5px rgba(0, 0, 0, 0.30);
         --blended-addressbar-frame-shadow-minimal:
-            0 0 0 1px rgba(255, 255, 255, 0.08),
-            0 1px 2px rgba(0, 0, 0, 0.16);
+            0 0 0 1px rgba(255, 255, 255, 0.10),
+            0 2px 8px rgba(0, 0, 0, 0.24);
         --blended-addressbar-frame-shadow-medium:
             0 6px 14px rgba(0, 0, 0, 0.30),
             0 1px 3px rgba(0, 0, 0, 0.28);
@@ -45,8 +45,8 @@
 
 :root:not([zen-should-be-dark-mode]) {
     --blended-addressbar-frame-shadow-minimal:
-        0 0 0 1px rgba(0, 0, 0, 0.08),
-        0 1px 2px rgba(0, 0, 0, 0.05);
+        0 0 0 1px rgba(0, 0, 0, 0.10),
+        0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
 /* URL bar */
@@ -83,11 +83,24 @@
         }
     }
 
-    &[inDOMFullscreen="true"] {
+    &:is([inDOMFullscreen="true"], [inFullscreen="true"], [macOSNativeFullscreen], [zen-no-padding="true"]) {
         #zen-appcontent-wrapper {
             margin: 0 !important;
             border-radius: 0 !important;
-            box-shadow: none;
+            box-shadow: none !important;
+        }
+
+        #nav-bar,
+        #nav-bar:not([hidden]):not([collapsed="true"]) + #PersonalToolbar:not([hidden]):not([collapsed="true"]) {
+            box-shadow: none !important;
+        }
+
+        #tabbrowser-tabpanels > .browserSidebarContainer:not(.zen-glance-overlay) {
+            --blended-addressbar-split-radius-top-left: 0px;
+            --blended-addressbar-split-radius-top-right: 0px;
+            --blended-addressbar-split-radius-bottom-right: 0px;
+            --blended-addressbar-split-radius-bottom-left: 0px;
+            --zen-native-inner-radius: 0 0 0 0 !important;
         }
     }
 
@@ -137,8 +150,8 @@
         :is(
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon),
-            #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(.urlbar-page-action, .identity-box-button, .urlbar-icon),
-            #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(.urlbar-page-action, .identity-box-button) :is(.toolbarbutton-icon, .urlbar-icon),
+            #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(#identity-box, #trust-icon-container, #tracking-protection-icon-container, #zen-site-data-icon-button, .urlbar-page-action, .identity-box-button, .urlbar-icon),
+            #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(#identity-box, #trust-icon-container, #tracking-protection-icon-container, #zen-site-data-icon-button, .urlbar-page-action, .identity-box-button) :is(.toolbarbutton-icon, .urlbar-icon, image),
             #personal-bookmarks,
             #personal-bookmarks.browser-toolbar,
             #PersonalToolbar :is(#personal-bookmarks, .browser-toolbar),
@@ -152,12 +165,15 @@
         ) {
             color: var(--zen-tab-header-foreground, inherit) !important;
             fill: currentColor !important;
+            fill-opacity: 1 !important;
             stroke: currentColor !important;
+            stroke-opacity: 1 !important;
             transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
             --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
-            --toolbarbutton-icon-fill: var(--zen-tab-header-foreground, currentColor);
+            --toolbarbutton-icon-fill: currentColor !important;
             --toolbar-color: var(--zen-tab-header-foreground, currentColor);
             --toolbar-field-color: var(--zen-tab-header-foreground, currentColor);
+            --urlbar-icon-fill-opacity: 1;
         }
 
         #urlbar:not([zen-floating-urlbar="true"]) #zen-site-data-icon-button[boosting] image {
@@ -255,6 +271,85 @@
             background-color: SelectedItem !important;
             color: SelectedItemText !important;
         }
+    }
+
+    #navigator-toolbox:not([tabs-hidden]) :is(
+        #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
+        #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon, image),
+        #urlbar:not([zen-floating-urlbar="true"]):not([focused]):not([open]):not([breakout-extend="true"]) :is(#identity-box, #zen-site-data-icon-button, #zen-copy-url-button, .urlbar-page-action, .identity-box-button, .urlbar-icon),
+        #urlbar:not([zen-floating-urlbar="true"]):not([focused]):not([open]):not([breakout-extend="true"]) :is(#identity-box, #zen-site-data-icon-button, #zen-copy-url-button, .urlbar-page-action, .identity-box-button) :is(.urlbar-icon, image),
+        #PanelUI-button,
+        #PanelUI-button :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, image)
+    ) {
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        --toolbarbutton-icon-fill: currentColor !important;
+        --urlbar-icon-fill-opacity: 1;
+    }
+
+    #navigator-toolbox:not([tabs-hidden]) #zen-site-data-icon-button.identity-box-button,
+    #navigator-toolbox:not([tabs-hidden]) #zen-site-data-icon-button.identity-box-button > image {
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        --toolbarbutton-icon-fill: currentColor !important;
+        --urlbar-icon-fill-opacity: 1;
+    }
+
+    #zen-site-data-icon-button:not([boosting]),
+    #zen-site-data-icon-button:not([boosting]) image {
+        color: var(--zen-tab-header-foreground, currentColor) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        --toolbarbutton-icon-fill: currentColor !important;
+        --urlbar-icon-fill-opacity: 1 !important;
+    }
+
+    /* Zen moves the macOS window controls between the sidebar and addressbar. */
+    #zen-sidebar-top-buttons .titlebar-buttonbox-container {
+        color: var(--zen-sidebar-themed-icon-fill, var(--toolbox-textcolor, currentColor)) !important;
+        transition: color var(--blended-addressbar-color-transition);
+        --zen-toolbar-element-bg: color-mix(in srgb, currentColor 14%, transparent) !important;
+    }
+
+    #zen-appcontent-navbar-wrapper .titlebar-buttonbox-container {
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        transition: color var(--blended-addressbar-color-transition);
+        --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
+        --zen-toolbar-element-bg: color-mix(in srgb, currentColor 14%, transparent) !important;
+    }
+
+    /* Zen moves these controls between the titlebar and nav-bar in Only Sidebar mode. */
+    :is(
+        :is(#titlebar > #zen-sidebar-top-buttons, #nav-bar > #zen-sidebar-top-buttons) :is(
+            #zen-toggle-compact-mode,
+            #history-panelmenu,
+            #bookmarks-menu-button,
+            #zen-expand-sidebar-button
+        ),
+        :is(#titlebar > #zen-sidebar-top-buttons, #nav-bar > #zen-sidebar-top-buttons) :is(
+            #zen-toggle-compact-mode,
+            #history-panelmenu,
+            #bookmarks-menu-button,
+            #zen-expand-sidebar-button
+        ) image,
+        #urlbar:not([zen-floating-urlbar="true"]):not([focused]):not([open]):not([breakout-extend="true"]) #zen-copy-url-button,
+        #urlbar:not([zen-floating-urlbar="true"]):not([focused]):not([open]):not([breakout-extend="true"]) #zen-copy-url-button image
+    ) {
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        --toolbarbutton-icon-fill: currentColor !important;
+        --urlbar-icon-fill-opacity: 1 !important;
     }
 
     #nav-bar {

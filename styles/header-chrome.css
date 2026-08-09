@@ -29,7 +29,8 @@
         --toolbar-field-color: var(--blended-addressbar-header-chrome-foreground);
     }
 
-    #navigator-toolbox[tabs-hidden] :is(.urlbar-icon, .identity-box-button, .urlbar-page-action) {
+    #navigator-toolbox[tabs-hidden] :is(.urlbar-icon, .identity-box-button, .urlbar-page-action, #zen-site-data-icon-button),
+    #navigator-toolbox[tabs-hidden] #zen-site-data-icon-button image {
         color: var(--blended-addressbar-header-chrome-foreground) !important;
         fill: currentColor !important;
         fill-opacity: 0.6 !important;

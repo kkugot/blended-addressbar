@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 - 2026-08-09
+
+- Fixed adaptive foreground and opacity for Zen Only Sidebar, compact-mode, site-properties, copy-link, and macOS window-control icons; non-boost site-properties now follow light/dark page headers while Zen Boost keeps its native contrast.
+
 ## 1.4.0 - 2026-06-19
 
 - Made URL bar glow the default custom loadbar style while keeping a Default option for Zen's native loader.

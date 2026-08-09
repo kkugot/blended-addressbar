@@ -336,9 +336,10 @@ test('frame gap, remove-padding checkbox, and inner radius settings coexist', ()
 test('DOM fullscreen removes the framed browser surface', () => {
   const css = read('style.css');
 
-  assert.match(css, /&\[inDOMFullscreen="true"\]\s*\{\s*#zen-appcontent-wrapper\s*\{[^}]*margin:\s*0\s*!important/s);
-  assert.match(css, /&\[inDOMFullscreen="true"\]\s*\{\s*#zen-appcontent-wrapper\s*\{[^}]*border-radius:\s*0\s*!important/s);
-  assert.match(css, /&\[inDOMFullscreen="true"\]\s*\{\s*#zen-appcontent-wrapper\s*\{[^}]*box-shadow:\s*none/s);
+  assert.match(css, /&:is\(\[inDOMFullscreen="true"\],\s*\[inFullscreen="true"\],\s*\[macOSNativeFullscreen\],\s*\[zen-no-padding="true"\]\)/);
+  assert.match(css, /&:is\([^)]*\)\s*\{[\s\S]*#zen-appcontent-wrapper\s*\{[^}]*margin:\s*0\s*!important[^}]*border-radius:\s*0\s*!important[^}]*box-shadow:\s*none\s*!important/s);
+  assert.match(css, /&:is\([^)]*\)\s*\{[\s\S]*#nav-bar,\s*[\r\n]+\s*#nav-bar:not\(\[hidden\]\):not\(\[collapsed="true"\]\) \+ #PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed="true"\]\)\s*\{[^}]*box-shadow:\s*none\s*!important/s);
+  assert.match(css, /&:is\([^)]*\)\s*\{[\s\S]*#tabbrowser-tabpanels > \.browserSidebarContainer:not\(\.zen-glance-overlay\)\s*\{[^}]*--zen-native-inner-radius:\s*0 0 0 0\s*!important/s);
 });
 
 test('expanded sidebar toolbox keeps chrome icons vertically aligned', () => {
@@ -362,6 +363,8 @@ test('hidden tab sidebar toolbar icons use the softer addressbar chrome foregrou
   assert.match(headerCss, /\.urlbar-icon/);
   assert.match(headerCss, /\.identity-box-button/);
   assert.match(headerCss, /\.urlbar-page-action/);
+  assert.match(headerCss, /#zen-site-data-icon-button/);
+  assert.match(headerCss, /#zen-site-data-icon-button\s+image/);
   assert.match(headerCss, /fill-opacity:\s*0\.6\s*!important/);
   assert.match(headerCss, /--urlbar-icon-fill-opacity:\s*0\.6/);
   const compactSelector = '&:has([zen-compact-mode="true"]):not(:has(#navigator-toolbox[tabs-hidden])) #zen-appcontent-navbar-wrapper';
@@ -372,6 +375,44 @@ test('hidden tab sidebar toolbar icons use the softer addressbar chrome foregrou
   assert.match(compactBlock, /fill:\s*currentColor\s*!important/);
   assert.match(compactBlock, /--toolbarbutton-icon-fill:\s*currentColor/);
   assert.doesNotMatch(headerCss, /&:has\(\[zen-compact-mode="true"\]\)\s+#zen-appcontent-navbar-wrapper/);
+});
+
+test('adaptive chrome colors cover Zen moved sidebar toolbar and copy URL icons', () => {
+  const css = readStyleWithImports();
+
+  const titlebarSidebarSelector = cssSelectorPrelude(css, '#titlebar > #zen-sidebar-top-buttons');
+  const navBarSidebarSelector = cssSelectorPrelude(css, '#nav-bar > #zen-sidebar-top-buttons');
+  const copyUrlIconBlock = cssRuleBlock(css, '#zen-copy-url-button image');
+
+  assert.match(titlebarSidebarSelector, /#zen-sidebar-top-buttons\)\s*:is\(/);
+  assert.match(navBarSidebarSelector, /#zen-sidebar-top-buttons\)\s*:is\(/);
+  for (const buttonId of ['#zen-toggle-compact-mode', '#history-panelmenu', '#bookmarks-menu-button']) {
+    assert.match(titlebarSidebarSelector, new RegExp(buttonId.slice(1)));
+    assert.match(navBarSidebarSelector, new RegExp(buttonId.slice(1)));
+  }
+  assert.match(copyUrlIconBlock, /color:\s*var\(--zen-tab-header-foreground,\s*(?:inherit|currentColor)\)\s*!important/);
+  assert.match(copyUrlIconBlock, /fill:\s*currentColor\s*!important/);
+  assert.match(copyUrlIconBlock, /fill-opacity:\s*1\s*!important/);
+  assert.match(copyUrlIconBlock, /--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
+});
+
+test('window controls follow adaptive header colors in sidebar and addressbar placements', () => {
+  const css = readStyleWithImports();
+  const addressbarTrafficSelector = cssSelectorPrelude(css, '#zen-appcontent-navbar-wrapper .titlebar-buttonbox-container');
+  const sidebarTrafficSelector = cssSelectorPrelude(css, '#zen-sidebar-top-buttons .titlebar-buttonbox-container');
+
+  for (const selector of [addressbarTrafficSelector, sidebarTrafficSelector]) {
+    assert.match(selector, /\.titlebar-buttonbox-container/);
+  }
+
+  const addressbarTrafficBlock = cssRuleBlock(css, '#zen-appcontent-navbar-wrapper .titlebar-buttonbox-container');
+  const sidebarTrafficBlock = cssRuleBlock(css, '#zen-sidebar-top-buttons .titlebar-buttonbox-container');
+  assert.match(addressbarTrafficBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
+  assert.match(addressbarTrafficBlock, /--toolbox-textcolor:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.match(addressbarTrafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
+  assert.match(sidebarTrafficBlock, /color:\s*var\(--zen-sidebar-themed-icon-fill,\s*var\(--toolbox-textcolor,\s*currentColor\)\)\s*!important/);
+  assert.doesNotMatch(sidebarTrafficBlock, /--zen-tab-header-foreground/);
+  assert.match(sidebarTrafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
 });
 
 test('hidden tab chrome styling lives in a focused imported stylesheet', () => {
@@ -404,7 +445,7 @@ test('frame shadow is selected through constrained dropdown presets', () => {
   assert.match(script, /data-blended-addressbar-frame-shadow/);
   assert.match(css, /--blended-addressbar-frame-shadow-standard:/);
   assert.match(css, /--blended-addressbar-frame-shadow-minimal:/);
-  assert.match(css, /:root:not\(\[zen-should-be-dark-mode\]\)\s*\{[^}]*--blended-addressbar-frame-shadow-minimal:\s*0 0 0 1px rgba\(0,\s*0,\s*0,\s*0\.08\),\s*0 1px 2px rgba\(0,\s*0,\s*0,\s*0\.05\)/s);
+  assert.match(css, /:root:not\(\[zen-should-be-dark-mode\]\)\s*\{[^}]*--blended-addressbar-frame-shadow-minimal:\s*0 0 0 1px rgba\(0,\s*0,\s*0,\s*0\.10\),\s*0 2px 8px rgba\(0,\s*0,\s*0,\s*0\.10\)/s);
   assert.match(css, /--blended-addressbar-frame-shadow-medium:/);
   assert.doesNotMatch(css, /\[data-blended-addressbar-frame-shadow="none"\]/);
   assert.doesNotMatch(css, /--blended-addressbar-frame-shadow:\s*none/);
@@ -1013,9 +1054,25 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input::selection\s*\{[^}]*background-color:\s*SelectedItem\s*!important[^}]*color:\s*SelectedItemText\s*!important/s);
   assert.match(css, /--blended-addressbar-header-muted-foreground:\s*color-mix\(in srgb,\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*42%,\s*transparent\)/);
   const urlbarIconSelector = cssSelectorPrelude(css, '#urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container');
+  const urlbarIconBlock = cssRuleBlock(css, '#urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(#identity-box');
+  const unscopedChromeIconSelector = cssSelectorPrelude(css, '#navigator-toolbox:not([tabs-hidden]) :is(');
+  const unscopedChromeIconBlock = cssRuleBlock(css, '#navigator-toolbox:not([tabs-hidden]) :is(');
+  const zenSiteDataButtonBlock = cssRuleBlock(css, '#navigator-toolbox:not([tabs-hidden]) #zen-site-data-icon-button.identity-box-button');
   assert.match(urlbarIconSelector, /\.urlbar-page-action/);
   assert.match(urlbarIconSelector, /\.identity-box-button/);
   assert.match(urlbarIconSelector, /\.urlbar-icon/);
+  assert.match(urlbarIconSelector, /#identity-box/);
+  assert.match(urlbarIconSelector, /#tracking-protection-icon-container/);
+  assert.match(urlbarIconSelector, /#zen-site-data-icon-button/);
+  assert.match(urlbarIconBlock, /fill-opacity:\s*1\s*!important/);
+  assert.match(urlbarIconBlock, /--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
+  assert.match(urlbarIconBlock, /--urlbar-icon-fill-opacity:\s*1/);
+  assert.match(unscopedChromeIconSelector, /#nav-bar-customization-target > :not\(#urlbar-container\)/);
+  assert.match(unscopedChromeIconSelector, /#zen-copy-url-button[\s\S]*:is\(\.urlbar-icon,\s*image\)/);
+  assert.match(unscopedChromeIconBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
+  assert.match(unscopedChromeIconBlock, /fill:\s*currentColor\s*!important/);
+  assert.match(zenSiteDataButtonBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
+  assert.match(zenSiteDataButtonBlock, /--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #zen-site-data-icon-button\[boosting\] image\s*\{[^}]*color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #zen-site-data-icon-button\[boosting\] image\s*\{[^}]*--toolbarbutton-icon-fill:\s*currentColor/s);
   assert.doesNotMatch(css, /#urlbar\[zen-floating-urlbar="true"\]\s+#urlbar-input/);
@@ -1030,6 +1087,21 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.doesNotMatch(css, /#urlbar-input-container\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground/s);
   assert.doesNotMatch(css, /#urlbar\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground/s);
   assert.doesNotMatch(css, /#nav-bar-customization-target > :not\(#urlbar-container\),/);
+});
+
+test('non-boost site properties icon follows adaptive header colors while boost keeps native coloring', () => {
+  const css = readStyleWithImports();
+  const nonBoostButtonBlock = cssRuleBlock(css, '#zen-site-data-icon-button:not([boosting])');
+
+  assert.match(nonBoostButtonBlock, /color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*!important/);
+  assert.match(nonBoostButtonBlock, /fill:\s*currentColor\s*!important/);
+  assert.match(nonBoostButtonBlock, /fill-opacity:\s*1\s*!important/);
+  assert.match(nonBoostButtonBlock, /stroke:\s*currentColor\s*!important/);
+  assert.match(nonBoostButtonBlock, /stroke-opacity:\s*1\s*!important/);
+  assert.match(nonBoostButtonBlock, /--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
+  assert.match(nonBoostButtonBlock, /--urlbar-icon-fill-opacity:\s*1\s*!important/);
+  assert.match(css, /#zen-site-data-icon-button\[boosting\] image/);
+  assert.doesNotMatch(nonBoostButtonBlock, /\[boosting\]/);
 });
 
 test('bookmark toolbar popups keep readable menu colors and compact corners', () => {
