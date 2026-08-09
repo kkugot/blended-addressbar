@@ -303,10 +303,18 @@
 
     /* Zen moves these controls between the titlebar and nav-bar in Only Sidebar mode. */
     :is(
-        #titlebar > #zen-sidebar-top-buttons #zen-expand-sidebar-button,
-        #nav-bar > #zen-sidebar-top-buttons #zen-expand-sidebar-button,
-        #titlebar > #zen-sidebar-top-buttons #zen-expand-sidebar-button image,
-        #nav-bar > #zen-sidebar-top-buttons #zen-expand-sidebar-button image,
+        :is(#titlebar > #zen-sidebar-top-buttons, #nav-bar > #zen-sidebar-top-buttons) :is(
+            #zen-toggle-compact-mode,
+            #history-panelmenu,
+            #bookmarks-menu-button,
+            #zen-expand-sidebar-button
+        ),
+        :is(#titlebar > #zen-sidebar-top-buttons, #nav-bar > #zen-sidebar-top-buttons) :is(
+            #zen-toggle-compact-mode,
+            #history-panelmenu,
+            #bookmarks-menu-button,
+            #zen-expand-sidebar-button
+        ) image,
         #urlbar:not([zen-floating-urlbar="true"]):not([focused]):not([open]):not([breakout-extend="true"]) #zen-copy-url-button,
         #urlbar:not([zen-floating-urlbar="true"]):not([focused]):not([open]):not([breakout-extend="true"]) #zen-copy-url-button image
     ) {

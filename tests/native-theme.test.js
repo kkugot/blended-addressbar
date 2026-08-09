@@ -375,15 +375,19 @@ test('hidden tab sidebar toolbar icons use the softer addressbar chrome foregrou
   assert.doesNotMatch(headerCss, /&:has\(\[zen-compact-mode="true"\]\)\s+#zen-appcontent-navbar-wrapper/);
 });
 
-test('adaptive chrome colors cover Zen moved sidebar and copy URL icons', () => {
+test('adaptive chrome colors cover Zen moved sidebar toolbar and copy URL icons', () => {
   const css = readStyleWithImports();
 
   const titlebarSidebarSelector = cssSelectorPrelude(css, '#titlebar > #zen-sidebar-top-buttons');
   const navBarSidebarSelector = cssSelectorPrelude(css, '#nav-bar > #zen-sidebar-top-buttons');
   const copyUrlIconBlock = cssRuleBlock(css, '#zen-copy-url-button image');
 
-  assert.match(titlebarSidebarSelector, /#zen-expand-sidebar-button/);
-  assert.match(navBarSidebarSelector, /#zen-expand-sidebar-button/);
+  assert.match(titlebarSidebarSelector, /#zen-sidebar-top-buttons\)\s*:is\(/);
+  assert.match(navBarSidebarSelector, /#zen-sidebar-top-buttons\)\s*:is\(/);
+  for (const buttonId of ['#zen-toggle-compact-mode', '#history-panelmenu', '#bookmarks-menu-button']) {
+    assert.match(titlebarSidebarSelector, new RegExp(buttonId.slice(1)));
+    assert.match(navBarSidebarSelector, new RegExp(buttonId.slice(1)));
+  }
   assert.match(copyUrlIconBlock, /color:\s*var\(--zen-tab-header-foreground,\s*(?:inherit|currentColor)\)\s*!important/);
   assert.match(copyUrlIconBlock, /fill:\s*currentColor\s*!important/);
   assert.match(copyUrlIconBlock, /fill-opacity:\s*1\s*!important/);
