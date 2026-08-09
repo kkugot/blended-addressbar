@@ -405,10 +405,14 @@ test('window controls follow adaptive header colors in sidebar and addressbar pl
     assert.match(selector, /\.titlebar-buttonbox-container/);
   }
 
-  const trafficBlock = cssRuleBlock(css, '#zen-appcontent-navbar-wrapper .titlebar-buttonbox-container');
-  assert.match(trafficBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
-  assert.match(trafficBlock, /--toolbox-textcolor:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
-  assert.match(trafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
+  const addressbarTrafficBlock = cssRuleBlock(css, '#zen-appcontent-navbar-wrapper .titlebar-buttonbox-container');
+  const sidebarTrafficBlock = cssRuleBlock(css, '#zen-sidebar-top-buttons .titlebar-buttonbox-container');
+  assert.match(addressbarTrafficBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
+  assert.match(addressbarTrafficBlock, /--toolbox-textcolor:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.match(addressbarTrafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
+  assert.match(sidebarTrafficBlock, /color:\s*var\(--zen-sidebar-themed-icon-fill,\s*var\(--toolbox-textcolor,\s*currentColor\)\)\s*!important/);
+  assert.doesNotMatch(sidebarTrafficBlock, /--zen-tab-header-foreground/);
+  assert.match(sidebarTrafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
 });
 
 test('hidden tab chrome styling lives in a focused imported stylesheet', () => {
