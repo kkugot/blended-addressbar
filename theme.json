@@ -3,9 +3,9 @@
   "name": "Blended Addressbar",
   "description": "A page-aware addressbar that blends Zen chrome with the active website.",
   "author": "Kostiantyn Kugot",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "ai": "partial",
-  "updatedAt": "2026-06-19",
+  "updatedAt": "2026-08-09",
   "tags": [
     "addressbar",
     "urlbar",
