@@ -2,7 +2,7 @@
 
 ## 1.4.1 - 2026-08-09
 
-- Fixed adaptive foreground and opacity for the sidebar toggle and copy-link icons in Zen Only Sidebar and compact modes.
+- Fixed adaptive foreground and opacity for Zen Only Sidebar, compact-mode, site-properties, copy-link, and macOS window-control icons.
 
 ## 1.4.0 - 2026-06-19
 

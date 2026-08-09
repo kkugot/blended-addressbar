@@ -301,6 +301,15 @@
         --urlbar-icon-fill-opacity: 1;
     }
 
+    /* Zen moves the macOS window controls between the sidebar and addressbar. */
+    #zen-sidebar-top-buttons .titlebar-buttonbox-container,
+    #zen-appcontent-navbar-wrapper .titlebar-buttonbox-container {
+        color: var(--zen-tab-header-foreground, inherit) !important;
+        transition: color var(--blended-addressbar-color-transition);
+        --toolbox-textcolor: var(--zen-tab-header-foreground, currentColor);
+        --zen-toolbar-element-bg: color-mix(in srgb, currentColor 14%, transparent) !important;
+    }
+
     /* Zen moves these controls between the titlebar and nav-bar in Only Sidebar mode. */
     :is(
         :is(#titlebar > #zen-sidebar-top-buttons, #nav-bar > #zen-sidebar-top-buttons) :is(

@@ -363,6 +363,8 @@ test('hidden tab sidebar toolbar icons use the softer addressbar chrome foregrou
   assert.match(headerCss, /\.urlbar-icon/);
   assert.match(headerCss, /\.identity-box-button/);
   assert.match(headerCss, /\.urlbar-page-action/);
+  assert.match(headerCss, /#zen-site-data-icon-button/);
+  assert.match(headerCss, /#zen-site-data-icon-button\s+image/);
   assert.match(headerCss, /fill-opacity:\s*0\.6\s*!important/);
   assert.match(headerCss, /--urlbar-icon-fill-opacity:\s*0\.6/);
   const compactSelector = '&:has([zen-compact-mode="true"]):not(:has(#navigator-toolbox[tabs-hidden])) #zen-appcontent-navbar-wrapper';
@@ -392,6 +394,21 @@ test('adaptive chrome colors cover Zen moved sidebar toolbar and copy URL icons'
   assert.match(copyUrlIconBlock, /fill:\s*currentColor\s*!important/);
   assert.match(copyUrlIconBlock, /fill-opacity:\s*1\s*!important/);
   assert.match(copyUrlIconBlock, /--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
+});
+
+test('window controls follow adaptive header colors in sidebar and addressbar placements', () => {
+  const css = readStyleWithImports();
+  const addressbarTrafficSelector = cssSelectorPrelude(css, '#zen-appcontent-navbar-wrapper .titlebar-buttonbox-container');
+  const sidebarTrafficSelector = cssSelectorPrelude(css, '#zen-sidebar-top-buttons .titlebar-buttonbox-container');
+
+  for (const selector of [addressbarTrafficSelector, sidebarTrafficSelector]) {
+    assert.match(selector, /\.titlebar-buttonbox-container/);
+  }
+
+  const trafficBlock = cssRuleBlock(css, '#zen-appcontent-navbar-wrapper .titlebar-buttonbox-container');
+  assert.match(trafficBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
+  assert.match(trafficBlock, /--toolbox-textcolor:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.match(trafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
 });
 
 test('hidden tab chrome styling lives in a focused imported stylesheet', () => {
