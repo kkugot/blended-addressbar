@@ -19,6 +19,7 @@ This directory contains Blended Addressbar, a Zen Browser UI mod that overhauls 
 - Prefer extending existing CSS variables over hardcoding new duplicated values.
 - Avoid adding dependencies, bundlers, or generated assets.
 - Maintain compatibility with Zen chrome context APIs already used here (`gBrowser`, progress listeners, chrome DOM access).
+- For every user-visible fix or release, update `CHANGELOG.md`, bump the version in `theme.json` and `blended-bar.uc.js`, and keep matching marketplace metadata in `MARKETPLACE.md` synchronized.
 
 ## Editing Guidance
 
