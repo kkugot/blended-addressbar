@@ -252,6 +252,16 @@ test('adaptive header background and foreground keep short confirmed transitions
   assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
 });
 
+test('interactive navigation controls stay outside the browser window drag region', () => {
+  const css = readStyleWithImports();
+  const noDragRule = cssRuleBlock(
+    css,
+    '#nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]):is(toolbarbutton, toolbaritem)'
+  );
+
+  assert.match(noDragRule, /-moz-window-dragging:\s*no-drag/);
+});
+
 test('navigation color refreshes avoid repeated loading poll work', () => {
   const script = read('blended-bar.uc.js');
 
