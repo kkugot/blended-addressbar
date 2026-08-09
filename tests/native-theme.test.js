@@ -1089,6 +1089,21 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.doesNotMatch(css, /#nav-bar-customization-target > :not\(#urlbar-container\),/);
 });
 
+test('non-boost site properties icon follows adaptive header colors while boost keeps native coloring', () => {
+  const css = readStyleWithImports();
+  const nonBoostButtonBlock = cssRuleBlock(css, '#zen-site-data-icon-button:not([boosting])');
+
+  assert.match(nonBoostButtonBlock, /color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*!important/);
+  assert.match(nonBoostButtonBlock, /fill:\s*currentColor\s*!important/);
+  assert.match(nonBoostButtonBlock, /fill-opacity:\s*1\s*!important/);
+  assert.match(nonBoostButtonBlock, /stroke:\s*currentColor\s*!important/);
+  assert.match(nonBoostButtonBlock, /stroke-opacity:\s*1\s*!important/);
+  assert.match(nonBoostButtonBlock, /--toolbarbutton-icon-fill:\s*currentColor\s*!important/);
+  assert.match(nonBoostButtonBlock, /--urlbar-icon-fill-opacity:\s*1\s*!important/);
+  assert.match(css, /#zen-site-data-icon-button\[boosting\] image/);
+  assert.doesNotMatch(nonBoostButtonBlock, /\[boosting\]/);
+});
+
 test('bookmark toolbar popups keep readable menu colors and compact corners', () => {
   const css = read('style.css');
   const popupSelector = '#PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"]';

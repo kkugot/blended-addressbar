@@ -301,6 +301,17 @@
         --urlbar-icon-fill-opacity: 1;
     }
 
+    #zen-site-data-icon-button:not([boosting]),
+    #zen-site-data-icon-button:not([boosting]) image {
+        color: var(--zen-tab-header-foreground, currentColor) !important;
+        fill: currentColor !important;
+        fill-opacity: 1 !important;
+        stroke: currentColor !important;
+        stroke-opacity: 1 !important;
+        --toolbarbutton-icon-fill: currentColor !important;
+        --urlbar-icon-fill-opacity: 1 !important;
+    }
+
     /* Zen moves the macOS window controls between the sidebar and addressbar. */
     #zen-sidebar-top-buttons .titlebar-buttonbox-container {
         color: var(--zen-sidebar-themed-icon-fill, var(--toolbox-textcolor, currentColor)) !important;
