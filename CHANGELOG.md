@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.4 - 2026-08-10
+
+- Fixed default bookmark favicon colors and removed background transitions from bookmark folder buttons.
+
+## 1.4.3 - 2026-08-09
+
+- Forced bookmark toolbar popups to use native menu colors and removed their opening color transition.
+
 ## 1.4.2 - 2026-08-09
 
 - Added regression coverage for Home, Back, and Forward controls staying clickable inside the browser window-drag region.

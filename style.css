@@ -49,6 +49,64 @@
         0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
+/* Bookmark folder popups keep the native system menu palette. */
+menupopup[placespopup="true"] {
+    background: Menu !important;
+    background-color: Menu !important;
+    --panel-background: Menu !important;
+    --panel-color: MenuText !important;
+    --panel-background-color: Menu !important;
+    --panel-text-color: MenuText !important;
+    --background-color-canvas: Menu !important;
+    --menuitem-icon-fill: MenuText !important;
+    --panel-border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
+    --panel-border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
+    --arrowpanel-background: Menu !important;
+    --arrowpanel-color: MenuText !important;
+    --arrowpanel-border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
+    --arrowpanel-border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
+    color: MenuText !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+    --toolbox-textcolor: MenuText;
+    --toolbarbutton-icon-fill: currentColor;
+    --toolbar-color: MenuText;
+    transition: none !important;
+}
+
+menupopup[placespopup="true"]::part(content) {
+    background: Menu !important;
+    background-color: Menu !important;
+    color: MenuText !important;
+    border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
+    border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
+    overflow: hidden !important;
+    transition: none !important;
+}
+
+menupopup[placespopup="true"] :is(menu, menuitem, .menu-iconic, .menuitem-iconic, .menu-iconic-text, .menuitem-iconic-text, .menu-text, .menuitem-text, .bookmark-item) {
+    color: MenuText !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+    --toolbox-textcolor: MenuText;
+    --toolbarbutton-icon-fill: currentColor;
+    --toolbar-color: MenuText;
+}
+
+menupopup[placespopup="true"] .menu-icon {
+    color: MenuText !important;
+    fill: MenuText !important;
+    stroke: MenuText !important;
+    -moz-context-properties: fill, fill-opacity !important;
+}
+
+menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled], [disabled="true"]) {
+    color: GrayText !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
+    --toolbarbutton-icon-fill: currentColor;
+}
+
 /* URL bar */
 
 #navigator-toolbox[zen-sidebar-expanded="true"] {
@@ -147,6 +205,11 @@
             -moz-window-dragging: no-drag;
         }
 
+        #PersonalToolbar #PlacesToolbarItems > toolbarbutton.bookmark-item,
+        #PersonalToolbar #PlacesToolbarItems > toolbarbutton.bookmark-item > :is(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack) {
+            transition: none !important;
+        }
+
         :is(
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]),
             #nav-bar-customization-target > :not(#urlbar-container):not(#urlbar[zen-floating-urlbar="true"]) :is(toolbarbutton, .toolbarbutton-1, .toolbarbutton-icon, .toolbarbutton-text, .urlbar-icon),
@@ -195,47 +258,6 @@
             fill: currentColor !important;
             stroke: currentColor !important;
             transition: color var(--blended-addressbar-color-transition), fill var(--blended-addressbar-color-transition), stroke var(--blended-addressbar-color-transition);
-            --toolbarbutton-icon-fill: currentColor;
-        }
-
-        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"] {
-            --panel-background: Menu !important;
-            --panel-color: MenuText !important;
-            --panel-border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
-            --panel-border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
-            --arrowpanel-background: Menu !important;
-            --arrowpanel-color: MenuText !important;
-            --arrowpanel-border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
-            --arrowpanel-border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
-            color: MenuText !important;
-            fill: currentColor !important;
-            stroke: currentColor !important;
-            --toolbox-textcolor: MenuText;
-            --toolbarbutton-icon-fill: currentColor;
-            --toolbar-color: MenuText;
-        }
-
-        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"]::part(content) {
-            background: Menu !important;
-            color: MenuText !important;
-            border-color: var(--blended-addressbar-bookmark-popup-border-color) !important;
-            border-radius: var(--blended-addressbar-bookmark-popup-radius) !important;
-            overflow: hidden !important;
-        }
-
-        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"] :is(menu, menuitem, .menu-iconic, .menuitem-iconic, .bookmark-item) {
-            color: MenuText !important;
-            fill: currentColor !important;
-            stroke: currentColor !important;
-            --toolbox-textcolor: MenuText;
-            --toolbarbutton-icon-fill: currentColor;
-            --toolbar-color: MenuText;
-        }
-
-        #PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled], [disabled="true"]) {
-            color: GrayText !important;
-            fill: currentColor !important;
-            stroke: currentColor !important;
             --toolbarbutton-icon-fill: currentColor;
         }
 
