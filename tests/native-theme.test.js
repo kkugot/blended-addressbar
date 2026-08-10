@@ -1114,26 +1114,42 @@ test('non-boost site properties icon follows adaptive header colors while boost 
   assert.doesNotMatch(nonBoostButtonBlock, /\[boosting\]/);
 });
 
-test('bookmark toolbar popups keep readable menu colors and compact corners', () => {
+test('bookmark toolbar popups use native colors and keep compact corners', () => {
   const css = read('style.css');
-  const popupSelector = '#PersonalToolbar toolbarbutton.bookmark-item > menupopup.toolbar-menupopup[placespopup="true"]';
+  const popupSelector = 'menupopup[placespopup="true"]';
   const popupBlock = cssRuleBlock(css, popupSelector);
   const popupContentBlock = cssRuleBlock(css, `${popupSelector}::part(content)`);
-  const popupItemBlock = cssRuleBlock(css, `${popupSelector} :is(menu, menuitem, .menu-iconic, .menuitem-iconic, .bookmark-item)`);
+  const popupItemBlock = cssRuleBlock(css, `${popupSelector} :is(menu, menuitem, .menu-iconic, .menuitem-iconic, .menu-iconic-text, .menuitem-iconic-text, .menu-text, .menuitem-text, .bookmark-item)`);
+  const popupIconBlock = cssRuleBlock(css, `${popupSelector} .menu-icon`);
   const disabledPopupItemBlock = cssRuleBlock(css, `${popupSelector} :is(menu, menuitem, .bookmark-item):is([disabled], [disabled="true"])`);
+  const folderButtonBlock = cssRuleBlock(css, '#PersonalToolbar #PlacesToolbarItems > toolbarbutton.bookmark-item');
 
   assert.match(css, /--blended-addressbar-bookmark-popup-radius:\s*8px/);
+  assert.match(css, /(?:^|\n)menupopup\[placespopup="true"\]\s*\{/);
+  assert.doesNotMatch(css, /#PersonalToolbar toolbarbutton\.bookmark-item\s*>\s*menupopup(?:\.toolbar-menupopup)?\[placespopup="true"\]/);
+  assert.match(popupBlock, /background:\s*Menu\s*!important/);
   assert.match(popupBlock, /--panel-background:\s*Menu\s*!important/);
   assert.match(popupBlock, /--panel-color:\s*MenuText\s*!important/);
+  assert.match(popupBlock, /--panel-background-color:\s*Menu\s*!important/);
+  assert.match(popupBlock, /--panel-text-color:\s*MenuText\s*!important/);
+  assert.match(popupBlock, /--background-color-canvas:\s*Menu\s*!important/);
+  assert.match(popupBlock, /--menuitem-icon-fill:\s*MenuText\s*!important/);
+  assert.match(popupBlock, /--arrowpanel-background:\s*Menu\s*!important/);
+  assert.match(popupBlock, /--arrowpanel-color:\s*MenuText\s*!important/);
   assert.match(popupBlock, /--panel-border-radius:\s*var\(--blended-addressbar-bookmark-popup-radius\)\s*!important/);
+  assert.match(popupBlock, /transition:\s*none\s*!important/);
   assert.match(popupContentBlock, /background:\s*Menu\s*!important/);
   assert.match(popupContentBlock, /color:\s*MenuText\s*!important/);
   assert.match(popupContentBlock, /border-radius:\s*var\(--blended-addressbar-bookmark-popup-radius\)\s*!important/);
   assert.match(popupContentBlock, /overflow:\s*hidden\s*!important/);
+  assert.match(popupContentBlock, /transition:\s*none\s*!important/);
   assert.match(popupItemBlock, /color:\s*MenuText\s*!important/);
+  assert.match(css, /menupopup\[placespopup="true"\][\s\S]*\.menu-iconic-text/);
   assert.match(popupItemBlock, /--toolbarbutton-icon-fill:\s*currentColor/);
+  assert.match(popupIconBlock, /fill:\s*MenuText\s*!important/);
   assert.match(disabledPopupItemBlock, /color:\s*GrayText\s*!important/);
-  assert.doesNotMatch(popupBlock, /var\(--zen-tab-header-foreground/);
+  assert.doesNotMatch(popupBlock, /var\(--zen-tab-header-(?:background|foreground)/);
+  assert.match(folderButtonBlock, /transition:\s*none\s*!important/);
 });
 
 test('addressbar and bookmarks separator can be collapsed to one visible line', () => {
