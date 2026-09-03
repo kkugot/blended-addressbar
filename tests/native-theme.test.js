@@ -63,6 +63,21 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
+test('release metadata stays synchronized at version 1.5.0', () => {
+  const theme = JSON.parse(read('theme.json'));
+  const script = read('blended-bar.uc.js');
+  const marketplace = read('MARKETPLACE.md');
+  const changelog = read('CHANGELOG.md');
+
+  assert.equal(theme.version, '1.5.0');
+  assert.equal(theme.updatedAt, '2026-09-03');
+  assert.match(script, /\/\/ @version\s+1\.5\.0/);
+  assert.match(marketplace, /Version: `1\.5\.0`/);
+  assert.match(marketplace, /"version": "1\.5\.0"/);
+  assert.match(marketplace, /"updatedAt": "2026-09-03"/);
+  assert.match(changelog, /## 1\.5\.0 - 2026-09-03/);
+});
+
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
   const script = read('blended-bar.uc.js');
   const css = read('style.css');
@@ -343,6 +358,45 @@ test('frame gap, remove-padding checkbox, and inner radius settings coexist', ()
   assert.match(prefs, /uc\.blended-addressbar\.frame-padding\.disabled/);
 });
 
+test('remove frame rounding overrides the effective radius without erasing its configured value', () => {
+  const script = read('blended-bar.uc.js');
+  const prefsJson = JSON.parse(read('preferences.json'));
+  const readme = read('README.md');
+  const preference = prefsJson.find((pref) => pref.property === 'uc.blended-addressbar.frame-radius.disabled');
+
+  assert.deepEqual(preference, {
+    property: 'uc.blended-addressbar.frame-radius.disabled',
+    label: 'Remove browser frame rounding',
+    type: 'checkbox',
+    defaultValue: false
+  });
+  assert.match(script, /const frameRadiusDisabledPref = `\$\{addressbarPrefBranch\}frame-radius\.disabled`/);
+  assert.match(script, /const framePrefNames = Object\.freeze\(new Set\(\[[\s\S]*frameRadiusDisabledPref/);
+  assert.match(script, /const radius = readBoolPref\(frameRadiusDisabledPref,\s*false\)\s*\?\s*'0px'\s*:\s*normalizeCssLength\(readStringPref\(frameRadiusPref,\s*'14px'\),\s*'14px'\)/);
+  assert.match(readme, /uc\.blended-addressbar\.frame-radius\.disabled`: remove browser frame rounding without changing the configured radius/);
+});
+
+test('single-toolbar mode frames page content while leaving the sidebar addressbar native', () => {
+  const css = read('style.css');
+  const readme = read('README.md');
+  const singleStart = css.indexOf('/* Single-toolbar mode keeps Zen\'s sidebar addressbar native. */');
+  const singleEnd = css.indexOf('\n@media (-moz-platform: macos)', singleStart);
+
+  assert.notEqual(singleStart, -1, 'missing single-toolbar frame styles');
+  assert.notEqual(singleEnd, -1, 'missing end of single-toolbar frame styles');
+  const singleCss = css.slice(singleStart, singleEnd);
+
+  assert.match(singleCss, /:root\[zen-single-toolbar="true"\]/);
+  assert.match(singleCss, /#zen-appcontent-navbar-wrapper:not\(\[should-hide="true"\]\)\s*\{[^}]*min-height:\s*var\(--blended-addressbar-frame-gap\)\s*!important[^}]*height:\s*var\(--blended-addressbar-frame-gap\)\s*!important/s);
+  assert.match(singleCss, /#zen-tabbox-wrapper\s*\{[^}]*background-color:\s*var\(--blended-addressbar-frame-background,\s*var\(--zen-main-browser-background\)\)[^}]*box-shadow:\s*var\(--blended-addressbar-frame-shadow\)[^}]*border-radius:\s*var\(--blended-addressbar-frame-radius\)[^}]*overflow:\s*hidden/s);
+  assert.match(singleCss, /@media -moz-pref\("zen\.tabs\.vertical\.right-side"\)[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*0 0 var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\)\s*!important/s);
+  assert.match(singleCss, /&:has\(\[zen-compact-mode="true"\]\) #zen-tabbox-wrapper\s*\{[^}]*margin:\s*0 var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\)\s*!important/s);
+  assert.match(singleCss, /&:is\(\[inDOMFullscreen="true"\],\s*\[inFullscreen="true"\],\s*\[macOSNativeFullscreen\],\s*\[zen-no-padding="true"\]\)[\s\S]*#zen-appcontent-navbar-wrapper\s*\{[^}]*min-height:\s*0\s*!important[^}]*height:\s*0\s*!important[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*0\s*!important[^}]*border-radius:\s*0\s*!important[^}]*box-shadow:\s*none\s*!important/s);
+  assert.doesNotMatch(singleCss, /#urlbar/);
+  assert.doesNotMatch(singleCss, /--zen-tab-header-(?:background|foreground)/);
+  assert.match(readme, /Only Sidebar keeps Zen's native sidebar addressbar/);
+});
+
 test('DOM fullscreen removes the framed browser surface', () => {
   const css = read('style.css');
 
@@ -425,19 +479,19 @@ test('window controls follow adaptive header colors in sidebar and addressbar pl
   assert.match(sidebarTrafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
 });
 
-test('visible collapsed macOS sidebar centers standard vertical window controls above tabs', () => {
+test('visible collapsed macOS sidebar fits compact horizontal window controls above tabs', () => {
   const css = read('style.css');
-  const collapsedControls = /:root:not\(\[zen-single-toolbar="true"\]\):not\(\[zen-sidebar-expanded="true"\]\):not\(\[zen-compact-mode="true"\]\)\s*#nav-bar > \.titlebar-buttonbox-container\s*\{[^}]*position:\s*fixed;[^}]*inset-inline-start:\s*0;[^}]*top:\s*4px;[^}]*z-index:\s*10;[^}]*width:\s*var\(--zen-toolbox-max-width,\s*60px\)\s*!important;[^}]*height:\s*60px;[^}]*overflow:\s*visible/s;
+  const collapsedControls = /:root:not\(\[zen-single-toolbar="true"\]\):not\(\[zen-sidebar-expanded="true"\]\):not\(\[zen-compact-mode="true"\]\)\s*#nav-bar > \.titlebar-buttonbox-container\s*\{[^}]*position:\s*fixed;[^}]*inset-inline-start:\s*0;[^}]*top:\s*0;[^}]*z-index:\s*10;[^}]*width:\s*var\(--zen-toolbox-max-width,\s*60px\)\s*!important;[^}]*height:\s*42px;[^}]*overflow:\s*visible/s;
 
   assert.match(css, collapsedControls);
-  assert.match(css, /> \.titlebar-buttonbox\s*\{[^}]*appearance:\s*none\s*!important;[^}]*flex-direction:\s*column;[^}]*gap:\s*8px;[^}]*height:\s*100%;[^}]*margin:\s*0\s*!important/s);
-  assert.match(css, /> \.titlebar-button\s*\{[^}]*appearance:\s*none\s*!important;[^}]*display:\s*flex\s*!important;[^}]*flex:\s*0 0 12px;[^}]*border-radius:\s*50%\s*!important/s);
+  assert.match(css, /> \.titlebar-buttonbox\s*\{[^}]*appearance:\s*none\s*!important;[^}]*flex-direction:\s*row;[^}]*gap:\s*6px;[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*margin:\s*0\s*!important/s);
+  assert.match(css, /> \.titlebar-button\s*\{[^}]*appearance:\s*none\s*!important;[^}]*display:\s*flex\s*!important;[^}]*flex:\s*0 0 10px;[^}]*width:\s*10px;[^}]*height:\s*10px;[^}]*border-radius:\s*50%\s*!important/s);
   assert.match(css, /> \.titlebar-close\s*\{[^}]*order:\s*0;[^}]*background-color:\s*#ff5f57\s*!important/s);
   assert.match(css, /> \.titlebar-min\s*\{[^}]*order:\s*1;[^}]*background-color:\s*#febc2e\s*!important/s);
   assert.match(css, /> :is\(\.titlebar-max,\s*\.titlebar-restore\)\s*\{[^}]*order:\s*2;[^}]*background-color:\s*#28c840\s*!important/s);
   assert.match(css, /:not\(\[sizemode="maximized"\],\s*\[sizemode="fullscreen"\]\)[\s\S]*\.titlebar-restore,[\s\S]*:is\(\[sizemode="maximized"\],\s*\[sizemode="fullscreen"\]\)[\s\S]*\.titlebar-max\s*\{\s*display:\s*none\s*!important/s);
-  assert.match(css, /#navigator-toolbox\s*\{[^}]*padding-top:\s*calc\(var\(--zen-element-separation\) \* 3\)\s*!important/s);
-  assert.match(css, /@media -moz-pref\("zen\.widget\.mac\.mono-window-controls"\)[\s\S]*#nav-bar > \.titlebar-buttonbox-container\s*\{[^}]*--zen-traffic-light-size:\s*6px\s*!important;[^}]*background-size:\s*22px calc\(100% \/ 3\)\s*!important;[^}]*background-repeat:\s*repeat-y\s*!important/s);
+  assert.doesNotMatch(css, /#navigator-toolbox\s*\{[^}]*padding-top:\s*calc\(var\(--zen-element-separation\) \* 3\)\s*!important/s);
+  assert.match(css, /@media -moz-pref\("zen\.widget\.mac\.mono-window-controls"\)[\s\S]*#nav-bar > \.titlebar-buttonbox-container\s*\{[^}]*background-image:\s*none\s*!important;[\s\S]*> \.titlebar-buttonbox\s*\{[^}]*opacity:\s*1\s*!important;[\s\S]*> \.titlebar-button\s*\{[^}]*background-color:\s*var\(--zen-toolbar-element-bg\)\s*!important/s);
   assert.doesNotMatch(css, /:root\[zen-compact-mode="true"\][^{]*#nav-bar > \.titlebar-buttonbox-container[^{]*\{[^}]*flex-direction:\s*column/s);
 });
 

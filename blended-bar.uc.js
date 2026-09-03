@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.4.4
+// @version        1.5.0
 // ==/UserScript==
 
 (() => {
@@ -41,11 +41,13 @@
   const defaultLoadbarMode = 'glow';
   const addressbarPrefBranch = 'uc.blended-addressbar.';
   const frameRadiusPref = `${addressbarPrefBranch}frame-radius`;
+  const frameRadiusDisabledPref = `${addressbarPrefBranch}frame-radius.disabled`;
   const frameGapPref = `${addressbarPrefBranch}frame-gap`;
   const framePaddingDisabledPref = `${addressbarPrefBranch}frame-padding.disabled`;
   const frameShadowPref = `${addressbarPrefBranch}frame-shadow`;
   const framePrefNames = Object.freeze(new Set([
     frameRadiusPref,
+    frameRadiusDisabledPref,
     frameGapPref,
     framePaddingDisabledPref,
     frameShadowPref
@@ -1021,7 +1023,9 @@
   function applyFramePrefs() {
     const root = chromeDoc.documentElement;
     const rootStyle = root.style;
-    const radius = normalizeCssLength(readStringPref(frameRadiusPref, '14px'), '14px');
+    const radius = readBoolPref(frameRadiusDisabledPref, false)
+      ? '0px'
+      : normalizeCssLength(readStringPref(frameRadiusPref, '14px'), '14px');
     const gap = readBoolPref(framePaddingDisabledPref, false) ? '0px' : normalizeCssLength(readStringPref(frameGapPref, '5px'), '5px');
     const shadowPreset = normalizeFrameShadowPreset(readStringPref(frameShadowPref, 'standard'));
 

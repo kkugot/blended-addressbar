@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0 - 2026-09-03
+
+- Added browser frame, window tint, split view, compact mode, fullscreen, and loading-bar support to Zen's single-toolbar Only Sidebar layout while keeping its sidebar addressbar native.
+- Fixed macOS traffic lights in Collapsed Sidebar mode with compact horizontal controls centered inside the narrow rail.
+- Added an unchecked `Remove browser frame rounding` setting that preserves the configured radius while active.
+
 ## 1.4.4 - 2026-08-10
 
 - Fixed default bookmark favicon colors and removed background transitions from bookmark folder buttons.

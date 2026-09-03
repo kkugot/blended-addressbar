@@ -2,13 +2,13 @@
 
 An addressbar that belongs to the page.
 
-Blended Addressbar is a Zen Browser mod that reshapes the dual-toolbar addressbar into a page-aware browser frame with adaptive colors.
+Blended Addressbar is a Zen Browser mod that adds a compact, page-aware browser frame to Zen's dual-toolbar and Only Sidebar layouts. Dual-toolbar layouts also blend the addressbar with the active page.
 
 ![Blended Addressbar preview](marketplace-preview.png)
 
 ## Features
 
-- Adaptive addressbar background and foreground colors from active-page semantic colors.
+- Adaptive addressbar background and foreground colors from active-page semantic colors in dual-toolbar layouts.
 - Readability guardrails for adaptive foreground colors.
 - Browser window tinting that mixes the active site theme into Zen's existing browser theme instead of replacing it. The tint is optional and configurable by percentage.
 - Compact framed browser surface with configurable corner radius, frame gap, padding removal, and selectable shadow strength.
@@ -23,7 +23,7 @@ Blended Addressbar is distributed through [Sine](https://github.com/CosmoCreeper
 
 ## Compatibility
 
-This mod targets Zen Browser dual-toolbar layouts. Compact mode is supported, but visual validation is still recommended after Zen updates because browser chrome selectors can change.
+This mod targets Zen Browser dual-toolbar and Only Sidebar layouts. Only Sidebar keeps Zen's native sidebar addressbar while the frame, window tint, split view, compact mode, and loading bar remain supported. Visual validation is still recommended after Zen updates because browser chrome selectors can change.
 
 ## Preferences
 
@@ -33,6 +33,7 @@ The mod exposes its settings through `preferences.json`.
 - `uc.blended-addressbar.window-tint.strength`: tint strength as a percentage from `0` to `100`; defaults to `25`.
 - Page colors are always remembered in memory while browsing.
 - `uc.blended-addressbar.frame-radius`: outer browser frame corner radius as a CSS length, such as `8px` or `0`.
+- `uc.blended-addressbar.frame-radius.disabled`: remove browser frame rounding without changing the configured radius; disabled by default.
 - `uc.blended-addressbar.frame-gap`: spacing around the browser frame as a CSS length, such as `5px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
 - `uc.blended-addressbar.addressbar-bookmarks-separator.disabled`: remove the separator between the addressbar and visible bookmarks bar.
