@@ -11,6 +11,12 @@
     "defaultValue": "14px"
   },
   {
+    "property": "uc.blended-addressbar.frame-radius.disabled",
+    "label": "Remove browser frame rounding",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
     "property": "uc.blended-addressbar.frame-gap",
     "label": "Frame gap",
     "type": "string",
