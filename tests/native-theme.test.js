@@ -425,6 +425,22 @@ test('window controls follow adaptive header colors in sidebar and addressbar pl
   assert.match(sidebarTrafficBlock, /--zen-toolbar-element-bg:\s*color-mix\(in srgb,\s*currentColor\s*14%,\s*transparent\)\s*!important/);
 });
 
+test('visible collapsed macOS sidebar centers standard vertical window controls above tabs', () => {
+  const css = read('style.css');
+  const collapsedControls = /:root:not\(\[zen-single-toolbar="true"\]\):not\(\[zen-sidebar-expanded="true"\]\):not\(\[zen-compact-mode="true"\]\)\s*#nav-bar > \.titlebar-buttonbox-container\s*\{[^}]*position:\s*fixed;[^}]*inset-inline-start:\s*0;[^}]*top:\s*4px;[^}]*z-index:\s*10;[^}]*width:\s*var\(--zen-toolbox-max-width,\s*60px\)\s*!important;[^}]*height:\s*60px;[^}]*overflow:\s*visible/s;
+
+  assert.match(css, collapsedControls);
+  assert.match(css, /> \.titlebar-buttonbox\s*\{[^}]*appearance:\s*none\s*!important;[^}]*flex-direction:\s*column;[^}]*gap:\s*8px;[^}]*height:\s*100%;[^}]*margin:\s*0\s*!important/s);
+  assert.match(css, /> \.titlebar-button\s*\{[^}]*appearance:\s*none\s*!important;[^}]*display:\s*flex\s*!important;[^}]*flex:\s*0 0 12px;[^}]*border-radius:\s*50%\s*!important/s);
+  assert.match(css, /> \.titlebar-close\s*\{[^}]*order:\s*0;[^}]*background-color:\s*#ff5f57\s*!important/s);
+  assert.match(css, /> \.titlebar-min\s*\{[^}]*order:\s*1;[^}]*background-color:\s*#febc2e\s*!important/s);
+  assert.match(css, /> :is\(\.titlebar-max,\s*\.titlebar-restore\)\s*\{[^}]*order:\s*2;[^}]*background-color:\s*#28c840\s*!important/s);
+  assert.match(css, /:not\(\[sizemode="maximized"\],\s*\[sizemode="fullscreen"\]\)[\s\S]*\.titlebar-restore,[\s\S]*:is\(\[sizemode="maximized"\],\s*\[sizemode="fullscreen"\]\)[\s\S]*\.titlebar-max\s*\{\s*display:\s*none\s*!important/s);
+  assert.match(css, /#navigator-toolbox\s*\{[^}]*padding-top:\s*calc\(var\(--zen-element-separation\) \* 3\)\s*!important/s);
+  assert.match(css, /@media -moz-pref\("zen\.widget\.mac\.mono-window-controls"\)[\s\S]*#nav-bar > \.titlebar-buttonbox-container\s*\{[^}]*--zen-traffic-light-size:\s*6px\s*!important;[^}]*background-size:\s*22px calc\(100% \/ 3\)\s*!important;[^}]*background-repeat:\s*repeat-y\s*!important/s);
+  assert.doesNotMatch(css, /:root\[zen-compact-mode="true"\][^{]*#nav-bar > \.titlebar-buttonbox-container[^{]*\{[^}]*flex-direction:\s*column/s);
+});
+
 test('hidden tab chrome styling lives in a focused imported stylesheet', () => {
   const css = read('style.css');
   const headerCss = read('styles/header-chrome.css');

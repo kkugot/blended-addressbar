@@ -445,10 +445,89 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
 }
 
 @media (-moz-platform: macos) {
+    :root:not([zen-single-toolbar="true"]):not([zen-sidebar-expanded="true"]):not([zen-compact-mode="true"])
+        #nav-bar > .titlebar-buttonbox-container {
+        position: fixed;
+        inset-inline-start: 0;
+        top: 4px;
+        z-index: 10;
+        width: var(--zen-toolbox-max-width, 60px) !important;
+        height: 60px;
+        margin: 0 !important;
+        padding: 0 !important;
+        justify-content: center;
+        overflow: visible;
+
+        > .titlebar-buttonbox {
+            appearance: none !important;
+            -moz-default-appearance: none !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 22px;
+            height: 100%;
+            margin: 0 !important;
+
+            > .titlebar-button {
+                appearance: none !important;
+                -moz-default-appearance: none !important;
+                display: flex !important;
+                flex: 0 0 12px;
+                width: 12px;
+                min-width: 12px;
+                height: 12px;
+                min-height: 12px;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 50% !important;
+                background-image: none !important;
+                box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+                list-style-image: none !important;
+            }
+
+            > .titlebar-close {
+                order: 0;
+                background-color: #ff5f57 !important;
+            }
+
+            > .titlebar-min {
+                order: 1;
+                background-color: #febc2e !important;
+            }
+
+            > :is(.titlebar-max, .titlebar-restore) {
+                order: 2;
+                background-color: #28c840 !important;
+            }
+        }
+    }
+
+    :root:not([zen-single-toolbar="true"]):not([zen-sidebar-expanded="true"]):not([zen-compact-mode="true"])
+        #navigator-toolbox {
+        padding-top: calc(var(--zen-element-separation) * 3) !important;
+    }
+
+    :root:not([zen-single-toolbar="true"]):not([zen-sidebar-expanded="true"]):not([zen-compact-mode="true"]):not([sizemode="maximized"], [sizemode="fullscreen"])
+        #nav-bar > .titlebar-buttonbox-container .titlebar-restore,
+    :root:not([zen-single-toolbar="true"]):not([zen-sidebar-expanded="true"]):not([zen-compact-mode="true"]):is([sizemode="maximized"], [sizemode="fullscreen"])
+        #nav-bar > .titlebar-buttonbox-container .titlebar-max {
+        display: none !important;
+    }
+
     @media -moz-pref("zen.widget.mac.mono-window-controls") {
         :root:not([window-modal-open="true"]):not([zen-single-toolbar="true"]) .titlebar-buttonbox-container {
             color: var(--zen-tab-header-foreground, inherit) !important;
             --zen-toolbar-element-bg: color-mix(in srgb, currentColor 14%, transparent) !important;
+        }
+
+        :root:not([zen-single-toolbar="true"]):not([zen-sidebar-expanded="true"]):not([zen-compact-mode="true"])
+            #nav-bar > .titlebar-buttonbox-container {
+            --zen-traffic-light-size: 6px !important;
+            background-size: 22px calc(100% / 3) !important;
+            background-position: 50% 50% !important;
+            background-repeat: repeat-y !important;
         }
     }
 }
