@@ -37,6 +37,7 @@ The mod exposes its settings through `preferences.json`.
 - `uc.blended-addressbar.frame-gap`: spacing around the browser frame as a CSS length, such as `5px` or `0`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
 - `uc.blended-addressbar.addressbar-bookmarks-separator.disabled`: remove the separator between the addressbar and visible bookmarks bar.
+- `uc.blended-addressbar.single-toolbar.bookmarks-always-visible`: keep bookmarks visible in Only Sidebar instead of revealing them on top-edge hover; disabled by default.
 - `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: standard, minimal, or medium.
 - `uc.loadbar.mode`: choose Default, Progress bar, URL bar glow, or Window edge. Default keeps Zen's native loader; the mod defaults to URL bar glow.
 - `uc.loadbar.color`: fallback loadbar color when no page or header color is available.

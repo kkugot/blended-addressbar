@@ -33,6 +33,12 @@
     "type": "checkbox"
   },
   {
+    "property": "uc.blended-addressbar.single-toolbar.bookmarks-always-visible",
+    "label": "Always show bookmarks in Only Sidebar",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
     "property": "uc.blended-addressbar.frame-shadow",
     "label": "Frame shadow",
     "type": "dropdown",

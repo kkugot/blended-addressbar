@@ -23,7 +23,7 @@
   }
 
   @media (-moz-bool-pref: "uc.blended-addressbar.frame-padding.disabled") {
-    :root {
+    :root:not([zen-single-toolbar="true"]) {
       --blended-addressbar-loadbar-edge-top-offset: var(--blended-addressbar-loadbar-height, 2px);
     }
   }
@@ -138,7 +138,9 @@
     }
 
     #zen-appcontent-navbar-wrapper::before,
-    #zen-appcontent-navbar-wrapper::after {
+    #zen-appcontent-navbar-wrapper::after,
+    &[zen-single-toolbar="true"] #zen-tabbox-wrapper::before,
+    &[zen-single-toolbar="true"] #zen-tabbox-wrapper::after {
       content: "" !important;
       position: absolute !important;
       left: 0 !important;
@@ -153,7 +155,8 @@
         background-color 0.2s ease-in-out !important;
     }
 
-    #zen-appcontent-navbar-wrapper::before {
+    #zen-appcontent-navbar-wrapper::before,
+    &[zen-single-toolbar="true"] #zen-tabbox-wrapper::before {
       top: var(--blended-addressbar-loadbar-edge-top-offset, 0px) !important;
       height: var(--blended-addressbar-loadbar-height, 2px) !important;
       background: var(--blended-addressbar-dynamic-loadbar-color) !important;
@@ -162,7 +165,8 @@
       z-index: 2 !important;
     }
 
-    #zen-appcontent-navbar-wrapper::after {
+    #zen-appcontent-navbar-wrapper::after,
+    &[zen-single-toolbar="true"] #zen-tabbox-wrapper::after {
       top: calc(var(--blended-addressbar-loadbar-edge-top-offset, 0px) + var(--blended-addressbar-loadbar-height, 2px)) !important;
       height: 24px !important;
       opacity: 1 !important;
@@ -178,21 +182,38 @@
     }
 
     &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::before,
-    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::after {
+    &:not(:has(.tabbrowser-tab[selected][busy])) #zen-appcontent-navbar-wrapper::after,
+    &[zen-single-toolbar="true"]:not(:has(.tabbrowser-tab[selected][busy])) #zen-tabbox-wrapper::before,
+    &[zen-single-toolbar="true"]:not(:has(.tabbrowser-tab[selected][busy])) #zen-tabbox-wrapper::after {
       width: 0 !important;
       opacity: 0 !important;
     }
 
     @media (-moz-bool-pref: "uc.loadbar.shadow") {
-      #zen-appcontent-navbar-wrapper::before {
+      #zen-appcontent-navbar-wrapper::before,
+      &[zen-single-toolbar="true"] #zen-tabbox-wrapper::before {
         filter: drop-shadow(0 0 10px color-mix(in srgb, var(--blended-addressbar-dynamic-loadbar-color) 60%, transparent)) !important;
       }
     }
 
     @media not (-moz-bool-pref: "uc.loadbar.roundedcorner") {
-      #zen-appcontent-navbar-wrapper::before {
+      #zen-appcontent-navbar-wrapper::before,
+      &[zen-single-toolbar="true"] #zen-tabbox-wrapper::before {
         border-radius: 0 !important;
       }
+    }
+
+    &[zen-single-toolbar="true"] #zen-appcontent-navbar-wrapper::before,
+    &[zen-single-toolbar="true"] #zen-appcontent-navbar-wrapper::after {
+      content: none !important;
+    }
+
+    &[zen-single-toolbar="true"] #zen-tabbox-wrapper::before {
+      z-index: 4 !important;
+    }
+
+    &[zen-single-toolbar="true"] #zen-tabbox-wrapper::after {
+      z-index: 3 !important;
     }
   }
 
@@ -210,6 +231,10 @@
       background-color: transparent !important;
       overflow: hidden !important;
       transition: background-color 0.2s ease-in-out !important;
+    }
+
+    &[zen-single-toolbar="true"] #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background {
+      background: var(--zen-toolbar-element-bg) !important;
     }
 
     #urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before,
