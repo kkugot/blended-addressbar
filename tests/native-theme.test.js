@@ -63,19 +63,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.5.0', () => {
+test('release metadata stays synchronized at version 1.6.0', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.5.0');
-  assert.equal(theme.updatedAt, '2026-09-03');
-  assert.match(script, /\/\/ @version\s+1\.5\.0/);
-  assert.match(marketplace, /Version: `1\.5\.0`/);
-  assert.match(marketplace, /"version": "1\.5\.0"/);
-  assert.match(marketplace, /"updatedAt": "2026-09-03"/);
-  assert.match(changelog, /## 1\.5\.0 - 2026-09-03/);
+  assert.equal(theme.version, '1.6.0');
+  assert.equal(theme.updatedAt, '2026-09-09');
+  assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
+  assert.match(script, /\/\/ @version\s+1\.6\.0/);
+  assert.match(marketplace, /Version: `1\.6\.0`/);
+  assert.match(marketplace, /"version": "1\.6\.0"/);
+  assert.match(marketplace, /"updatedAt": "2026-09-09"/);
+  assert.match(changelog, /## 1\.6\.0 - 2026-09-09/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -358,6 +359,16 @@ test('frame gap, remove-padding checkbox, and inner radius settings coexist', ()
   assert.match(prefs, /uc\.blended-addressbar\.frame-padding\.disabled/);
 });
 
+test('corner shape and curvature remain controlled by Zen', () => {
+  const css = readStyleWithImports();
+  assert.doesNotMatch(css, /corner-shape\s*:|--zen-squircle-value\s*:|--blended-addressbar-corner-shape/);
+  assert.equal(JSON.parse(read('preferences.json')).some(
+    (pref) => pref.property === 'uc.blended-addressbar.frame-squircle.enabled'
+  ), false);
+  assert.match(read('README.md'), /layout\.css\.corner-shape\.enabled/);
+  assert.match(read('README.md'), /--zen-squircle-value/);
+});
+
 test('remove frame rounding overrides the effective radius without erasing its configured value', () => {
   const script = read('blended-bar.uc.js');
   const prefsJson = JSON.parse(read('preferences.json'));
@@ -379,6 +390,10 @@ test('remove frame rounding overrides the effective radius without erasing its c
 test('single-toolbar mode frames page content while leaving the sidebar addressbar native', () => {
   const css = read('style.css');
   const readme = read('README.md');
+  const preferences = JSON.parse(read('preferences.json'));
+  const alwaysVisible = preferences.find(
+    (pref) => pref.property === 'uc.blended-addressbar.single-toolbar.bookmarks-always-visible'
+  );
   const singleStart = css.indexOf('/* Single-toolbar mode keeps Zen\'s sidebar addressbar native. */');
   const singleEnd = css.indexOf('\n@media (-moz-platform: macos)', singleStart);
 
@@ -386,15 +401,39 @@ test('single-toolbar mode frames page content while leaving the sidebar addressb
   assert.notEqual(singleEnd, -1, 'missing end of single-toolbar frame styles');
   const singleCss = css.slice(singleStart, singleEnd);
 
+  assert.deepEqual(alwaysVisible, {
+    property: 'uc.blended-addressbar.single-toolbar.bookmarks-always-visible',
+    label: 'Always show bookmarks in Only Sidebar',
+    type: 'checkbox',
+    defaultValue: false
+  });
   assert.match(singleCss, /:root\[zen-single-toolbar="true"\]/);
-  assert.match(singleCss, /#zen-appcontent-navbar-wrapper:not\(\[should-hide="true"\]\)\s*\{[^}]*min-height:\s*var\(--blended-addressbar-frame-gap\)\s*!important[^}]*height:\s*var\(--blended-addressbar-frame-gap\)\s*!important/s);
-  assert.match(singleCss, /#zen-tabbox-wrapper\s*\{[^}]*background-color:\s*var\(--blended-addressbar-frame-background,\s*var\(--zen-main-browser-background\)\)[^}]*box-shadow:\s*var\(--blended-addressbar-frame-shadow\)[^}]*border-radius:\s*var\(--blended-addressbar-frame-radius\)[^}]*overflow:\s*hidden/s);
-  assert.match(singleCss, /@media -moz-pref\("zen\.tabs\.vertical\.right-side"\)[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*0 0 var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\)\s*!important/s);
-  assert.match(singleCss, /&:has\(\[zen-compact-mode="true"\]\) #zen-tabbox-wrapper\s*\{[^}]*margin:\s*0 var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\)\s*!important/s);
+  assert.match(singleCss, /--blended-addressbar-bookmarks-height:\s*var\(--zen-toolbar-height,\s*38px\)/);
+  assert.match(singleCss, /--blended-addressbar-bookmarks-hide-delay:\s*600ms/);
+  assert.match(singleCss, /:root\[zen-single-toolbar="true"\]:not\(\[customizing\]\)\s+#zen-appcontent-navbar-wrapper:has\(#PersonalToolbar\[collapsed\]\)\s*\{[^}]*min-height:\s*0\s*!important[^}]*height:\s*0\s*!important/s);
+  assert.doesNotMatch(singleCss, /zen-has-bookmarks/);
+  assert.match(singleCss, /#zen-appcontent-wrapper\s*\{[^}]*position:\s*relative/s);
+  assert.match(singleCss, /&:not\(\[customizing\]\) #zen-appcontent-navbar-wrapper\s*\{[^}]*position:\s*absolute\s*!important[^}]*inset:\s*var\(--blended-addressbar-frame-gap\) 0 auto 0[^}]*background:\s*transparent\s*!important/s);
+  assert.match(singleCss, /#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\s*\{[^}]*margin:\s*0 var\(--blended-addressbar-frame-gap\) 0 0\s*!important[^}]*height:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important[^}]*min-height:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important[^}]*padding-inline:\s*clamp\(8px,\s*var\(--blended-addressbar-frame-radius\),\s*16px\)\s*!important[^}]*background:\s*var\(--zen-tab-header-background,\s*var\(--blended-addressbar-frame-background,\s*var\(--zen-main-browser-background\)\)\)\s*!important[^}]*border-bottom:\s*0\s*!important[^}]*box-shadow:\s*none\s*!important[^}]*border-radius:\s*var\(--blended-addressbar-frame-radius\) var\(--blended-addressbar-frame-radius\) 0 0[^}]*color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/s);
+  assert.match(singleCss, /#PersonalToolbar\[collapsed\]\s*\{[^}]*display:\s*none\s*!important/s);
+  assert.match(singleCss, /&:has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\)\s+#tabbrowser-tabpanels\[has-toolbar-hovered\] \.browserContainer\s*\{[^}]*--margin-top-fix:\s*0px\s*!important/s);
+  assert.match(singleCss, /@media -moz-pref\("zen\.view\.hide-window-controls"\)[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*transition:\s*padding-top var\(--zen-hidden-toolbar-transition\)[^}]*transition-delay:\s*0\.2s/s);
+  assert.match(singleCss, /@media -moz-pref\("zen\.view\.hide-window-controls"\)[\s\S]*#zen-appcontent-navbar-wrapper:is\(\[zen-has-hover\],\s*\[has-popup-menu\],\s*\[zen-compact-mode-active\]\):has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\)\s*\+ #zen-tabbox-wrapper\s*\{[^}]*padding-top:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important/s);
+  assert.match(singleCss, /#zen-appcontent-navbar-wrapper:not\(\[zen-has-hover\]\):not\(\[has-popup-menu\]\):not\(\[zen-compact-mode-active\]\):has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\),[\s\S]*\+ #zen-tabbox-wrapper\s*\{[^}]*transition-delay:\s*var\(--blended-addressbar-bookmarks-hide-delay\)\s*!important/s);
+  assert.doesNotMatch(singleCss, /padding-top:\s*30px\s*!important/);
+  assert.doesNotMatch(singleCss, /#PersonalToolbar[^\n]*collapsed="true"/);
+  assert.doesNotMatch(singleCss, /padding-top:\s*var\(--zen-toolbar-height/);
+  assert.match(singleCss, /#zen-tabbox-wrapper\s*\{[^}]*margin:\s*var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\) 0\s*!important[^}]*background-color:\s*var\(--blended-addressbar-frame-background,\s*var\(--zen-main-browser-background\)\)[^}]*box-shadow:\s*var\(--blended-addressbar-frame-shadow\)[^}]*border-radius:\s*var\(--blended-addressbar-frame-radius\)[^}]*overflow:\s*hidden/s);
+  assert.match(singleCss, /#zen-tabbox-wrapper\s*\{[^}]*z-index:\s*auto\s*!important[^}]*isolation:\s*auto/s);
+  assert.match(singleCss, /@media -moz-pref\("zen\.tabs\.vertical\.right-side"\)[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*var\(--blended-addressbar-frame-gap\) 0 var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\)\s*!important/s);
+  assert.match(singleCss, /&:has\(\[zen-compact-mode="true"\]\) #zen-tabbox-wrapper\s*\{[^}]*margin:\s*var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\) var\(--blended-addressbar-frame-gap\)\s*!important/s);
+  assert.doesNotMatch(singleCss, /#zen-appcontent-wrapper\s*\{[^}]*border-radius:/s);
+  assert.match(css, /@media \(-moz-bool-pref:\s*"uc\.blended-addressbar\.single-toolbar\.bookmarks-always-visible"\)[\s\S]*#zen-appcontent-navbar-wrapper:has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\)\s*\{[^}]*height:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important[^}]*opacity:\s*1\s*!important[^}]*pointer-events:\s*auto\s*!important/s);
+  assert.match(css, /@media \(-moz-bool-pref:\s*"uc\.blended-addressbar\.single-toolbar\.bookmarks-always-visible"\)[\s\S]*#zen-appcontent-navbar-wrapper:has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\)\s*\+ #zen-tabbox-wrapper\s*\{[^}]*padding-top:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important/s);
   assert.match(singleCss, /&:is\(\[inDOMFullscreen="true"\],\s*\[inFullscreen="true"\],\s*\[macOSNativeFullscreen\],\s*\[zen-no-padding="true"\]\)[\s\S]*#zen-appcontent-navbar-wrapper\s*\{[^}]*min-height:\s*0\s*!important[^}]*height:\s*0\s*!important[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*0\s*!important[^}]*border-radius:\s*0\s*!important[^}]*box-shadow:\s*none\s*!important/s);
   assert.doesNotMatch(singleCss, /#urlbar/);
-  assert.doesNotMatch(singleCss, /--zen-tab-header-(?:background|foreground)/);
   assert.match(readme, /Only Sidebar keeps Zen's native sidebar addressbar/);
+  assert.match(readme, /uc\.blended-addressbar\.single-toolbar\.bookmarks-always-visible/);
 });
 
 test('DOM fullscreen removes the framed browser surface', () => {
@@ -718,7 +757,7 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(css, /--blended-addressbar-dynamic-loadbar-color:\s*var\(--zen-tab-header-foreground,\s*var\(--blended-addressbar-page-loadbar-foreground,\s*var\(--blended-addressbar-loadbar-static-color,\s*var\(--zen-primary-color\)\)\)\)/);
   assert.match(css, /--blended-addressbar-loadbar-right-radius:\s*0px/);
   assert.match(css, /--blended-addressbar-loadbar-edge-top-offset:\s*0px/);
-  assert.match(css, /@media \(-moz-bool-pref: "uc\.blended-addressbar\.frame-padding\.disabled"\)\s*\{[\s\S]*--blended-addressbar-loadbar-edge-top-offset:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/);
+  assert.match(css, /@media \(-moz-bool-pref: "uc\.blended-addressbar\.frame-padding\.disabled"\)\s*\{\s*:root:not\(\[zen-single-toolbar="true"\]\)\s*\{[^}]*--blended-addressbar-loadbar-edge-top-offset:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/s);
   assert.match(css, /@media \(-moz-bool-pref: "uc\.loadbar\.roundedcorner"\)\s*\{[\s\S]*--blended-addressbar-loadbar-right-radius:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)/);
   assert.match(css, /:root\[data-blended-addressbar-loadbar-focus-color="true"\]\s*\{[^}]*--blended-addressbar-dynamic-loadbar-color:\s*var\(--zen-primary-color\)/);
   assert.match(css, /--blended-addressbar-loadbar-glow-strong-mix:\s*34%/);
@@ -737,11 +776,11 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper\s*\{[^}]*position:\s*relative\s*!important/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before/);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*position:\s*absolute\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*width:\s*var\(--blended-addressbar-loadbar-progress\)\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*max-width:\s*100%\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*top:\s*var\(--blended-addressbar-loadbar-edge-top-offset,\s*0px\)\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*top:\s*calc\(var\(--blended-addressbar-loadbar-edge-top-offset,\s*0px\) \+ var\(--blended-addressbar-loadbar-height,\s*2px\)\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after,[\s\S]*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*position:\s*absolute\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after,[\s\S]*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*width:\s*var\(--blended-addressbar-loadbar-progress\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after,[\s\S]*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*max-width:\s*100%\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::before\s*\{[\s\S]*top:\s*var\(--blended-addressbar-loadbar-edge-top-offset,\s*0px\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*top:\s*calc\(var\(--blended-addressbar-loadbar-edge-top-offset,\s*0px\) \+ var\(--blended-addressbar-loadbar-height,\s*2px\)\)\s*!important/);
   assert.doesNotMatch(edgeModeBlock, /#zen-loading-progress-bar::before/);
   assert.doesNotMatch(css, /#zen-appcontent-wrapper::before/);
   assert.doesNotMatch(css, /#zen-appcontent-wrapper::after/);
@@ -751,15 +790,20 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.doesNotMatch(css, /#tabbrowser-tabpanels > \.browserSidebarContainer:not\(\.zen-glance-overlay\)::after/);
   assert.match(css, /max-width:\s*100%\s*!important/);
   assert.match(css, /background:\s*var\(--blended-addressbar-dynamic-loadbar-color\)\s*!important/);
-  assert.doesNotMatch(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[^}]*opacity:\s*var\(--blended-addressbar-loadbar-opacity/);
-  assert.doesNotMatch(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[^}]*border-radius:/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*opacity:\s*var\(--blended-addressbar-loadbar-opacity,\s*1\)\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before\s*\{[\s\S]*border-radius:\s*0 var\(--blended-addressbar-loadbar-right-radius,\s*0px\) var\(--blended-addressbar-loadbar-right-radius,\s*0px\) 0\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*width 0\.7s ease-in-out/s);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*height:\s*24px\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*opacity:\s*1\s*!important/);
-  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after\s*\{[\s\S]*background:\s*linear-gradient\(\s*to bottom,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)\s*!important/s);
-  assert.match(edgeModeBlock, /&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::before,\s*&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::after\s*\{[^}]*width:\s*0\s*!important;[^}]*opacity:\s*0\s*!important/s);
+  assert.doesNotMatch(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after,[^\{]*\{[^}]*opacity:\s*var\(--blended-addressbar-loadbar-opacity/);
+  assert.doesNotMatch(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after,[^\{]*\{[^}]*border-radius:/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::before\s*\{[\s\S]*opacity:\s*var\(--blended-addressbar-loadbar-opacity,\s*1\)\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::before\s*\{[\s\S]*border-radius:\s*0 var\(--blended-addressbar-loadbar-right-radius,\s*0px\) var\(--blended-addressbar-loadbar-right-radius,\s*0px\) 0\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::before,\s*#zen-appcontent-navbar-wrapper::after,[\s\S]*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*width 0\.7s ease-in-out/s);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*height:\s*24px\s*!important/);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*opacity:\s*1\s*!important/);
+  assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::before/);
+  assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after/);
+  assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-appcontent-navbar-wrapper::before,\s*&\[zen-single-toolbar="true"\] #zen-appcontent-navbar-wrapper::after\s*\{[^}]*content:\s*none\s*!important/s);
+  assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::before\s*\{[^}]*z-index:\s*4\s*!important/s);
+  assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[^}]*z-index:\s*3\s*!important/s);
+  assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*background:\s*linear-gradient\(\s*to bottom,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)\s*!important/s);
+  assert.match(edgeModeBlock, /&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::before,\s*&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::after,[^\{]*\{[^}]*width:\s*0\s*!important;[^}]*opacity:\s*0\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::before/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::after/);
   assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\)::after/);
@@ -767,9 +811,10 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*overflow:\s*hidden\s*!important/s);
   assert.match(urlbarGlowBackgroundBlock, /background-color:\s*transparent\s*!important/);
   assert.match(urlbarGlowBackgroundBlock, /transition:\s*background-color 0\.2s ease-in-out\s*!important/);
+  assert.match(css, /&\[zen-single-toolbar="true"\] #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background:\s*var\(--zen-toolbar-element-bg\)\s*!important/s);
   assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background-color:\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\)\s*!important/s);
   assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*position:\s*relative/s);
-  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background:/s);
+  assert.doesNotMatch(urlbarGlowBackgroundBlock, /background:/);
   assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) \.urlbar-background\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(urlbarGlowBeforeBlock, /top:\s*0\s*!important/);
   assert.match(urlbarGlowBeforeBlock, /left:\s*0\s*!important/);
@@ -1231,6 +1276,11 @@ test('addressbar and bookmarks separator can be collapsed to one visible line', 
 
   assert.equal(separatorPreference.type, 'checkbox');
   assert.equal(separatorPreference.label, 'Remove addressbar/bookmarks separator');
+  const singleCss = css.slice(css.indexOf('/* Single-toolbar mode keeps Zen\'s sidebar addressbar native. */'));
+  const bookmarkRule = cssRuleBlock(singleCss, '#PersonalToolbar:not([hidden]):not([collapsed])');
+  assert.match(bookmarkRule, /border-bottom:\s*0\s*!important/);
+  assert.match(bookmarkRule, /box-shadow:\s*none\s*!important/);
+  assert.match(singleCss, /@media not \(-moz-bool-pref: "uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled"\)\s*\{\s*#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\s*\{\s*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)\s*!important/s);
   assert.match(css, /--blended-addressbar-toolbar-separator-shadow:\s*0 -1px 0 0 inset rgba\(128,\s*128,\s*128,\s*0\.09\)/);
   assert.match(css, /#nav-bar\s*\{[\s\S]*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)/);
   assert.match(css, /#nav-bar:not\(\[hidden\]\):not\(\[collapsed="true"\]\) \+ #PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed="true"\]\)\s*\{[\s\S]*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)/);

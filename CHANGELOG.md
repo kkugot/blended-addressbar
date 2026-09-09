@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.0 - 2026-09-09
+
+- Added the preview image URL to the manifest so Sine marketplace updates retain it.
+- Restored the Only Sidebar bookmarks bar separator and connected it to the existing separator checkbox.
+- Documented Zen's native corner-shape setting and curvature value, which the mod leaves unchanged.
+- Updated the README with direct Sine installation, grouped settings, and support information.
+
+## 1.5.1 - 2026-09-05
+
+- Framed the visible bookmarks bar in Only Sidebar mode with the adaptive page color and readable foreground, without its bottom separator.
+- Overlaid the auto-hidden bookmarks bar inside the page frame, kept the configured frame gap above it, and offset page content with Zen's native easing only while expanded.
+- Preserved the computed inner page radius instead of clipping it with the outer frame radius.
+- Restored the native URL-bar border after glow loading and kept window-edge and progress loaders visible above auto-hidden bookmarks.
+- Removed the obsolete window-edge loader offset when frame padding is disabled in Only Sidebar mode.
+- Matched Zen's attribute-presence semantics so disabled bookmarks cannot trigger the hover offset.
+- Aligned the bookmarks row with Zen's toolbar controls, added more horizontal space, delayed autohide by 600ms, and added an `Always show bookmarks in Only Sidebar` setting.
+
 ## 1.5.0 - 2026-09-03
 
 - Added browser frame, window tint, split view, compact mode, fullscreen, and loading-bar support to Zen's single-toolbar Only Sidebar layout while keeping its sidebar addressbar native.
