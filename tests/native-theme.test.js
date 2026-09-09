@@ -63,19 +63,19 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.5.1', () => {
+test('release metadata stays synchronized at version 1.6.0', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.5.1');
-  assert.equal(theme.updatedAt, '2026-09-05');
-  assert.match(script, /\/\/ @version\s+1\.5\.1/);
-  assert.match(marketplace, /Version: `1\.5\.1`/);
-  assert.match(marketplace, /"version": "1\.5\.1"/);
-  assert.match(marketplace, /"updatedAt": "2026-09-05"/);
-  assert.match(changelog, /## 1\.5\.1 - 2026-09-05/);
+  assert.equal(theme.version, '1.6.0');
+  assert.equal(theme.updatedAt, '2026-09-09');
+  assert.match(script, /\/\/ @version\s+1\.6\.0/);
+  assert.match(marketplace, /Version: `1\.6\.0`/);
+  assert.match(marketplace, /"version": "1\.6\.0"/);
+  assert.match(marketplace, /"updatedAt": "2026-09-09"/);
+  assert.match(changelog, /## 1\.6\.0 - 2026-09-09/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -356,6 +356,16 @@ test('frame gap, remove-padding checkbox, and inner radius settings coexist', ()
   assert.match(css, /--blended-addressbar-inner-radius:\s*max\(0px,\s*calc\(var\(--blended-addressbar-frame-radius\) - var\(--blended-addressbar-frame-gap\)\)\)/);
   assert.match(prefs, /uc\.blended-addressbar\.frame-gap/);
   assert.match(prefs, /uc\.blended-addressbar\.frame-padding\.disabled/);
+});
+
+test('corner shape and curvature remain controlled by Zen', () => {
+  const css = readStyleWithImports();
+  assert.doesNotMatch(css, /corner-shape\s*:|--zen-squircle-value\s*:|--blended-addressbar-corner-shape/);
+  assert.equal(JSON.parse(read('preferences.json')).some(
+    (pref) => pref.property === 'uc.blended-addressbar.frame-squircle.enabled'
+  ), false);
+  assert.match(read('README.md'), /layout\.css\.corner-shape\.enabled/);
+  assert.match(read('README.md'), /--zen-squircle-value/);
 });
 
 test('remove frame rounding overrides the effective radius without erasing its configured value', () => {
@@ -1265,6 +1275,11 @@ test('addressbar and bookmarks separator can be collapsed to one visible line', 
 
   assert.equal(separatorPreference.type, 'checkbox');
   assert.equal(separatorPreference.label, 'Remove addressbar/bookmarks separator');
+  const singleCss = css.slice(css.indexOf('/* Single-toolbar mode keeps Zen\'s sidebar addressbar native. */'));
+  const bookmarkRule = cssRuleBlock(singleCss, '#PersonalToolbar:not([hidden]):not([collapsed])');
+  assert.match(bookmarkRule, /border-bottom:\s*0\s*!important/);
+  assert.match(bookmarkRule, /box-shadow:\s*none\s*!important/);
+  assert.match(singleCss, /@media not \(-moz-bool-pref: "uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled"\)\s*\{\s*#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\s*\{\s*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)\s*!important/s);
   assert.match(css, /--blended-addressbar-toolbar-separator-shadow:\s*0 -1px 0 0 inset rgba\(128,\s*128,\s*128,\s*0\.09\)/);
   assert.match(css, /#nav-bar\s*\{[\s\S]*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)/);
   assert.match(css, /#nav-bar:not\(\[hidden\]\):not\(\[collapsed="true"\]\) \+ #PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed="true"\]\)\s*\{[\s\S]*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)/);

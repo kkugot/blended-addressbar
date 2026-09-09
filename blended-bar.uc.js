@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.5.1
+// @version        1.6.0
 // ==/UserScript==
 
 (() => {

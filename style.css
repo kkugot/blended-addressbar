@@ -484,6 +484,12 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
         --toolbar-color: var(--zen-tab-header-foreground, currentColor);
     }
 
+    @media not (-moz-bool-pref: "uc.blended-addressbar.addressbar-bookmarks-separator.disabled") {
+        #PersonalToolbar:not([hidden]):not([collapsed]) {
+            box-shadow: var(--blended-addressbar-toolbar-separator-shadow) !important;
+        }
+    }
+
     #PersonalToolbar[collapsed] {
         display: none !important;
     }

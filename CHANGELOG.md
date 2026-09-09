@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0 - 2026-09-09
+
+- Restored the Only Sidebar bookmarks bar separator and connected it to the existing separator checkbox.
+- Documented Zen's native corner-shape setting and curvature value, which the mod leaves unchanged.
+- Updated the README with direct Sine installation, grouped settings, and support information.
+
 ## 1.5.1 - 2026-09-05
 
 - Framed the visible bookmarks bar in Only Sidebar mode with the adaptive page color and readable foreground, without its bottom separator.
