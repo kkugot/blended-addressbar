@@ -2,6 +2,7 @@
 
 ## 1.6.0 - 2026-09-09
 
+- Added the preview image URL to the manifest so Sine marketplace updates retain it.
 - Restored the Only Sidebar bookmarks bar separator and connected it to the existing separator checkbox.
 - Documented Zen's native corner-shape setting and curvature value, which the mod leaves unchanged.
 - Updated the README with direct Sine installation, grouped settings, and support information.

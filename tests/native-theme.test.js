@@ -71,6 +71,7 @@ test('release metadata stays synchronized at version 1.6.0', () => {
 
   assert.equal(theme.version, '1.6.0');
   assert.equal(theme.updatedAt, '2026-09-09');
+  assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
   assert.match(script, /\/\/ @version\s+1\.6\.0/);
   assert.match(marketplace, /Version: `1\.6\.0`/);
   assert.match(marketplace, /"version": "1\.6\.0"/);
