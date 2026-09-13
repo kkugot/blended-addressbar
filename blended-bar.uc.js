@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.5.1
+// @version        1.5.18
 // ==/UserScript==
 
 (() => {
@@ -1032,6 +1032,14 @@
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-frame-radius', radius);
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-frame-gap', gap);
     root.setAttribute('data-blended-addressbar-frame-shadow', shadowPreset);
+    for (const id of ['zen-appcontent-wrapper', 'zen-tabbox-wrapper']) {
+      const frame = chromeDoc.getElementById(id);
+      if (!frame || frame.querySelector(':scope > .blended-addressbar-frame-highlight')) continue;
+      const highlight = chromeDoc.createElement('div');
+      highlight.className = 'blended-addressbar-frame-highlight';
+      highlight.setAttribute('aria-hidden', 'true');
+      frame.appendChild(highlight);
+    }
 
     if (DEBUG_THEME) {
       root.setAttribute('data-blended-addressbar-frame-radius', radius);

@@ -63,19 +63,19 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.5.1', () => {
+test('release metadata stays synchronized at version 1.5.18', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.5.1');
-  assert.equal(theme.updatedAt, '2026-09-05');
-  assert.match(script, /\/\/ @version\s+1\.5\.1/);
-  assert.match(marketplace, /Version: `1\.5\.1`/);
-  assert.match(marketplace, /"version": "1\.5\.1"/);
-  assert.match(marketplace, /"updatedAt": "2026-09-05"/);
-  assert.match(changelog, /## 1\.5\.1 - 2026-09-05/);
+  assert.equal(theme.version, '1.5.18');
+  assert.equal(theme.updatedAt, '2026-09-13');
+  assert.match(script, /\/\/ @version\s+1\.5\.18/);
+  assert.match(marketplace, /Version: `1\.5\.18`/);
+  assert.match(marketplace, /"version": "1\.5\.18"/);
+  assert.match(marketplace, /"updatedAt": "2026-09-13"/);
+  assert.match(changelog, /## 1\.5\.18 - 2026-09-13/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -419,7 +419,7 @@ test('single-toolbar mode frames page content while leaving the sidebar addressb
   assert.doesNotMatch(singleCss, /#zen-appcontent-wrapper\s*\{[^}]*border-radius:/s);
   assert.match(css, /@media \(-moz-bool-pref:\s*"uc\.blended-addressbar\.single-toolbar\.bookmarks-always-visible"\)[\s\S]*#zen-appcontent-navbar-wrapper:has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\)\s*\{[^}]*height:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important[^}]*opacity:\s*1\s*!important[^}]*pointer-events:\s*auto\s*!important/s);
   assert.match(css, /@media \(-moz-bool-pref:\s*"uc\.blended-addressbar\.single-toolbar\.bookmarks-always-visible"\)[\s\S]*#zen-appcontent-navbar-wrapper:has\(#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\)\s*\+ #zen-tabbox-wrapper\s*\{[^}]*padding-top:\s*var\(--blended-addressbar-bookmarks-height\)\s*!important/s);
-  assert.match(singleCss, /&:is\(\[inDOMFullscreen="true"\],\s*\[inFullscreen="true"\],\s*\[macOSNativeFullscreen\],\s*\[zen-no-padding="true"\]\)[\s\S]*#zen-appcontent-navbar-wrapper\s*\{[^}]*min-height:\s*0\s*!important[^}]*height:\s*0\s*!important[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*0\s*!important[^}]*border-radius:\s*0\s*!important[^}]*box-shadow:\s*none\s*!important/s);
+  assert.match(singleCss, /&:is\(\[inDOMFullscreen="true"\],\s*\[inFullscreen="true"\],\s*\[macOSNativeFullscreen\],\s*\[zen-no-padding="true"\]\)[\s\S]*#zen-appcontent-navbar-wrapper\s*\{[^}]*min-height:\s*0\s*!important[^}]*height:\s*0\s*!important[\s\S]*#zen-tabbox-wrapper\s*\{[^}]*margin:\s*0\s*!important[^}]*border-radius:\s*var\(--blended-addressbar-frame-radius\)\s*!important[^}]*box-shadow:\s*none\s*!important/s);
   assert.doesNotMatch(singleCss, /#urlbar/);
   assert.match(readme, /Only Sidebar keeps Zen's native sidebar addressbar/);
   assert.match(readme, /uc\.blended-addressbar\.single-toolbar\.bookmarks-always-visible/);
@@ -553,7 +553,7 @@ test('frame shadow is selected through constrained dropdown presets', () => {
   assert.match(script, /data-blended-addressbar-frame-shadow/);
   assert.match(css, /--blended-addressbar-frame-shadow-standard:/);
   assert.match(css, /--blended-addressbar-frame-shadow-minimal:/);
-  assert.match(css, /:root:not\(\[zen-should-be-dark-mode\]\)\s*\{[^}]*--blended-addressbar-frame-shadow-minimal:\s*0 0 0 1px rgba\(0,\s*0,\s*0,\s*0\.10\),\s*0 2px 8px rgba\(0,\s*0,\s*0,\s*0\.10\)/s);
+  assert.deepEqual([...css.matchAll(/--blended-addressbar-frame-shadow-minimal:\s*([^;]+);/g)].map(match => match[1].replace(/\s+/g, ' ')), ['0 0 0 0.5pt rgba(0, 0, 0, 0.20), 0 2px 8px rgba(0, 0, 0, 0.20)']);
   assert.match(css, /--blended-addressbar-frame-shadow-medium:/);
   assert.doesNotMatch(css, /\[data-blended-addressbar-frame-shadow="none"\]/);
   assert.doesNotMatch(css, /--blended-addressbar-frame-shadow:\s*none/);
@@ -1271,4 +1271,94 @@ test('addressbar and bookmarks separator can be collapsed to one visible line', 
   assert.match(css, /@media \(-moz-bool-pref:\s*"uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled"\)\s*\{[\s\S]*#nav-bar:not\(\[hidden\]\):not\(\[collapsed="true"\]\):has\(\+ #PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed="true"\]\)\)\s*\{[\s\S]*box-shadow:\s*none\s*!important/s);
   assert.doesNotMatch(css, /@media \(-moz-bool-pref:\s*"uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled"\)\s*\{[\s\S]*#nav-bar:not\(\[hidden\]\):not\(\[collapsed="true"\]\) \+ #PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed="true"\]\)\s*\{[\s\S]*box-shadow:\s*none\s*!important/s);
   assert.match(readme, /uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled/);
+});
+
+test('frame highlight overlays are added once per frame and ignore missing frames', () => {
+  const script = read('blended-bar.uc.js');
+  const loop = script.match(/    for \(const id of \['zen-appcontent-wrapper', 'zen-tabbox-wrapper'\]\) \{[\s\S]*?frame\.appendChild\(highlight\);\n    \}/)[0];
+  const frames = new Map(['zen-appcontent-wrapper', 'zen-tabbox-wrapper'].map(id => [id, {
+    children: [],
+    querySelector() { return this.children[0]; },
+    appendChild(child) { this.children.push(child); }
+  }]));
+  const chromeDoc = {
+    getElementById: id => frames.get(id),
+    createElement: () => ({ setAttribute(name, value) { this[name] = value; } })
+  };
+  vm.runInNewContext(loop, { chromeDoc });
+  vm.runInNewContext(loop, { chromeDoc });
+  for (const frame of frames.values()) {
+    assert.equal(frame.children.length, 1);
+    assert.equal(frame.children[0].className, 'blended-addressbar-frame-highlight');
+    assert.equal(frame.children[0]['aria-hidden'], 'true');
+  }
+  frames.clear();
+  assert.doesNotThrow(() => vm.runInNewContext(loop, { chromeDoc }));
+  const css = read('style.css');
+  assert.match(css, /> \.blended-addressbar-frame-highlight\s*\{[^}]*position: absolute;[^}]*inset: 0;[^}]*z-index: 5;[^}]*border-radius: inherit;[^}]*box-shadow: inset 0 0 0 0\.5pt rgba\(255, 255, 255, 0\.20\);[^}]*pointer-events: none;/);
+});
+
+test('selected split panes use a click-through inset accent instead of the native outline', () => {
+  const css = read('style.css');
+  const selector = ':root:not([inDOMFullscreen="true"]) #tabbrowser-tabpanels[zen-split-view="true"] > .browserSidebarContainer[zen-split="true"].deck-selected:not(.zen-glance-overlay)';
+  const rule = css.slice(css.indexOf(selector));
+  assert.ok(css.includes(selector));
+  assert.match(rule, /outline: none !important;/);
+  assert.match(rule, /box-shadow: inset 0 0 0 1\.5pt var\(--zen-active-split-outline-color, var\(--zen-primary-color\)\), var\(--blended-addressbar-pane-inner-highlight\);/);
+});
+
+test('shared page clipping follows visible bounds on every side', () => {
+  const rect = (left, top, right, bottom) => ({ left, top, right, bottom, width: right - left, height: bottom - top });
+  const content = {
+    children: [], querySelector() { return this.children[0]; },
+    appendChild(child) { this.children.push(child); }
+  };
+  const pane = {
+    style: {}, getBoundingClientRect: () => rect(0, 0, 110, 110),
+    querySelector(selector) { return selector === ':scope > .browserContainer' ? content : null; }
+  };
+  const panels = { getBoundingClientRect: () => rect(0, 0, 110, 110), getAttribute: () => 'true' };
+  const wrapper = { getBoundingClientRect: () => rect(5, 6, 100, 98) };
+  const layout = loadScriptModule('pane-layout.js', {
+    chromeDoc: {
+      getElementById: id => ({ 'tabbrowser-tabpanels': panels, 'zen-tabbox-wrapper': wrapper })[id],
+      querySelectorAll: () => [pane],
+      createElement: () => ({ setAttribute(name, value) { this[name] = value; } })
+    },
+    setStylePropertyIfChanged: (style, key, value) => { style[key] = value; },
+    removeStylePropertyIfChanged: (style, key) => { delete style[key]; }
+  });
+  layout.updatePaneCornerRadii();
+  assert.equal(pane.style['--blended-addressbar-pane-clip-inset'], '6px 10px 12px 5px');
+  const radius = 'var(--blended-addressbar-frame-radius)';
+  assert.equal(pane.style['--blended-addressbar-pane-clip-radius'], [radius, radius, radius, radius].join(' '));
+  for (const [bounds, expected] of [
+    [rect(0, 0, 50, 110), [radius, '0px', '0px', radius]],
+    [rect(50, 0, 110, 110), ['0px', radius, radius, '0px']],
+    [rect(0, 0, 110, 50), [radius, radius, '0px', '0px']],
+    [rect(0, 50, 110, 110), ['0px', '0px', radius, radius]]
+  ]) {
+    pane.getBoundingClientRect = () => bounds;
+    layout.updatePaneCornerRadii();
+    assert.equal(pane.style['--blended-addressbar-pane-clip-radius'], expected.join(' '));
+  }
+  pane.getBoundingClientRect = () => rect(20, 20, 80, 80);
+  layout.updatePaneCornerRadii();
+  assert.equal(pane.style['--blended-addressbar-pane-clip-inset'], '0px 0px 0px 0px');
+  assert.equal(pane.style['--blended-addressbar-pane-clip-radius'], '0px 0px 0px 0px');
+  assert.equal(content.children.length, 1);
+  assert.equal(content.children[0].className, 'blended-addressbar-pane-highlight');
+  assert.equal(content.children[0]['aria-hidden'], 'true');
+});
+
+test('split view suppresses the overlapping white frame highlight', () => {
+  assert.match(read('style.css'), /&:has\(#tabbrowser-tabpanels\[zen-split-view="true"\]\) > \.blended-addressbar-frame-highlight\s*\{\s*display: none;/);
+});
+
+test('page content and focus overlay share clipping and corner geometry', () => {
+  const css = read('style.css');
+  const shared = css.slice(css.indexOf('/* Clip the page and its inner-shadow'));
+  assert.match(shared, /> \.browserContainer\s*\{[^}]*border-radius: var\(--blended-addressbar-pane-clip-radius, 0\) !important;[^}]*corner-shape: superellipse\(var\(--zen-squircle-value, 1\.3\)\);[^}]*overflow: hidden !important;/);
+  assert.match(shared, /> \.blended-addressbar-pane-highlight\s*\{[^}]*inset: 0;[^}]*border-radius: inherit;[^}]*corner-shape: inherit;/);
+  assert.doesNotMatch(css, /--blended-addressbar-split-highlight-(inset|radius)/);
 });

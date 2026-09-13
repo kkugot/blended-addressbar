@@ -17,6 +17,8 @@ var BlendedAddressbarModule = ((options) => {
   let paneCornerUpdateTimer = 0;
 
   function clearPaneCornerRadii(pane) {
+    removeStylePropertyIfChanged(pane.style, '--blended-addressbar-pane-clip-inset');
+    removeStylePropertyIfChanged(pane.style, '--blended-addressbar-pane-clip-radius');
     for (const property of paneCornerRadiusProperties) {
       removeStylePropertyIfChanged(pane.style, property);
     }
@@ -70,6 +72,19 @@ var BlendedAddressbarModule = ((options) => {
     const frame = tabpanels.getBoundingClientRect();
     if (!frame.width || !frame.height) return;
 
+    // Split panes can extend beyond the containers that clip their outer edges.
+    const clips = [frame];
+    for (const id of ['tabbrowser-tabbox', 'zen-tabbox-wrapper', 'zen-appcontent-wrapper']) {
+      const bounds = chromeDoc.getElementById(id)?.getBoundingClientRect();
+      if (bounds?.width && bounds.height) clips.push(bounds);
+    }
+    const visible = {
+      top: Math.max(...clips.map(rect => rect.top)),
+      right: Math.min(...clips.map(rect => rect.right)),
+      bottom: Math.min(...clips.map(rect => rect.bottom)),
+      left: Math.max(...clips.map(rect => rect.left))
+    };
+
     const tolerance = 1.5;
     const radius = 'var(--blended-addressbar-inner-radius)';
     const allowTopRadius = tabpanels.getAttribute('zen-split-view') === 'true';
@@ -88,6 +103,25 @@ var BlendedAddressbarModule = ((options) => {
       .filter(item => item.rect.width && item.rect.height);
 
     for (const { pane, rect } of paneRects) {
+      const content = pane.querySelector(':scope > .browserContainer');
+      if (allowTopRadius && content && !content.querySelector(':scope > .blended-addressbar-pane-highlight')) {
+        const highlight = chromeDoc.createElement('div');
+        highlight.className = 'blended-addressbar-pane-highlight';
+        highlight.setAttribute('aria-hidden', 'true');
+        content.appendChild(highlight);
+      }
+      const inset = [visible.top - rect.top, rect.right - visible.right,
+        rect.bottom - visible.bottom, visible.left - rect.left];
+      setStylePropertyIfChanged(pane.style, '--blended-addressbar-pane-clip-inset',
+        inset.map(value => `${Math.max(0, value)}px`).join(' '));
+      // Clip the page and its highlight together at the visible pane corners.
+      const atTop = rect.top <= visible.top + tolerance;
+      const atRight = rect.right >= visible.right - tolerance && !sidebarBlocksRightEdge;
+      const atBottom = rect.bottom >= visible.bottom - tolerance;
+      const atLeft = rect.left <= visible.left + tolerance && !sidebarBlocksLeftEdge;
+      setStylePropertyIfChanged(pane.style, '--blended-addressbar-pane-clip-radius',
+        [atTop && atLeft, atTop && atRight, atBottom && atRight, atBottom && atLeft]
+          .map(round => round ? 'var(--blended-addressbar-frame-radius)' : '0px').join(' '));
       const touchesTop = Math.abs(rect.top - frame.top) <= tolerance;
       const touchesRight = Math.abs(rect.right - frame.right) <= tolerance;
       const touchesBottom = Math.abs(rect.bottom - frame.bottom) <= tolerance;

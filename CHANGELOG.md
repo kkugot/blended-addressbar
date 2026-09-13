@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.18 - 2026-09-13
+
+- Added a 0.5pt white inner highlight at 20% opacity to the Minimal frame shadow preset.
+- Made the Minimal outer shadow black at 20% opacity in light and dark modes, with a 0.5pt hard edge.
+- Replaced the clipped native split-pane outline with a 1.5pt inset focus ring in Zen's accent color, painted above the pane highlight.
+- Gave split page content and its highlight one shared clipping boundary with Zen's squircle shape, rounded outer corners, and square divider corners.
+- Restored rounded browser-frame corners in Only Sidebar fullscreen mode.
+
 ## 1.5.1 - 2026-09-05
 
 - Framed the visible bookmarks bar in Only Sidebar mode with the adaptive page color and readable foreground, without its bottom separator.

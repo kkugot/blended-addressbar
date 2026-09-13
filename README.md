@@ -12,7 +12,7 @@ Blended Addressbar is a Zen Browser mod that adds a compact, page-aware browser 
 - Readability guardrails for adaptive foreground colors.
 - Browser window tinting that mixes the active site theme into Zen's existing browser theme instead of replacing it. The tint is optional and configurable by percentage.
 - Compact framed browser surface with configurable corner radius, frame gap, padding removal, and selectable shadow strength.
-- Split view support that keeps only the outer browser-frame corners rounded while inner split boundaries stay square.
+- Split view support with a 1.5pt inset focus ring in Zen's accent color. Page content and the ring share squircle clipping, with rounded outer corners and square inner split boundaries.
 - Compact-mode toolbar icon colors that follow the addressbar foreground.
 - Preference-driven loading bar height, opacity, and color source.
 - Coalesced active-tab color refreshes using `requestAnimationFrame` plus a timeout fallback, backed by a persistent content sampler and bounded page-color cache.
@@ -38,7 +38,7 @@ The mod exposes its settings through `preferences.json`.
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding around page content.
 - `uc.blended-addressbar.addressbar-bookmarks-separator.disabled`: remove the separator between the addressbar and visible bookmarks bar.
 - `uc.blended-addressbar.single-toolbar.bookmarks-always-visible`: keep bookmarks visible in Only Sidebar instead of revealing them on top-edge hover; disabled by default.
-- `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: standard, minimal, or medium.
+- `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: standard, minimal, or medium. Minimal uses a 0.5pt white inner highlight and a black outer shadow, both at 20% opacity, with a 0.5pt outer edge.
 - `uc.loadbar.mode`: choose Default, Progress bar, URL bar glow, or Window edge. Default keeps Zen's native loader; the mod defaults to URL bar glow.
 - `uc.loadbar.color`: fallback loadbar color when no page or header color is available.
 - `uc.loadbar.focus-color`: use the browser focus color for Progress bar, URL bar glow, and Window edge instead of the header foreground; enabled by default.
