@@ -1,12 +1,20 @@
 # Changelog
 
-## 1.5.18 - 2026-09-13
+## 1.6.1 - 2026-09-13
 
 - Added a 0.5pt white inner highlight at 20% opacity to the Minimal frame shadow preset.
 - Made the Minimal outer shadow black at 20% opacity in light and dark modes, with a 0.5pt hard edge.
 - Replaced the clipped native split-pane outline with a 1.5pt inset focus ring in Zen's accent color, painted above the pane highlight.
 - Gave split page content and its highlight one shared clipping boundary with Zen's squircle shape, rounded outer corners, and square divider corners.
 - Restored rounded browser-frame corners in Only Sidebar fullscreen mode.
+- Documented support for Only Sidebar, Sidebar and Top Toolbar, and Collapsed Sidebar layouts.
+
+## 1.6.0 - 2026-09-09
+
+- Added the preview image URL to the manifest so Sine marketplace updates retain it.
+- Restored the Only Sidebar bookmarks bar separator and connected it to the existing separator checkbox.
+- Documented Zen's native corner-shape setting and curvature value, which the mod leaves unchanged.
+- Updated the README with direct Sine installation, grouped settings, and support information.
 
 ## 1.5.1 - 2026-09-05
 

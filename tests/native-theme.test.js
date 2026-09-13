@@ -63,19 +63,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.5.18', () => {
+test('release metadata stays synchronized at version 1.6.1', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.5.18');
+  assert.equal(theme.version, '1.6.1');
   assert.equal(theme.updatedAt, '2026-09-13');
-  assert.match(script, /\/\/ @version\s+1\.5\.18/);
-  assert.match(marketplace, /Version: `1\.5\.18`/);
-  assert.match(marketplace, /"version": "1\.5\.18"/);
+  assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
+  assert.match(script, /\/\/ @version\s+1\.6\.1/);
+  assert.match(marketplace, /Version: `1\.6\.1`/);
+  assert.match(marketplace, /"version": "1\.6\.1"/);
   assert.match(marketplace, /"updatedAt": "2026-09-13"/);
-  assert.match(changelog, /## 1\.5\.18 - 2026-09-13/);
+  assert.match(changelog, /## 1\.6\.1 - 2026-09-13/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1361,4 +1362,16 @@ test('page content and focus overlay share clipping and corner geometry', () => 
   assert.match(shared, /> \.browserContainer\s*\{[^}]*border-radius: var\(--blended-addressbar-pane-clip-radius, 0\) !important;[^}]*corner-shape: superellipse\(var\(--zen-squircle-value, 1\.3\)\);[^}]*overflow: hidden !important;/);
   assert.match(shared, /> \.blended-addressbar-pane-highlight\s*\{[^}]*inset: 0;[^}]*border-radius: inherit;[^}]*corner-shape: inherit;/);
   assert.doesNotMatch(css, /--blended-addressbar-split-highlight-(inset|radius)/);
+});
+
+test('split clipping uses Zen curvature without a separate shape preference', () => {
+  const css = readStyleWithImports();
+  assert.doesNotMatch(css, /--zen-squircle-value\s*:|--blended-addressbar-corner-shape/);
+  assert.equal(JSON.parse(read('preferences.json')).some(pref => pref.property === 'uc.blended-addressbar.frame-squircle.enabled'), false);
+  assert.match(read('README.md'), /layout\.css\.corner-shape\.enabled/);
+  assert.match(read('README.md'), /--zen-squircle-value/);
+});
+
+test('Only Sidebar retains the optional native bookmarks separator', () => {
+  assert.match(read('style.css'), /@media not \(-moz-bool-pref: "uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled"\)\s*\{\s*#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\s*\{\s*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)\s*!important/s);
 });
