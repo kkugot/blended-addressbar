@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.11
+// @version        1.7.12
 // ==/UserScript==
 
 (() => {
@@ -3273,7 +3273,9 @@
     if (!urlbar || urlbar.hasAttribute('breakout-extend') || urlbar.hasAttribute('focused') || urlbar.hasAttribute('open')) return;
     const background = urlbar.querySelector('.urlbar-background');
     const input = urlbar.querySelector('.urlbar-input');
-    if (!background || !input) return;
+    const inputContainer = urlbar.querySelector('.urlbar-input-container');
+    const action = chromeDoc.getElementById('zen-copy-url-button');
+    if (!background || !input || !inputContainer || !action) return;
     const rootStyle = chromeDoc.documentElement.style;
     const style = getComputedStyle(background);
     const height = urlbar.getBoundingClientRect().height || 36;
@@ -3281,11 +3283,21 @@
       height: `${height}px`, radius: style.borderRadius,
       background: style.backgroundColor, border: style.border, shadow: style.boxShadow,
       font: getComputedStyle(input).font,
+      'input-padding': getComputedStyle(inputContainer).padding,
+      'text-padding': getComputedStyle(input).padding,
+      'action-width': `${action.getBoundingClientRect().width || 28}px`,
+      'action-radius': getComputedStyle(action).borderRadius,
       'copy-icon': getComputedStyle(chromeDoc.querySelector('#zen-copy-url-button image') || input).listStyleImage,
       'site-icon': getComputedStyle(chromeDoc.querySelector('#zen-site-data-icon-button image') || input).listStyleImage
     })) {
       setStylePropertyIfChanged(rootStyle, `--blended-addressbar-native-${name}`, value);
     }
+  }
+
+  function refreshSplitEditorAppearance() {
+    if (addressbarEnhancementsDisposed) return;
+    captureSplitAddressAppearance();
+    positionSplitEditor();
   }
 
   function positionSplitEditor() {
@@ -3500,9 +3512,9 @@
     splitRootObserver.observe(chromeDoc.documentElement, {
       attributes: true, subtree: true, attributeFilter: ['zen-single-toolbar', 'inDOMFullscreen', 'inFullscreen', 'customizing', 'zen-right-side', 'sidebar-positionend', 'zen-sidebar-expanded', 'zen-compact-mode']
     });
-    splitEditorResizeObserver = new ResizeObserver(positionSplitEditor);
+    splitEditorResizeObserver = new ResizeObserver(refreshSplitEditorAppearance);
     const urlbar = chromeDoc.getElementById('urlbar');
-    splitEditorObserver = new MutationObserver(positionSplitEditor);
+    splitEditorObserver = new MutationObserver(refreshSplitEditorAppearance);
     if (urlbar) {
       splitEditorObserver.observe(urlbar, { attributes: true, attributeFilter: ['focused', 'breakout-extend', 'open'] });
       urlbar.addEventListener('focusin', positionSplitEditor);
@@ -3534,7 +3546,7 @@
     splitAddressbars.cleanup();
     chromeDoc.documentElement.removeAttribute('data-blended-split-bars');
     positionSplitEditor();
-    for (const name of ['height', 'radius', 'background', 'border', 'shadow', 'font', 'copy-icon', 'site-icon']) {
+    for (const name of ['height', 'radius', 'background', 'border', 'shadow', 'font', 'copy-icon', 'site-icon', 'input-padding', 'text-padding', 'action-width', 'action-radius']) {
       removeStylePropertyIfChanged(chromeDoc.documentElement.style, `--blended-addressbar-native-${name}`);
     }
     gBrowser.tabContainer.removeEventListener('TabAttrModified', scheduleSplitAddressbars);

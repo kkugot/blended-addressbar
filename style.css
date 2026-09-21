@@ -805,11 +805,12 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
 .blended-addressbar-pane-reload {
     appearance: none !important;
     border: 0 !important;
-    border-radius: 5px;
+    border-radius: var(--blended-addressbar-native-action-radius, 5px);
     background: transparent !important;
     color: inherit !important;
     font: var(--blended-addressbar-native-font, inherit) !important;
-    height: var(--blended-addressbar-native-height, 36px) !important;
+    height: 100% !important;
+    box-sizing: border-box;
     min-height: 0 !important;
     margin: 0 !important;
     -moz-window-dragging: no-drag;
@@ -832,7 +833,7 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
     min-width: 0;
     overflow: hidden;
     text-align: start;
-    padding: 0 7px;
+    padding: var(--blended-addressbar-native-text-padding, 0) !important;
     cursor: text;
     direction: ltr;
 }
@@ -885,6 +886,7 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
     min-width: 0;
     height: var(--blended-addressbar-native-height, 36px);
     box-sizing: border-box;
+    padding: var(--blended-addressbar-native-input-padding, 2px 5px);
     overflow: hidden;
     border-radius: var(--blended-addressbar-native-radius, 8px);
     background: var(--blended-addressbar-native-background, transparent);
@@ -899,9 +901,11 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
 
 .blended-addressbar-pane-copy,
 .blended-addressbar-pane-site {
-    flex: 0 0 28px;
-    width: 28px;
-    padding: 6px;
+    flex: 0 0 var(--blended-addressbar-native-action-width, 28px);
+    width: var(--blended-addressbar-native-action-width, 28px);
+    display: grid;
+    place-items: center;
+    padding: 0;
     cursor: pointer;
 
     &::before {
@@ -921,7 +925,9 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
 }
 
 :root[data-blended-split-editor="true"] #urlbar {
-    font: var(--blended-addressbar-native-font, inherit) !important;
+    &:is([focused], [breakout-extend], [open], :focus-within) {
+        font: var(--blended-addressbar-native-font, inherit) !important;
+    }
     --urlbar-width: var(--blended-addressbar-editor-width) !important;
     --zen-urlbar-width: var(--blended-addressbar-editor-width) !important;
     --zen-urlbar-top: var(--blended-addressbar-editor-top) !important;
@@ -1114,4 +1120,10 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
             height: auto !important;
         }
     }
+}
+
+/* Keep the proxy's geometry while the real editor owns text, icons and focus. */
+:root[data-blended-split-editor="true"]:has(#urlbar:is([focused], [breakout-extend], [open], :focus-within))
+#tabbrowser-tabpanels > .browserSidebarContainer.deck-selected > .browserContainer > .blended-addressbar-pane-bar > .blended-addressbar-pane-field {
+    visibility: hidden !important;
 }

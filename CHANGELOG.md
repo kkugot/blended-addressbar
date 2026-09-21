@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.12 - 2026-09-21
+
+- Hide the selected split’s visual address proxy while the native editor owns focus, preventing overlapping URLs and icons without changing row geometry.
+- Reuse native input padding, text padding and action-button dimensions; refresh captured styling when the native editor returns to its closed state.
+
 ## 1.7.11 - 2026-09-21
 
 - Reduce the Minimal preset’s white inner highlight, black outer edge and soft shadow from 20% to 15% opacity.

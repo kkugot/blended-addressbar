@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.11', () => {
+test('release metadata stays synchronized at version 1.7.12', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.11');
+  assert.equal(theme.version, '1.7.12');
   assert.equal(theme.updatedAt, '2026-09-21');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.11/);
-  assert.match(marketplace, /Version: `1\.7\.11`/);
-  assert.match(marketplace, /"version": "1\.7\.11"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.12/);
+  assert.match(marketplace, /Version: `1\.7\.12`/);
+  assert.match(marketplace, /"version": "1\.7\.12"/);
   assert.match(marketplace, /"updatedAt": "2026-09-21"/);
-  assert.match(changelog, /## 1\.7\.11 - 2026-09-21/);
+  assert.match(changelog, /## 1\.7\.12 - 2026-09-21/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1766,4 +1766,14 @@ test('loading glow adds a full-field tint without replacing the native backgroun
   assert.match(block, /--blended-addressbar-loadbar-glow-weak-mix/);
   assert.match(block, /background-image:\s*linear-gradient/);
   assert.doesNotMatch(block, /background-color:|box-shadow:/);
+});
+
+test('focused native split editor replaces the selected proxy without collapsing its layout', () => {
+  const css = read('style.css');
+  const selector = ':root[data-blended-split-editor="true"]:has(#urlbar:is([focused], [breakout-extend], [open], :focus-within))';
+  const block = cssRuleBlock(css, selector);
+  assert.match(block, /visibility: hidden !important/);
+  assert.doesNotMatch(block, /display: none/);
+  assert.match(css.slice(css.indexOf(selector), css.indexOf(selector) + 500), /\.browserSidebarContainer\.deck-selected/);
+  assert.match(read('blended-bar.uc.js'), /'input-padding': getComputedStyle\(inputContainer\)\.padding/);
 });
