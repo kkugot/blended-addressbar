@@ -17,6 +17,7 @@ function readStyleWithImports(name = 'style.css') {
 function loadScriptModule(name, options = {}) {
   const context = {
     BlendedAddressbarModuleOptions: options,
+    URL,
     console
   };
   vm.createContext(context);
@@ -63,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.6.1', () => {
+test('release metadata stays synchronized at version 1.7.12', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.6.1');
-  assert.equal(theme.updatedAt, '2026-09-13');
+  assert.equal(theme.version, '1.7.12');
+  assert.equal(theme.updatedAt, '2026-09-21');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.6\.1/);
-  assert.match(marketplace, /Version: `1\.6\.1`/);
-  assert.match(marketplace, /"version": "1\.6\.1"/);
-  assert.match(marketplace, /"updatedAt": "2026-09-13"/);
-  assert.match(changelog, /## 1\.6\.1 - 2026-09-13/);
+  assert.match(script, /\/\/ @version\s+1\.7\.12/);
+  assert.match(marketplace, /Version: `1\.7\.12`/);
+  assert.match(marketplace, /"version": "1\.7\.12"/);
+  assert.match(marketplace, /"updatedAt": "2026-09-21"/);
+  assert.match(changelog, /## 1\.7\.12 - 2026-09-21/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -554,7 +555,7 @@ test('frame shadow is selected through constrained dropdown presets', () => {
   assert.match(script, /data-blended-addressbar-frame-shadow/);
   assert.match(css, /--blended-addressbar-frame-shadow-standard:/);
   assert.match(css, /--blended-addressbar-frame-shadow-minimal:/);
-  assert.deepEqual([...css.matchAll(/--blended-addressbar-frame-shadow-minimal:\s*([^;]+);/g)].map(match => match[1].replace(/\s+/g, ' ')), ['0 0 0 0.5pt rgba(0, 0, 0, 0.20), 0 2px 8px rgba(0, 0, 0, 0.20)']);
+  assert.deepEqual([...css.matchAll(/--blended-addressbar-frame-shadow-minimal:\s*([^;]+);/g)].map(match => match[1].replace(/\s+/g, ' ')), ['0 0 0 0.5pt rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.15)']);
   assert.match(css, /--blended-addressbar-frame-shadow-medium:/);
   assert.doesNotMatch(css, /\[data-blended-addressbar-frame-shadow="none"\]/);
   assert.doesNotMatch(css, /--blended-addressbar-frame-shadow:\s*none/);
@@ -696,12 +697,6 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   const loadbarColorSourcePreference = prefsJson.find((pref) => pref.property === 'uc.loadbar.color-source');
   const loadbarColorPreference = prefsJson.find((pref) => pref.property === 'uc.loadbar.color');
   const loadbarFocusColorPreference = prefsJson.find((pref) => pref.property === 'uc.loadbar.focus-color');
-  const urlbarGlowBackgroundSelector = '#urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background';
-  const urlbarGlowBeforeSelector = '#urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before';
-  const urlbarGlowAfterSelector = '#urlbar:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after';
-  const urlbarGlowBackgroundBlock = cssRuleBlockOccurrence(css, urlbarGlowBackgroundSelector, 0);
-  const urlbarGlowBeforeBlock = cssRuleBlockOccurrence(css, urlbarGlowBeforeSelector, 1);
-  const urlbarGlowAfterBlock = cssRuleBlockOccurrence(css, urlbarGlowAfterSelector, 1);
   const progressModeStart = css.indexOf(':root[data-blended-addressbar-loadbar-mode="progress"]');
   const edgeModeStart = css.indexOf(':root[data-blended-addressbar-loadbar-mode="edge"]');
   const glowModeStart = css.indexOf(':root[data-blended-addressbar-loadbar-mode="glow"]');
@@ -794,49 +789,11 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[^}]*z-index:\s*3\s*!important/s);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*background:\s*linear-gradient\(\s*to bottom,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)\s*!important/s);
   assert.match(edgeModeBlock, /&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::before,\s*&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::after,[^\{]*\{[^}]*width:\s*0\s*!important;[^}]*opacity:\s*0\s*!important/s);
-  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::before/);
-  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::after/);
-  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\)::after/);
-  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend="true"\]\)/);
-  assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*overflow:\s*hidden\s*!important/s);
-  assert.match(urlbarGlowBackgroundBlock, /background-color:\s*transparent\s*!important/);
-  assert.match(urlbarGlowBackgroundBlock, /transition:\s*background-color 0\.2s ease-in-out\s*!important/);
-  assert.match(css, /&\[zen-single-toolbar="true"\] #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background:\s*var\(--zen-toolbar-element-bg\)\s*!important/s);
-  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*background-color:\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\)\s*!important/s);
-  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background\s*\{[^}]*position:\s*relative/s);
-  assert.doesNotMatch(urlbarGlowBackgroundBlock, /background:/);
-  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) \.urlbar-background\s*\{[^}]*overflow:\s*hidden/s);
-  assert.match(urlbarGlowBeforeBlock, /top:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /left:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /right:\s*auto\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /bottom:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /width:\s*var\(--blended-addressbar-loadbar-progress\)\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /min-width:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /max-width:\s*100%\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /border-radius:\s*0 var\(--blended-addressbar-loadbar-right-radius,\s*0px\) var\(--blended-addressbar-loadbar-right-radius,\s*0px\) 0\s*!important/);
-  assert.doesNotMatch(urlbarGlowBeforeBlock, /inset:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /linear-gradient\(\s*to top,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)/s);
-  assert.match(urlbarGlowBeforeBlock, /z-index:\s*0\s*!important/);
-  assert.match(urlbarGlowBeforeBlock, /width 0\.7s ease-in-out/);
-  assert.doesNotMatch(urlbarGlowBeforeBlock, /height:\s*24px\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /top:\s*auto\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /left:\s*0\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /bottom:\s*0\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /width:\s*var\(--blended-addressbar-loadbar-progress\)\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /height:\s*var\(--blended-addressbar-loadbar-height,\s*2px\)\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /border-radius:\s*0 var\(--blended-addressbar-loadbar-right-radius,\s*0px\) var\(--blended-addressbar-loadbar-right-radius,\s*0px\) 0\s*!important/);
-  assert.doesNotMatch(urlbarGlowAfterBlock, /top:\s*0\s*!important/);
-  assert.doesNotMatch(urlbarGlowAfterBlock, /bottom:\s*auto\s*!important/);
-  assert.doesNotMatch(urlbarGlowAfterBlock, /--blended-addressbar-urlbar-loadbar-edge-offset/);
-  assert.doesNotMatch(urlbarGlowAfterBlock, /max\(0px/);
-  assert.doesNotMatch(urlbarGlowAfterBlock, /height:\s*100%\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /background:\s*var\(--blended-addressbar-dynamic-loadbar-color\)\s*!important/);
-  assert.match(urlbarGlowAfterBlock, /width 0\.7s ease-in-out/);
-  assert.doesNotMatch(urlbarGlowAfterBlock, /background-position:\s*0 0,\s*0 100%/);
-  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::before/);
-  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::before\s*\{[^}]*opacity:\s*1\s*!important/s);
-  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar:not\(\[zen-floating-urlbar="true"\]\):not\(\[breakout-extend\]\) > \.urlbar-background::after/);
-  assert.doesNotMatch(css, /:root\[data-blended-addressbar-loadbar-mode="glow"\]\s*\{[\s\S]*:root:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\) #urlbar/);
+  assert.match(css, /radial-gradient\(ellipse 150px 32px at right bottom/);
+  assert.match(css, /data-blended-loading/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /blended-addressbar-pane-address/);
+  assert.match(css, /data-blended-addressbar-loadbar-iridescent="true"/);
   assert.match(css, /border-radius:\s*0\s*!important/);
   assert.doesNotMatch(css, /white\s+\d+%,\s*transparent/);
   assert.doesNotMatch(css, /color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) 40%,\s*transparent\)/);
@@ -847,7 +804,6 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.doesNotMatch(css, /border-bottom:\s*var\(--blended-addressbar-loadbar-height/);
   assert.doesNotMatch(css, /mask-image:\s*linear-gradient\(to top,\s*black 0%,\s*black 72%,\s*transparent 100%\)/);
   assert.doesNotMatch(css, /mask-image:\s*linear-gradient\(90deg/);
-  assert.match(css, /&:is\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\),\s*:has\(#zen-loading-progress-bar\[long-load\]\)\)/);
   assert.match(css, /--blended-addressbar-loadbar-progress:\s*95%/);
   assert.doesNotMatch(css, /uc\.loadbar\.mode", "zen"/);
   assert.match(css, /:root\[inDOMFullscreen="true"\] #zen-loading-progress-bar/);
@@ -945,13 +901,15 @@ test('persistent frame bridge samples rendered page pixels and observes theme mu
   assert.match(script, /function attachPersistentThemeListener\(browser\)/);
   assert.match(script, /function detachPersistentThemeListener\(browser\)/);
   assert.match(script, /function requestPersistentFrameTheme\(browser,\s*forceFresh = false\)/);
-  assert.match(script, /messageManager\.loadFrameScript\(themeFrameScriptUrl,\s*false\)/);
+  assert.match(script, /messageManager\.loadFrameScript\(themeFrameScriptUrl,\s*false,\s*true\)/);
   assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| deferRememberedFallback \|\| !cachedTheme\)/);
   assert.match(script, /gBrowser\.tabContainer\.addEventListener\('TabClose'/);
 
   assert.match(frame, /const MESSAGE_NAME = 'blended-addressbar:persistent-theme'/);
   assert.match(frame, /content\.__blended_addressbar_frame_inited/);
-  assert.match(frame, /const PIXEL_SAMPLE_SIZE = 3/);
+  assert.match(frame, /const PIXEL_SAMPLE_WIDTH = 256/);
+  assert.match(frame, /const PIXEL_SAMPLE_HEIGHT = 8/);
+  assert.match(frame, /getDominantSampleColor\(data\)/);
   assert.match(frame, /function normalizeColor\(color\)/);
   assert.match(frame, /function readTopEdgePixel\(/);
   assert.match(frame, /pixelCtx\.drawWindow\(/);
@@ -1296,7 +1254,7 @@ test('frame highlight overlays are added once per frame and ignore missing frame
   frames.clear();
   assert.doesNotThrow(() => vm.runInNewContext(loop, { chromeDoc }));
   const css = read('style.css');
-  assert.match(css, /> \.blended-addressbar-frame-highlight\s*\{[^}]*position: absolute;[^}]*inset: 0;[^}]*z-index: 5;[^}]*border-radius: inherit;[^}]*box-shadow: inset 0 0 0 0\.5pt rgba\(255, 255, 255, 0\.20\);[^}]*pointer-events: none;/);
+  assert.match(css, /> \.blended-addressbar-frame-highlight\s*\{[^}]*position: absolute;[^}]*inset: 0;[^}]*z-index: 5;[^}]*border-radius: inherit;[^}]*box-shadow: inset 0 0 0 0\.5pt rgba\(255, 255, 255, 0\.15\);[^}]*pointer-events: none;/);
 });
 
 test('selected split panes use a click-through inset accent instead of the native outline', () => {
@@ -1374,4 +1332,448 @@ test('split clipping uses Zen curvature without a separate shape preference', ()
 
 test('Only Sidebar retains the optional native bookmarks separator', () => {
   assert.match(read('style.css'), /@media not \(-moz-bool-pref: "uc\.blended-addressbar\.addressbar-bookmarks-separator\.disabled"\)\s*\{\s*#PersonalToolbar:not\(\[hidden\]\):not\(\[collapsed\]\)\s*\{\s*box-shadow:\s*var\(--blended-addressbar-toolbar-separator-shadow\)\s*!important/s);
+});
+
+test('dominant sampling ignores transparent pixels and minority text instead of mixing them into the background', () => {
+  const { getDominantSampleColor } = loadScriptModule('color-sampling.js');
+  const pixels = new Uint8ClampedArray([
+    32, 64, 96, 255, 34, 65, 97, 255, 33, 64, 96, 255,
+    255, 255, 255, 255, 255, 0, 0, 0
+  ]);
+  const color = getDominantSampleColor(pixels);
+  assert.equal(color.r, 33);
+  assert.equal(color.g, 64);
+  assert.equal(color.b, 96);
+  assert.equal(color.a, 1);
+  assert.equal(color.share, 0.75);
+  assert.equal(getDominantSampleColor(new Uint8ClampedArray(8)), null);
+  assert.equal(getDominantSampleColor([]), null);
+});
+
+test('loading progress remains monotonic, finishes and cannot revive after completion', () => {
+  const { createLoadProgress, advanceLoadProgress, finishLoadProgress } = loadScriptModule('loadbar.js');
+  const state = createLoadProgress();
+  advanceLoadProgress(state, 0.7);
+  assert.equal(state.progress, 0.7);
+  advanceLoadProgress(state, 0.2);
+  assert.equal(state.progress, 0.7);
+  for (let i = 0; i < 500; i++) advanceLoadProgress(state);
+  assert.ok(state.progress <= 0.95);
+  finishLoadProgress(state, 1000);
+  assert.equal(state.progress, 1);
+  assert.equal(state.loading, false);
+  advanceLoadProgress(state, 0.5);
+  assert.equal(state.progress, 1);
+  assert.equal(state.hideAt, 1450);
+});
+
+test('split addresses preserve the host and keep full URLs available without credentials', () => {
+  const { formatAddress } = loadScriptModule('split-addressbars.js');
+  assert.equal(formatAddress('https://example.com/path?q=1#part').host, 'example.com');
+  assert.equal(formatAddress('https://example.com/path?q=1#part').path, '/path?q=1#part');
+  assert.equal(formatAddress('https://user:secret@example.com/path').full, 'https://example.com/path');
+  assert.equal(formatAddress('about:preferences').host, 'about:preferences');
+  assert.equal(formatAddress('not a URL').host, 'not a URL');
+});
+
+test('split controls route to their browser, reject stale colors and clean up without moving page nodes', () => {
+  function element() {
+    const attrs = new Map();
+    const node = {
+      style: { getPropertyValue: name => attrs.get(name) || '', getPropertyPriority: () => '',
+        setProperty: (name, value) => attrs.set(name, value), removeProperty: name => attrs.delete(name) },
+      children: [], textContent: '', handlers: {},
+      setAttribute: (name, value) => attrs.set(name, value),
+      getAttribute: name => attrs.get(name) ?? null,
+      hasAttribute: name => attrs.has(name),
+      addEventListener(name, callback) { this.handlers[name] = callback; },
+      append(...children) { this.children.push(...children); children.forEach(child => child.parentNode = this); },
+      prepend(child) { this.children.unshift(child); child.parentNode = this; },
+      remove() { this.parentNode.children = this.parentNode.children.filter(child => child !== this); }
+    };
+    return node;
+  }
+  const calls = [];
+  const tab = element();
+  const panes = ['/red', '/blue'].map(path => {
+    const holder = element();
+    const browser = { currentURI: { spec: `https://example.com${path}` },
+      reload: () => calls.push(`reload${path}`), stop: () => calls.push(`stop${path}`) };
+    holder.append(browser);
+    holder.querySelector = () => browser;
+    return { browser, holder, querySelector: () => holder };
+  });
+  const colors = loadScriptModule('color-utils.js');
+  const mod = loadScriptModule('split-addressbars.js', {
+    chromeDoc: { createElementNS: () => element() }, getTab: () => tab,
+    openAddress: browser => calls.push(browser.currentURI.spec),
+    copyAddress: browser => calls.push(`copy ${browser.currentURI.spec}`),
+    openSite: browser => calls.push(`site ${browser.currentURI.spec}`),
+    getReadableForeground: colors.getReadableForeground, ...loadScriptModule('style-state.js')
+  });
+  assert.equal(mod.sync(panes).length, 2);
+  assert.equal(mod.sync(panes).length, 0);
+  for (const [i, pane] of panes.entries()) {
+    mod.applyTheme(pane.browser, { href: pane.browser.currentURI.spec, bg: i ? 'rgb(240, 240, 240)' : 'rgb(32, 32, 32)' });
+    assert.equal(pane.browser.parentNode, pane.holder);
+  }
+  const left = mod.bars.get(panes[0].browser);
+  const right = mod.bars.get(panes[1].browser);
+  assert.notEqual(left.bar.style.getPropertyValue('--blended-addressbar-pane-background'), right.bar.style.getPropertyValue('--blended-addressbar-pane-background'));
+  assert.notEqual(left.bar.style.getPropertyValue('--blended-addressbar-pane-foreground'), right.bar.style.getPropertyValue('--blended-addressbar-pane-foreground'));
+  right.address.handlers.click();
+  right.reload.handlers.click();
+  right.copy.handlers.click();
+  left.site.handlers.click();
+  tab.setAttribute('busy', 'true');
+  left.reload.handlers.click();
+  assert.deepEqual(calls, ['https://example.com/blue', 'reload/blue', 'copy https://example.com/blue', 'site https://example.com/red', 'stop/red']);
+  panes[0].browser.currentURI.spec = 'https://example.com/green';
+  mod.update(panes[0].browser);
+  mod.applyTheme(panes[0].browser, { href: 'https://example.com/red', bg: 'rgb(255, 0, 0)' });
+  assert.equal(left.bar.style.getPropertyValue('--blended-addressbar-pane-background'), '');
+  mod.sync([]);
+  assert.equal(mod.bars.size, 0);
+  assert.equal(panes[0].holder.children.length, 1);
+});
+
+test('split layout reserves a local row and glow remains optional and accessible', () => {
+  const css = readStyleWithImports();
+  const script = read('blended-bar.uc.js');
+  const prefs = JSON.parse(read('preferences.json'));
+  assert.match(css, /margin-block-start:\s*var\(--blended-addressbar-pane-bar-height\)/);
+  assert.match(css, /grid-area:\s*browserstack/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /:where\(#urlbar[^}]+\.blended-addressbar-pane-field\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(script, /paneSampleRequests\.get\(browser\) !== request/);
+  assert.match(script, /currentWindowGlobal !== documentGlobal/);
+  assert.match(script, /if \(isPixelThemeSource\(theme\)\) splitAddressbars\.applyTheme/);
+  assert.equal(prefs.find(pref => pref.property === 'uc.loadbar.iridescent').defaultValue, false);
+  assert.match(read('README.md'), /uc\.loadbar\.iridescent/);
+});
+
+test('pane sampling replaces in-flight requests after same-document navigation', async () => {
+  const browser = { currentURI: { spec: 'https://example.com/old' }, browsingContext: { currentWindowGlobal: {} } };
+  const pending = [];
+  const applied = [];
+  const context = {
+    addressbarEnhancementsDisposed: false,
+    paneSampleRequests: new Map(),
+    splitAddressbars: { bars: new Map([[browser, {}]]), applyTheme: (_browser, theme) => applied.push(theme) },
+    getBrowserHref: target => target.currentURI.spec,
+    isPageThemeEligibleHref: () => true,
+    sampleTabPanelsPixel: () => new Promise(resolve => pending.push(resolve)),
+    getSampledTheme: result => result,
+    cacheTheme: () => {}
+  };
+  const script = read('blended-bar.uc.js');
+  const start = script.indexOf('  async function sampleSplitPane(');
+  const end = script.indexOf('  function refreshSplitAddressbars(', start);
+  vm.createContext(context);
+  vm.runInContext(script.slice(start, end), context);
+  const oldSample = context.sampleSplitPane(browser);
+  browser.currentURI.spec = 'https://example.com/new';
+  const newSample = context.sampleSplitPane(browser);
+  assert.equal(pending.length, 2);
+  pending[0]({ href: 'https://example.com/old', bg: 'red' });
+  pending[1]({ href: 'https://example.com/new', bg: 'blue' });
+  await Promise.all([oldSample, newSample]);
+  assert.deepEqual(applied, [{ href: 'https://example.com/new', bg: 'blue' }]);
+  assert.equal(context.paneSampleRequests.size, 0);
+});
+
+test('native split editor placement fits the viewport and reserves room for its dropdown', () => {
+  const { getEditorPlacement } = loadScriptModule('split-addressbars.js');
+  const placement = getEditorPlacement({ left: 600, top: 400, width: 500, height: 36 }, 1000, 700);
+  assert.equal(placement.left, 492);
+  assert.equal(placement.top, 400);
+  assert.equal(placement.width, 500);
+  assert.equal(placement.resultsHeight, 248);
+  assert.equal(getEditorPlacement({ left: 20, top: 400, width: 400, height: 36 }, 1000, 550, 80).resultsHeight, 54);
+  assert.equal(getEditorPlacement({ left: -20, top: 4, width: 1200, height: 36 }, 800, 600).width, 784);
+  assert.equal(getEditorPlacement({ left: 0, top: 680, width: 400, height: 36 }, 1000, 700).resultsHeight, 0);
+});
+
+test('native editor follows the selected split and restores native placement outside split view', () => {
+  const attrs = new Map();
+  const properties = new Map();
+  const rootNode = { style: {
+    getPropertyValue: key => properties.get(key) || '', getPropertyPriority: () => '',
+    setProperty: (key, value) => properties.set(key, value), removeProperty: key => properties.delete(key)
+  }, hasAttribute: key => attrs.has(key), setAttribute: (key, value) => attrs.set(key, value), removeAttribute: key => attrs.delete(key) };
+  const a = {}, b = {};
+  const module = loadScriptModule('split-addressbars.js');
+  const context = {
+    addressbarEnhancementsDisposed: false,
+    chromeDoc: { documentElement: rootNode, getElementById: () => null },
+    gBrowser: { selectedBrowser: a }, window: { innerWidth: 1000, innerHeight: 800 },
+    splitAddressbars: { getEditorPlacement: module.getEditorPlacement, bars: new Map([
+      [a, { field: { getBoundingClientRect: () => ({ left: 20, top: 80, width: 400, height: 36 }) } }],
+      [b, { field: { getBoundingClientRect: () => ({ left: 520, top: 80, width: 400, height: 36 }) } }]
+    ]) },
+    splitEditorProperties: ['left', 'top', 'width', 'results-height'],
+    ...loadScriptModule('style-state.js')
+  };
+  const script = read('blended-bar.uc.js');
+  const start = script.indexOf('  function positionSplitEditor()');
+  const end = script.indexOf('  function paintLoadProgress(', start);
+  vm.createContext(context);
+  vm.runInContext(script.slice(start, end), context);
+  context.positionSplitEditor();
+  assert.equal(attrs.get('data-blended-split-editor'), 'true');
+  assert.equal(properties.get('--blended-addressbar-editor-left'), '20px');
+  context.gBrowser.selectedBrowser = b;
+  context.positionSplitEditor();
+  assert.equal(properties.get('--blended-addressbar-editor-left'), '520px');
+  attrs.set('customizing', 'true');
+  context.positionSplitEditor();
+  assert.equal(attrs.has('data-blended-split-editor'), false);
+  assert.equal(properties.size, 0);
+  attrs.delete('customizing');
+  context.splitAddressbars.bars.clear();
+  context.positionSplitEditor();
+  assert.equal(attrs.has('data-blended-split-editor'), false);
+});
+
+test('split mode collapses shared chrome without removing the native editor or changing bookmark preferences', () => {
+  const css = read('style.css');
+  const script = read('blended-bar.uc.js');
+  const start = css.indexOf(':root[data-blended-split-bars] {');
+  assert.notEqual(start, -1);
+  const block = css.slice(start);
+  assert.match(block, /#zen-appcontent-navbar-wrapper\s*\{[^}]*height:\s*0\s*!important/);
+  assert.match(block, /#nav-bar\s*\{[^}]*visibility:\s*hidden\s*!important/);
+  assert.match(block, /#urlbar\s*\{[^}]*visibility:\s*visible\s*!important/);
+  assert.match(block, /#PersonalToolbar\s*\{[^}]*display:\s*none\s*!important/);
+  assert.doesNotMatch(block, /#(?:nav-bar|urlbar|zen-appcontent-navbar-wrapper)\s*\{[^}]*display:\s*none/);
+  assert.match(script, /root\.toggleAttribute\('data-blended-split-bars', splitAddressbars\.bars\.size > 1\)/);
+  assert.match(script, /removeAttribute\('data-blended-split-bars'\)/);
+});
+
+test('right sidebar keeps one native gap beside split panes', () => {
+  const css = read('style.css');
+  const selector = '#tabbrowser-tabbox[zen-split-view="true"][sidebar-panel-open][sidebar-positionend]';
+  const block = cssRuleBlock(css, selector);
+  assert.match(block, /margin-right:\s*0\s*!important/);
+  assert.match(css.slice(css.indexOf(selector)), /> #tabbrowser-tabpanels\s*\{[^}]*margin-right:\s*calc\(-1 \* var\(--zen-split-row-gap\)\)\s*!important/);
+});
+
+test('frame gap defaults to Zen spacing and controls pane and sidebar gaps', () => {
+  const css = read('style.css');
+  const script = read('blended-bar.uc.js');
+  const pref = JSON.parse(read('preferences.json')).find(p => p.property === 'uc.blended-addressbar.frame-gap');
+  assert.equal(pref.defaultValue, 'var(--zen-element-separation)');
+  assert.match(css, /width: anchor-size\(--blended-split-panels width\) !important/);
+  assert.match(script, /readStringPref\(frameGapPref, 'var\(--zen-element-separation\)'\)/);
+  assert.match(css, /--zen-split-row-gap:\s*var\(--blended-addressbar-frame-gap\)\s*!important/);
+  assert.match(css, /--zen-split-column-gap:\s*var\(--blended-addressbar-frame-gap\)\s*!important/);
+  assert.match(css, /#tabbrowser-tabbox\[sidebar-panel-open\]\s*\{\s*column-gap:\s*0\s*!important/);
+  assert.match(css, /--blended-addressbar-resize-hit-size:\s*max\(6px, var\(--blended-addressbar-frame-gap\)\)/);
+});
+
+test('split focus highlight enters slowly, exits quickly and respects reduced motion', () => {
+  const css = read('style.css');
+  assert.match(css, /transition: box-shadow 90ms ease-in/);
+  assert.match(css, /transition-duration: 260ms/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*\.blended-addressbar-pane-highlight[^}]*transition: none !important/);
+  const pref = JSON.parse(read('preferences.json')).find(p => p.property === 'uc.blended-addressbar.split-focus-on-hover');
+  assert.equal(pref?.defaultValue, false);
+});
+
+test('hover focus is opt-in, delayed, cancellable and does not steal URL editing focus', () => {
+  let enabled = false, nextTimer = 0, selected = 0;
+  const timers = new Map();
+  const browser = {}, tab = {};
+  const panels = { getAttribute: () => 'true' };
+  const pane = { parentNode: panels, isConnected: true, matches: () => true,
+    getAttribute: () => 'true', querySelector: () => browser };
+  const event = { buttons: 0, target: { closest: () => pane } };
+  const context = {
+    addressbarEnhancementsDisposed: false, addressbarPrefBranch: 'uc.blended-addressbar.',
+    window: { gZenGlanceManager: { getFocusedTab: () => null } },
+    readBoolPref: () => enabled,
+    chromeDoc: { hasFocus: () => true, documentElement: { hasAttribute: () => false, getAttribute: () => null }, querySelector: () => null },
+    gURLBar: { focused: false, view: { isOpen: false } },
+    gBrowser: { tabpanels: panels, selectedBrowser: {}, getTabForBrowser: () => tab,
+      set selectedTab(value) { assert.equal(value, tab); selected++; } },
+    setTimeout: (callback, delay) => { assert.equal(delay, 150); timers.set(++nextTimer, callback); return nextTimer; },
+    clearTimeout: id => timers.delete(id)
+  };
+  const source = read('blended-bar.uc.js');
+  vm.createContext(context);
+  vm.runInContext(source.slice(source.indexOf('  let splitHoverTimer'), source.indexOf('  function observeSplitAddressbars()')), context);
+  context.onSplitHover(event);
+  assert.equal(timers.size, 0);
+  enabled = true;
+  context.onSplitHover(event);
+  context.onSplitHover(event);
+  assert.equal(timers.size, 1);
+  assert.equal(selected, 0);
+  [...timers.values()][0]();
+  assert.equal(selected, 1);
+  context.onSplitHover(event);
+  context.onSplitHover({ ...event, buttons: 1 });
+  assert.equal(timers.size, 0);
+  context.onSplitHover(event);
+  context.gURLBar.focused = true;
+  [...timers.values()][0]();
+  assert.equal(selected, 1);
+  context.gURLBar.focused = false;
+  context.window.gZenGlanceManager.getFocusedTab = () => tab;
+  context.onSplitHover(event);
+  assert.equal(timers.size, 0);
+  context.window.gZenGlanceManager.getFocusedTab = () => null;
+  context.onSplitHover(event);
+  enabled = false;
+  [...timers.values()][0]();
+  assert.equal(selected, 1);
+});
+
+test('persistent sampler shares its helper scope and recovers from incomplete initialization', () => {
+  const script = read('blended-bar.uc.js');
+  assert.match(script, /loadFrameScript\(`\$\{scriptModuleBaseUrl\}color-sampling\.js`, false, true\)/);
+  assert.match(script, /loadFrameScript\(themeFrameScriptUrl, false, true\)/);
+  let listeners = 0;
+  const context = { content: {
+    __blended_addressbar_frame_inited: true,
+    document: { readyState: 'loading', addEventListener() {} },
+    location: { href: 'https://example.com/' },
+    matchMedia: () => ({ addEventListener() {} }),
+    setTimeout() {}, addEventListener() { listeners++; }
+  }, sendAsyncMessage() {}, console: { error() {} } };
+  vm.createContext(context);
+  vm.runInContext(read('frame.js'), context);
+  assert.equal(typeof context.content.__blended_addressbar_sample, 'undefined');
+  vm.runInContext(read('scripts/color-sampling.js'), context);
+  vm.runInContext(read('frame.js'), context);
+  assert.equal(typeof context.content.__blended_addressbar_sample, 'function');
+  assert.equal(context.content.__blended_addressbar_frame_inited, true);
+  assert.equal(listeners, 2);
+  vm.runInContext(read('frame.js'), context);
+  assert.equal(listeners, 2);
+});
+
+test('confirmed top-edge pixels outrank metadata colors that do not match the page', () => {
+  const policy = loadScriptModule('theme-source-policy.js');
+  assert.ok(policy.getThemeSourceConfidence('pixel-top-edge') > policy.getThemeSourceConfidence('theme-color'));
+  assert.ok(policy.getThemeSourceConfidence('pixel') > policy.getThemeSourceConfidence('theme-color'));
+});
+
+test('content color-scheme changes force a sample even when DOM and semantic color stay unchanged', () => {
+  let schemeChanged, scheduled;
+  const messages = [];
+  const context = {
+    BlendedAddressbarModule: { getDominantSampleColor: () => null },
+    content: {
+      document: { readyState: 'loading', addEventListener() {} },
+      location: { href: 'https://example.com/' },
+      matchMedia(query) {
+        assert.equal(query, '(prefers-color-scheme: dark)');
+        return { addEventListener(type, callback) { assert.equal(type, 'change'); schemeChanged = callback; } };
+      },
+      setTimeout(callback, delay) { if (delay === 250) scheduled = callback; return 1; },
+      addEventListener() {}
+    },
+    sendAsyncMessage: (_name, message) => messages.push(message), console: { error() {} }
+  };
+  vm.createContext(context);
+  vm.runInContext(read('frame.js'), context);
+  context.content.__blended_addressbar_sample();
+  assert.equal(messages.length, 1);
+  assert.equal(typeof schemeChanged, 'function');
+  schemeChanged();
+  schemeChanged();
+  scheduled();
+  assert.equal(messages.length, 2);
+  assert.equal(messages[1].href, 'https://example.com/');
+});
+
+test('collapsed shared toolbar does not intercept split controls or address clicks', () => {
+  const css = read('style.css');
+  const block = css.slice(css.indexOf(':root[data-blended-split-bars] {'));
+  assert.match(block, /#zen-appcontent-navbar-wrapper\s*\{[^}]*pointer-events:\s*none\s*!important/);
+  assert.match(block, /#zen-appcontent-navbar-container\s*\{[^}]*pointer-events:\s*none\s*!important/);
+  assert.match(block, /#urlbar\s*\{[^}]*pointer-events:\s*auto\s*!important/);
+});
+
+test('sidebar shares passive pane framing without the active split accent', () => {
+  const css = read('style.css');
+  const start = css.indexOf('/* Frame the sidebar like a passive pane. */');
+  assert.notEqual(start, -1);
+  const block = css.slice(start);
+  assert.match(block, /#sidebar-box\[sidebar-panel-open\]:not\(\[hidden\]\)/);
+  assert.match(block, /corner-shape: superellipse\(var\(--zen-squircle-value, 1\.3\)\)/);
+  assert.match(block, /box-shadow: var\(--blended-addressbar-pane-inner-highlight\)/);
+  assert.match(block, /pointer-events: none/);
+  assert.match(block, /\[sidebar-positionend\]/);
+  assert.doesNotMatch(block, /zen-active-split-outline-color|1\.5pt/);
+});
+
+test('single-tab sidebar does not duplicate the shared frame highlight', () => {
+  const css = read('style.css');
+  const sidebar = css.slice(css.indexOf('/* Frame the sidebar like a passive pane. */'));
+  assert.match(sidebar, /&::after\s*\{\s*content: none;/);
+  assert.match(sidebar, /#tabbrowser-tabbox\[zen-split-view="true"\][\s\S]*&::after\s*\{\s*content: "";/);
+});
+
+test('single sidebar column measures native toolbars and turns off for split and Only Sidebar layouts', () => {
+  const attrs = new Map(), styles = new Map();
+  const rootNode = { getAttribute: key => attrs.get(key), hasAttribute: key => attrs.has(key),
+    toggleAttribute: (key, on) => on ? attrs.set(key, '') : attrs.delete(key), style: styles };
+  let split = false;
+  const bookmarks = { hidden: false, getAttribute: () => null, getBoundingClientRect: () => ({ height: 30 }) };
+  const nodes = {
+    'tabbrowser-tabbox': { getAttribute: () => split ? 'true' : null },
+    'sidebar-box': { hidden: false, hasAttribute: () => true },
+    'tabbrowser-tabpanels': { getBoundingClientRect: () => ({ left: 364, width: 700 }) },
+    'zen-appcontent-wrapper': { getBoundingClientRect: () => ({ left: 100 }) },
+    'nav-bar': { hidden: false, getAttribute: () => null, getBoundingClientRect: () => ({ height: 42 }) },
+    PersonalToolbar: bookmarks
+  };
+  const context = { readBoolPref: () => false, chromeDoc: { documentElement: rootNode, getElementById: id => nodes[id],
+    defaultView: { getComputedStyle: () => ({ display: 'block', visibility: 'visible' }) } },
+    setStylePropertyIfChanged: (style, key, value) => style.set(key, value) };
+  const source = read('scripts/pane-layout.js');
+  vm.createContext(context);
+  vm.runInContext(source.slice(source.indexOf('  function updateSingleSidebarLayout()'), source.indexOf('  function updatePaneCornerRadii()')), context);
+  context.updateSingleSidebarLayout();
+  assert.ok(attrs.has('data-blended-sidebar-column'));
+  assert.equal(styles.get('--blended-addressbar-sidebar-toolbar-height'), '72px');
+  assert.equal(styles.get('--blended-addressbar-sidebar-page-left'), '264px');
+  assert.equal(styles.get('--blended-addressbar-sidebar-page-width'), '700px');
+  bookmarks.hidden = true;
+  context.updateSingleSidebarLayout();
+  assert.equal(styles.get('--blended-addressbar-sidebar-toolbar-height'), '42px');
+  split = true;
+  context.updateSingleSidebarLayout();
+  assert.ok(!attrs.has('data-blended-sidebar-column'));
+  split = false;
+  attrs.set('zen-single-toolbar', 'true');
+  context.updateSingleSidebarLayout();
+  assert.ok(!attrs.has('data-blended-sidebar-column'));
+  attrs.delete('zen-single-toolbar');
+  attrs.set('zen-compact-mode', 'true');
+  context.readBoolPref = () => true;
+  context.updateSingleSidebarLayout();
+  assert.ok(!attrs.has('data-blended-sidebar-column'));
+});
+
+test('loading glow adds a full-field tint without replacing the native background color', () => {
+  const css = read('styles/loadbar.css');
+  const selector = '#urlbar[data-blended-loading]:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background,';
+  const block = cssRuleBlock(css, selector);
+  assert.match(block, /--blended-addressbar-loadbar-glow-weak-mix/);
+  assert.match(block, /background-image:\s*linear-gradient/);
+  assert.doesNotMatch(block, /background-color:|box-shadow:/);
+});
+
+test('focused native split editor replaces the selected proxy without collapsing its layout', () => {
+  const css = read('style.css');
+  const selector = ':root[data-blended-split-editor="true"]:has(#urlbar:is([focused], [breakout-extend], [open], :focus-within))';
+  const block = cssRuleBlock(css, selector);
+  assert.match(block, /visibility: hidden !important/);
+  assert.doesNotMatch(block, /display: none/);
+  assert.match(css.slice(css.indexOf(selector), css.indexOf(selector) + 500), /\.browserSidebarContainer\.deck-selected/);
+  assert.match(read('blended-bar.uc.js'), /'input-padding': getComputedStyle\(inputContainer\)\.padding/);
 });

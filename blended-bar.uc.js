@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.6.1
+// @version        1.7.12
 // ==/UserScript==
 
 (() => {
@@ -150,6 +150,7 @@
     schedulePaneCornerRadiiUpdate
   } = loadBlendedAddressbarModule('pane-layout.js', {
     chromeDoc,
+    readBoolPref: (name, fallback) => readBoolPref(name, fallback),
     removeStylePropertyIfChanged,
     setStylePropertyIfChanged
   });
@@ -193,6 +194,9 @@
     cssSupports: (property, value) => cssSupports(property, value),
     sampledColorMinAlpha
   });
+
+  const { getDominantSampleColor } = loadBlendedAddressbarModule('color-sampling.js');
+  const { createLoadProgress, advanceLoadProgress, finishLoadProgress } = loadBlendedAddressbarModule('loadbar.js');
 
   function setVar(value, foreground) {
     const rootStyle = chromeDoc.documentElement.style;
@@ -1026,7 +1030,7 @@
     const radius = readBoolPref(frameRadiusDisabledPref, false)
       ? '0px'
       : normalizeCssLength(readStringPref(frameRadiusPref, '14px'), '14px');
-    const gap = readBoolPref(framePaddingDisabledPref, false) ? '0px' : normalizeCssLength(readStringPref(frameGapPref, '5px'), '5px');
+    const gap = readBoolPref(framePaddingDisabledPref, false) ? '0px' : normalizeCssLength(readStringPref(frameGapPref, 'var(--zen-element-separation)'), 'var(--zen-element-separation)');
     const shadowPreset = normalizeFrameShadowPreset(readStringPref(frameShadowPref, 'standard'));
 
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-frame-radius', radius);
@@ -1053,6 +1057,9 @@
 
     const observer = {
       observe(_subject, topic, prefName) {
+        if (topic === 'nsPref:changed' && prefName === 'zen.view.compact.hide-toolbar') {
+          schedulePaneCornerRadiiUpdate();
+        }
         if (topic === 'nsPref:changed' && framePrefNames.has(String(prefName || ''))) {
           applyFramePrefs();
         }
@@ -1061,10 +1068,12 @@
 
     try {
       prefs.addObserver(addressbarPrefBranch, observer);
+      prefs.addObserver('zen.view.compact.hide-toolbar', observer);
       if (typeof addUnloadListener === 'function') {
         addUnloadListener(() => {
           try {
             prefs.removeObserver(addressbarPrefBranch, observer);
+            prefs.removeObserver('zen.view.compact.hide-toolbar', observer);
           } catch {}
         });
       }
@@ -1123,6 +1132,7 @@
     const mode = readStringPref(loadbarModePref, defaultLoadbarMode);
     const normalizedMode = normalizeLoadbarMode(mode);
     const useFocusColor = readBoolPref(loadbarFocusColorPref, true);
+    root.setAttribute('data-blended-addressbar-loadbar-iridescent', String(readBoolPref(`${loadbarPrefBranch}iridescent`, false)));
 
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-height', height);
     setStylePropertyIfChanged(rootStyle, '--blended-addressbar-loadbar-opacity', opacity);
@@ -1549,6 +1559,10 @@
         if (!theme?.bg) return;
 
         cacheTheme(browser, theme);
+        if (splitAddressbars.bars.has(browser)) {
+          if (isPixelThemeSource(theme)) splitAddressbars.applyTheme(browser, theme);
+          else void sampleSplitPane(browser);
+        }
         if (browser === gBrowser?.selectedBrowser) {
           applyResolvedTheme(browser, theme, 'persistent-frame', href, {
             loading: isLoadingThemeFor(browser),
@@ -1588,7 +1602,8 @@
     }
 
     try {
-      messageManager.loadFrameScript(themeFrameScriptUrl, false);
+      messageManager.loadFrameScript(`${scriptModuleBaseUrl}color-sampling.js`, false, true);
+      messageManager.loadFrameScript(themeFrameScriptUrl, false, true);
       return true;
     } catch (error) {
       if (DEBUG_THEME) {
@@ -2748,35 +2763,6 @@
     };
   }
 
-  function getAverageSampleLineColor(data) {
-    if (!data?.length) return null;
-
-    let alphaTotal = 0;
-    let redTotal = 0;
-    let greenTotal = 0;
-    let blueTotal = 0;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const alpha = data[i + 3] / 255;
-      if (alpha <= 0) continue;
-
-      alphaTotal += alpha;
-      redTotal += data[i] * alpha;
-      greenTotal += data[i + 1] * alpha;
-      blueTotal += data[i + 2] * alpha;
-    }
-
-    if (alphaTotal <= 0) return null;
-
-    const pixels = data.length / 4;
-    return {
-      r: Math.round(redTotal / alphaTotal),
-      g: Math.round(greenTotal / alphaTotal),
-      b: Math.round(blueTotal / alphaTotal),
-      a: Math.max(0, Math.min(1, alphaTotal / pixels))
-    };
-  }
-
   function getChromeContrastFallbackTheme(browser, reason = 'chrome-contrast-fallback') {
     const probe = chromeDoc.createElement('div');
     probe.style.position = 'fixed';
@@ -2810,10 +2796,6 @@
     };
   }
 
-  const sampleCanvas = chromeDoc.createElement('canvas');
-  sampleCanvas.width = 1;
-  sampleCanvas.height = 1;
-  const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
 
   let samplerOverlay = null;
   function ensureSamplerOverlay() {
@@ -2842,14 +2824,15 @@
     el.style.top = `${y}px`;
   }
 
-  async function sampleTabPanelsPixel() {
+  async function sampleTabPanelsPixel(browser = gBrowser?.selectedBrowser || null) {
+    const sampleCanvas = chromeDoc.createElement('canvas');
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
     const panels = chromeDoc.getElementById('tabbrowser-tabpanels');
     if (!panels) {
       if (DEBUG) console.warn('[blended-addressbar:urlbar] tabbrowser-tabpanels not found');
       return null;
     }
 
-    const browser = gBrowser?.selectedBrowser || null;
     const rect = (browser || panels).getBoundingClientRect();
     if (!rect || rect.width < 1 || rect.height < 1) {
       if (DEBUG_VERBOSE) console.warn('[blended-addressbar:urlbar] tabbrowser-tabpanels has no size');
@@ -2906,7 +2889,7 @@
     }
 
     const data = sampleCtx.getImageData(0, 0, sampleWidth, sampleHeight).data;
-    const rgba = getAverageSampleLineColor(data);
+    const rgba = getDominantSampleColor(data);
     if (!rgba) return null;
 
     return {
@@ -3243,6 +3226,333 @@
     } catch {}
   }
 
+  const splitAddressbars = loadBlendedAddressbarModule('split-addressbars.js', {
+    chromeDoc,
+    getTab: browser => gBrowser.getTabForBrowser(browser),
+    openAddress(browser) {
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (!tab || tab.closing) return;
+      gBrowser.selectedTab = tab;
+      positionSplitEditor();
+      chromeDoc.getElementById('Browser:OpenLocation')?.doCommand();
+    },
+    openSite(browser) {
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (!tab || tab.closing) return;
+      gBrowser.selectedTab = tab;
+      gURLBar.view.close();
+      gURLBar.handleRevert();
+      gURLBar.blur();
+      positionSplitEditor();
+      chromeDoc.getElementById('zen-site-data-icon-button')?.click();
+    },
+    copyAddress(browser) {
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (!tab || tab.closing) return;
+      gBrowser.selectedTab = tab;
+      positionSplitEditor();
+      chromeDoc.getElementById('zen-copy-url-button')?.click();
+    },
+    getReadableForeground,
+    setStylePropertyIfChanged,
+    removeStylePropertyIfChanged
+  });
+  const loadbarStates = new Map();
+  const paneSampleRequests = new Map();
+  let loadbarTimer = 0;
+  let splitRefreshTimer = 0;
+  let splitObserver = null;
+  let splitRootObserver = null;
+  let addressbarEnhancementsDisposed = false;
+  let splitEditorObserver = null;
+  let splitEditorResizeObserver = null;
+  const splitEditorProperties = ['left', 'top', 'width', 'results-height'];
+
+  function captureSplitAddressAppearance() {
+    const urlbar = chromeDoc.getElementById('urlbar');
+    if (!urlbar || urlbar.hasAttribute('breakout-extend') || urlbar.hasAttribute('focused') || urlbar.hasAttribute('open')) return;
+    const background = urlbar.querySelector('.urlbar-background');
+    const input = urlbar.querySelector('.urlbar-input');
+    const inputContainer = urlbar.querySelector('.urlbar-input-container');
+    const action = chromeDoc.getElementById('zen-copy-url-button');
+    if (!background || !input || !inputContainer || !action) return;
+    const rootStyle = chromeDoc.documentElement.style;
+    const style = getComputedStyle(background);
+    const height = urlbar.getBoundingClientRect().height || 36;
+    for (const [name, value] of Object.entries({
+      height: `${height}px`, radius: style.borderRadius,
+      background: style.backgroundColor, border: style.border, shadow: style.boxShadow,
+      font: getComputedStyle(input).font,
+      'input-padding': getComputedStyle(inputContainer).padding,
+      'text-padding': getComputedStyle(input).padding,
+      'action-width': `${action.getBoundingClientRect().width || 28}px`,
+      'action-radius': getComputedStyle(action).borderRadius,
+      'copy-icon': getComputedStyle(chromeDoc.querySelector('#zen-copy-url-button image') || input).listStyleImage,
+      'site-icon': getComputedStyle(chromeDoc.querySelector('#zen-site-data-icon-button image') || input).listStyleImage
+    })) {
+      setStylePropertyIfChanged(rootStyle, `--blended-addressbar-native-${name}`, value);
+    }
+  }
+
+  function refreshSplitEditorAppearance() {
+    if (addressbarEnhancementsDisposed) return;
+    captureSplitAddressAppearance();
+    positionSplitEditor();
+  }
+
+  function positionSplitEditor() {
+    if (addressbarEnhancementsDisposed) return;
+    const root = chromeDoc.documentElement;
+    const record = splitAddressbars.bars.get(gBrowser.selectedBrowser);
+    const rect = record?.field.getBoundingClientRect();
+    if (!rect?.width || !rect.height || root.hasAttribute('customizing')) {
+      root.removeAttribute('data-blended-split-editor');
+      for (const name of splitEditorProperties) removeStylePropertyIfChanged(root.style, `--blended-addressbar-editor-${name}`);
+      return;
+    }
+    const editor = chromeDoc.getElementById('urlbar');
+    const results = editor?.querySelector('#urlbar-results');
+    const headerHeight = editor?.hasAttribute('open') && results
+      ? editor.getBoundingClientRect().height - results.getBoundingClientRect().height
+      : rect.height;
+    const placement = splitAddressbars.getEditorPlacement(rect, window.innerWidth, window.innerHeight, headerHeight);
+    for (const [name, value] of Object.entries({
+      left: placement.left, top: placement.top, width: placement.width, 'results-height': placement.resultsHeight
+    })) {
+      setStylePropertyIfChanged(root.style, `--blended-addressbar-editor-${name}`, `${value}px`);
+    }
+    if (!root.hasAttribute('data-blended-split-editor')) root.setAttribute('data-blended-split-editor', 'true');
+  }
+
+  function paintLoadProgress(element, state) {
+    if (!element) return;
+    const showing = !!state && (state.loading || Date.now() < state.hideAt);
+    if (showing) {
+      if (!element.hasAttribute('data-blended-loading')) element.setAttribute('data-blended-loading', 'true');
+      setStylePropertyIfChanged(element.style, '--blended-addressbar-loadbar-progress', `${(state.progress * 100).toFixed(2)}%`);
+    } else {
+      element.removeAttribute('data-blended-loading');
+      removeStylePropertyIfChanged(element.style, '--blended-addressbar-loadbar-progress');
+    }
+  }
+
+  function ensureLoadProgress(browser) {
+    if (!loadbarStates.has(browser) && gBrowser.getTabForBrowser(browser)?.hasAttribute('busy')) {
+      trackLoadProgress(browser, 'start');
+    }
+  }
+
+  function renderLoadProgress() {
+    if (addressbarEnhancementsDisposed) return;
+    paintLoadProgress(chromeDoc.getElementById('urlbar'), loadbarStates.get(gBrowser.selectedBrowser));
+    for (const [browser, record] of splitAddressbars.bars) {
+      paintLoadProgress(record.field, loadbarStates.get(browser));
+    }
+  }
+
+  function trackLoadProgress(browser, phase, fraction) {
+    if (addressbarEnhancementsDisposed) return;
+    let state = loadbarStates.get(browser);
+    if (phase === 'start') {
+      state = createLoadProgress();
+      loadbarStates.set(browser, state);
+    } else if (state) {
+      if (phase === 'stop') finishLoadProgress(state, Date.now());
+      else advanceLoadProgress(state, fraction);
+    }
+    if (!loadbarTimer && loadbarStates.size) {
+      loadbarTimer = setInterval(() => {
+        for (const [target, progress] of loadbarStates) {
+          if (!gBrowser.getTabForBrowser(target) || (!progress.loading && Date.now() >= progress.hideAt)) {
+            loadbarStates.delete(target);
+          } else {
+            advanceLoadProgress(progress);
+          }
+        }
+        renderLoadProgress();
+        if (!loadbarStates.size) {
+          clearInterval(loadbarTimer);
+          loadbarTimer = 0;
+        }
+      }, 250);
+    }
+    renderLoadProgress();
+  }
+
+  async function sampleSplitPane(browser) {
+    if (addressbarEnhancementsDisposed) return;
+    if (!splitAddressbars.bars.has(browser) || !isPageThemeEligibleHref(getBrowserHref(browser))) return;
+    const href = getBrowserHref(browser);
+    const documentGlobal = browser.browsingContext?.currentWindowGlobal;
+    const pending = paneSampleRequests.get(browser);
+    if (pending?.documentGlobal === documentGlobal && pending.href === href) return;
+    const request = { href, documentGlobal };
+    paneSampleRequests.set(browser, request);
+    try {
+      const result = await sampleTabPanelsPixel(browser);
+      if (paneSampleRequests.get(browser) !== request
+        || getBrowserHref(browser) !== href
+        || browser.browsingContext?.currentWindowGlobal !== documentGlobal
+        || !splitAddressbars.bars.has(browser)) return;
+      const theme = getSampledTheme(result, browser);
+      if (theme) {
+        cacheTheme(browser, theme);
+        splitAddressbars.applyTheme(browser, theme);
+      }
+    } finally {
+      if (paneSampleRequests.get(browser) === request) paneSampleRequests.delete(browser);
+    }
+  }
+
+  function refreshSplitAddressbars() {
+    if (addressbarEnhancementsDisposed) return;
+    splitRefreshTimer = 0;
+    const root = chromeDoc.documentElement;
+    const panels = gBrowser.tabpanels;
+    const enabled = root.getAttribute('zen-single-toolbar') !== 'true'
+      && root.getAttribute('inDOMFullscreen') !== 'true'
+      && root.getAttribute('inFullscreen') !== 'true'
+      && !root.hasAttribute('customizing')
+      && panels?.getAttribute('zen-split-view') === 'true';
+    const containers = enabled
+      ? [...panels.querySelectorAll(':scope > .browserSidebarContainer[zen-split="true"]:not(.zen-glance-overlay)')]
+        .filter(pane => pane.getBoundingClientRect().width > 0)
+      : [];
+    captureSplitAddressAppearance();
+    const added = splitAddressbars.sync(containers.length > 1 ? containers : []);
+    root.toggleAttribute('data-blended-split-bars', splitAddressbars.bars.size > 1);
+    splitEditorResizeObserver?.disconnect();
+    for (const record of splitAddressbars.bars.values()) splitEditorResizeObserver?.observe(record.field);
+    const nativeEditor = chromeDoc.getElementById('urlbar');
+    if (splitAddressbars.bars.size && nativeEditor) splitEditorResizeObserver?.observe(nativeEditor);
+    positionSplitEditor();
+    for (const browser of added) {
+      const cached = getCachedTargetTheme(browser);
+      if (cached && isPixelThemeSource(cached)) splitAddressbars.applyTheme(browser, cached);
+      requestPersistentFrameTheme(browser);
+      void sampleSplitPane(browser);
+    }
+    for (const browser of splitAddressbars.bars.keys()) {
+      if (!loadbarStates.has(browser) && gBrowser.getTabForBrowser(browser)?.hasAttribute('busy')) {
+        trackLoadProgress(browser, 'start');
+      }
+    }
+    renderLoadProgress();
+  }
+
+  function scheduleSplitAddressbars() {
+    if (addressbarEnhancementsDisposed) return;
+    if (!splitRefreshTimer) splitRefreshTimer = setTimeout(refreshSplitAddressbars, 0);
+  }
+
+  let splitHoverTimer = 0;
+  let splitHoverPane = null;
+
+  function cancelSplitHover() {
+    if (splitHoverTimer) clearTimeout(splitHoverTimer);
+    splitHoverTimer = 0;
+    splitHoverPane = null;
+  }
+
+  function canHoverSplit() {
+    const root = chromeDoc.documentElement;
+    return !addressbarEnhancementsDisposed
+      && readBoolPref(`${addressbarPrefBranch}split-focus-on-hover`, false)
+      && chromeDoc.hasFocus()
+      && gBrowser.tabpanels.getAttribute('zen-split-view') === 'true'
+      && !root.hasAttribute('customizing')
+      && root.getAttribute('inDOMFullscreen') !== 'true'
+      && !gURLBar.focused && !gURLBar.view.isOpen
+      && !chromeDoc.querySelector('panel[panelopen="true"], menupopup[open="true"]')
+      && !window.gZenGlanceManager?.getFocusedTab?.();
+  }
+
+  function onSplitHover(event) {
+    if (event.buttons || !canHoverSplit()) {
+      cancelSplitHover();
+      return;
+    }
+    const pane = event.target?.closest?.('.browserSidebarContainer[zen-split="true"]:not(.zen-glance-overlay)');
+    const browser = pane?.querySelector(':scope > .browserContainer > .browserStack > browser');
+    if (!browser || browser === gBrowser.selectedBrowser || pane.parentNode !== gBrowser.tabpanels) {
+      cancelSplitHover();
+      return;
+    }
+    if (pane === splitHoverPane) return;
+    cancelSplitHover();
+    splitHoverPane = pane;
+    splitHoverTimer = setTimeout(() => {
+      cancelSplitHover();
+      if (!canHoverSplit() || !pane.isConnected || !pane.matches(':hover')
+        || pane.getAttribute('zen-split') !== 'true') return;
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (tab && !tab.closing) gBrowser.selectedTab = tab;
+    }, 150);
+  }
+
+  function onSplitHoverExit(event) {
+    if (!event.relatedTarget) cancelSplitHover();
+  }
+
+  function observeSplitAddressbars() {
+    window.addEventListener('mousemove', onSplitHover, true);
+    window.addEventListener('mouseout', onSplitHoverExit, true);
+    window.addEventListener('mousedown', cancelSplitHover, true);
+    window.addEventListener('keydown', cancelSplitHover, true);
+    window.addEventListener('dragstart', cancelSplitHover, true);
+    window.addEventListener('blur', cancelSplitHover);
+    splitObserver = new MutationObserver(records => {
+      if (records.some(record => !record.target.closest?.('.blended-addressbar-pane-bar'))) scheduleSplitAddressbars();
+    });
+    splitObserver.observe(gBrowser.tabpanels, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['zen-split-view', 'zen-split', 'class', 'style']
+    });
+    splitRootObserver = new MutationObserver(scheduleSplitAddressbars);
+    splitRootObserver.observe(chromeDoc.documentElement, {
+      attributes: true, subtree: true, attributeFilter: ['zen-single-toolbar', 'inDOMFullscreen', 'inFullscreen', 'customizing', 'zen-right-side', 'sidebar-positionend', 'zen-sidebar-expanded', 'zen-compact-mode']
+    });
+    splitEditorResizeObserver = new ResizeObserver(refreshSplitEditorAppearance);
+    const urlbar = chromeDoc.getElementById('urlbar');
+    splitEditorObserver = new MutationObserver(refreshSplitEditorAppearance);
+    if (urlbar) {
+      splitEditorObserver.observe(urlbar, { attributes: true, attributeFilter: ['focused', 'breakout-extend', 'open'] });
+      urlbar.addEventListener('focusin', positionSplitEditor);
+    }
+    window.addEventListener('resize', positionSplitEditor);
+    refreshSplitAddressbars();
+  }
+
+  function cleanupAddressbarEnhancements() {
+    if (addressbarEnhancementsDisposed) return;
+    cancelSplitHover();
+    window.removeEventListener('mousemove', onSplitHover, true);
+    window.removeEventListener('mouseout', onSplitHoverExit, true);
+    window.removeEventListener('mousedown', cancelSplitHover, true);
+    window.removeEventListener('keydown', cancelSplitHover, true);
+    window.removeEventListener('dragstart', cancelSplitHover, true);
+    window.removeEventListener('blur', cancelSplitHover);
+    clearInterval(loadbarTimer);
+    clearTimeout(splitRefreshTimer);
+    splitObserver?.disconnect();
+    splitRootObserver?.disconnect();
+    splitEditorObserver?.disconnect();
+    splitEditorResizeObserver?.disconnect();
+    chromeDoc.getElementById('urlbar')?.removeEventListener('focusin', positionSplitEditor);
+    window.removeEventListener('resize', positionSplitEditor);
+    loadbarStates.clear();
+    paneSampleRequests.clear();
+    paintLoadProgress(chromeDoc.getElementById('urlbar'), null);
+    splitAddressbars.cleanup();
+    chromeDoc.documentElement.removeAttribute('data-blended-split-bars');
+    positionSplitEditor();
+    for (const name of ['height', 'radius', 'background', 'border', 'shadow', 'font', 'copy-icon', 'site-icon', 'input-padding', 'text-padding', 'action-width', 'action-radius']) {
+      removeStylePropertyIfChanged(chromeDoc.documentElement.style, `--blended-addressbar-native-${name}`);
+    }
+    gBrowser.tabContainer.removeEventListener('TabAttrModified', scheduleSplitAddressbars);
+    addressbarEnhancementsDisposed = true;
+  }
+
   function initWhenReady() {
     if (typeof gBrowser === 'undefined' || !gBrowser) {
       setTimeout(initWhenReady, 500);
@@ -3254,15 +3564,24 @@
     applyLoadbarPrefs();
     observeLoadbarPrefs();
     observeNativeZenThemePrefs();
+    observeSplitAddressbars();
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
+      scheduleSplitAddressbars();
+      positionSplitEditor();
+      ensureLoadProgress(gBrowser.selectedBrowser);
+      renderLoadProgress();
       observeViewportThemeTarget();
       schedulePaneCornerRadiiUpdate();
       handleZenBoostStateChange();
       scheduleActiveUpdate({ reason: 'tab-select', keepCachedTheme: true });
     });
 
+    gBrowser.tabContainer.addEventListener('TabAttrModified', scheduleSplitAddressbars);
     gBrowser.tabContainer.addEventListener('TabClose', (event) => {
+      loadbarStates.delete(event.target?.linkedBrowser);
+      paneSampleRequests.delete(event.target?.linkedBrowser);
+      scheduleSplitAddressbars();
       detachPersistentThemeListener(event.target?.linkedBrowser || null);
     });
 
@@ -3270,6 +3589,7 @@
       let colorSchemeQuery = null;
       const onColorSchemeChange = () => {
         clearThemeCache('color-scheme-change');
+        scheduleSplitAddressbars();
         scheduleActiveUpdate({ reason: 'color-scheme-change' });
       };
       try {
@@ -3292,6 +3612,7 @@
             if (scheduledActiveUpdateRaf) cancelAnimationFrame(scheduledActiveUpdateRaf);
           } catch {}
           if (viewportResizeObserver) viewportResizeObserver.disconnect();
+          cleanupAddressbarEnhancements();
           cleanupPaneCornerRadii();
           if (zenBoostMutationObserver) zenBoostMutationObserver.disconnect();
           stopLoadingThemeTracking();
@@ -3305,9 +3626,18 @@
     observeZenBoostState();
 
     const pl = {
+      onProgressChange(browserArg, webProgress, request, curSelf, maxSelf, curTotal, maxTotal) {
+        if (webProgress?.isTopLevel && maxTotal > 0) {
+          trackLoadProgress(browserArg, 'progress', curTotal / maxTotal);
+        }
+      },
       onLocationChange(browserArg, webProgress, req, location, flags) {
         try {
           const sameDocumentFlag = Ci?.nsIWebProgressListener?.LOCATION_CHANGE_SAME_DOCUMENT || 0;
+          if (webProgress?.isTopLevel) {
+            splitAddressbars.update(browserArg);
+            if (splitAddressbars.bars.has(browserArg)) requestPersistentFrameTheme(browserArg);
+          }
           if (flags & sameDocumentFlag) return;
           const active = gBrowser.selectedBrowser;
           const isTop = webProgress && webProgress.isTopLevel;
@@ -3329,7 +3659,20 @@
           const isTop = webProgress && webProgress.isTopLevel;
           if (isTop) schedulePaneCornerRadiiUpdate();
           const matches = browserArg === active;
-          if (!matches || !isTop) return;
+          if (!isTop) return;
+          const progressFlags = Ci.nsIWebProgressListener;
+          if (flags & progressFlags.STATE_IS_WINDOW) {
+            if (flags & progressFlags.STATE_START) trackLoadProgress(browserArg, 'start');
+            if (flags & progressFlags.STATE_STOP) {
+              trackLoadProgress(browserArg, 'stop');
+              if (splitAddressbars.bars.has(browserArg)) {
+                requestPersistentFrameTheme(browserArg);
+                void sampleSplitPane(browserArg);
+              }
+            }
+            splitAddressbars.update(browserArg);
+          }
+          if (!matches) return;
           const listener = Ci && Ci.nsIWebProgressListener
             ? Ci.nsIWebProgressListener
             : null;
@@ -3358,8 +3701,15 @@
       }
     };
     try { gBrowser.addTabsProgressListener(pl); } catch {}
+    const cleanup = () => {
+      cleanupAddressbarEnhancements();
+      try { gBrowser.removeTabsProgressListener(pl); } catch {}
+    };
+    window.addEventListener('unload', cleanup, { once: true });
+    if (typeof addUnloadListener === 'function') addUnloadListener(cleanup);
 
     schedulePaneCornerRadiiUpdate();
+    ensureLoadProgress(gBrowser.selectedBrowser);
     void updateActive({ reason: 'init' });
   }
 

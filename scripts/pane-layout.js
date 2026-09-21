@@ -3,6 +3,7 @@ var BlendedAddressbarModule = ((options) => {
 
   options = options || {};
   const chromeDoc = options.chromeDoc;
+  const readBoolPref = options.readBoolPref || (() => false);
   const removeStylePropertyIfChanged = options.removeStylePropertyIfChanged;
   const setStylePropertyIfChanged = options.setStylePropertyIfChanged;
   const paneCornerSelector = '#tabbrowser-tabpanels > .browserSidebarContainer:not(.zen-glance-overlay)';
@@ -15,6 +16,8 @@ var BlendedAddressbarModule = ((options) => {
   ];
   let paneCornerMutationObserver = null;
   let paneCornerUpdateTimer = 0;
+  let paneSidebarResizeObserver = null;
+  let paneSidebarModeObserver = null;
 
   function clearPaneCornerRadii(pane) {
     removeStylePropertyIfChanged(pane.style, '--blended-addressbar-pane-clip-inset');
@@ -54,8 +57,41 @@ var BlendedAddressbarModule = ((options) => {
     });
   }
 
+  function updateSingleSidebarLayout() {
+    const root = chromeDoc.documentElement;
+    if (!root) return;
+    const tabbox = chromeDoc.getElementById('tabbrowser-tabbox');
+    const sidebar = chromeDoc.getElementById('sidebar-box');
+    const panels = chromeDoc.getElementById('tabbrowser-tabpanels');
+    const frame = chromeDoc.getElementById('zen-appcontent-wrapper');
+    const enabled = !!sidebar && !sidebar.hidden && sidebar.hasAttribute('sidebar-panel-open')
+      && !!panels && !!frame && !!tabbox
+      && tabbox.getAttribute('zen-split-view') !== 'true'
+      && root.getAttribute('zen-single-toolbar') !== 'true'
+      && root.getAttribute('inDOMFullscreen') !== 'true'
+      && !root.hasAttribute('customizing')
+      && !(root.getAttribute('zen-compact-mode') === 'true' && readBoolPref('zen.view.compact.hide-toolbar', false));
+    root.toggleAttribute('data-blended-sidebar-column', enabled);
+    if (!enabled) return;
+
+    const nav = chromeDoc.getElementById('nav-bar');
+    const bookmarks = chromeDoc.getElementById('PersonalToolbar');
+    const toolbarHeight = [nav, bookmarks].reduce((height, toolbar) => {
+      if (!toolbar || toolbar.hidden || toolbar.getAttribute('collapsed') === 'true') return height;
+      const style = chromeDoc.defaultView.getComputedStyle(toolbar);
+      return style.display === 'none' || style.visibility === 'collapse'
+        ? height : height + toolbar.getBoundingClientRect().height;
+    }, 0);
+    const pageBounds = panels.getBoundingClientRect();
+    const frameBounds = frame.getBoundingClientRect();
+    setStylePropertyIfChanged(root.style, '--blended-addressbar-sidebar-toolbar-height', `${toolbarHeight}px`);
+    setStylePropertyIfChanged(root.style, '--blended-addressbar-sidebar-page-left', `${pageBounds.left - frameBounds.left}px`);
+    setStylePropertyIfChanged(root.style, '--blended-addressbar-sidebar-page-width', `${pageBounds.width}px`);
+  }
+
   function updatePaneCornerRadii() {
     paneCornerUpdateTimer = 0;
+    updateSingleSidebarLayout();
 
     const tabpanels = chromeDoc.getElementById('tabbrowser-tabpanels');
     const tabbox = chromeDoc.getElementById('tabbrowser-tabbox');
@@ -153,10 +189,30 @@ var BlendedAddressbarModule = ((options) => {
       subtree: true
     });
 
+    paneSidebarModeObserver?.disconnect();
+    paneSidebarModeObserver = new MutationObserver(schedulePaneCornerRadiiUpdate);
+    paneSidebarModeObserver.observe(chromeDoc.documentElement, {
+      attributes: true, attributeFilter: ['zen-single-toolbar', 'zen-compact-mode', 'inDOMFullscreen', 'customizing']
+    });
+    if (typeof ResizeObserver !== 'undefined') {
+      paneSidebarResizeObserver?.disconnect();
+      paneSidebarResizeObserver = new ResizeObserver(schedulePaneCornerRadiiUpdate);
+      for (const id of ['tabbrowser-tabpanels', 'zen-appcontent-wrapper', 'nav-bar', 'PersonalToolbar']) {
+        const target = chromeDoc.getElementById(id);
+        if (target) paneSidebarResizeObserver.observe(target);
+      }
+    }
     schedulePaneCornerRadiiUpdate();
   }
 
   function cleanupPaneCornerRadii() {
+    paneSidebarResizeObserver?.disconnect();
+    paneSidebarModeObserver?.disconnect();
+    chromeDoc.documentElement?.removeAttribute('data-blended-sidebar-column');
+    for (const property of ['height', 'left', 'width']) {
+      const name = property === 'height' ? 'toolbar-height' : `page-${property}`;
+      if (chromeDoc.documentElement) removeStylePropertyIfChanged(chromeDoc.documentElement.style, `--blended-addressbar-sidebar-${name}`);
+    }
     if (paneCornerUpdateTimer) clearTimeout(paneCornerUpdateTimer);
     paneCornerUpdateTimer = 0;
     if (paneCornerMutationObserver) paneCornerMutationObserver.disconnect();

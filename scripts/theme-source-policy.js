@@ -4,8 +4,8 @@ var BlendedAddressbarModule = (() => {
   const colorSourcePolicies = Object.freeze({
     'dark-reader': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 5, modifier: true }),
     'top-visible': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
-    'pixel-top-edge': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
-    pixel: Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 6 }),
+    'pixel-top-edge': Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 8 }),
+    pixel: Object.freeze({ sourceClass: 'visual', rendered: true, confidence: 8 }),
     'theme-color': Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 7, preferred: true }),
     body: Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 3 }),
     html: Object.freeze({ sourceClass: 'semantic', rendered: false, confidence: 3 }),
