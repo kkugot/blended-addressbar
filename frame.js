@@ -5,18 +5,20 @@
   'use strict';
 
   try {
-    if (content.__blended_addressbar_frame_inited) {
+    if (content.__blended_addressbar_frame_inited && typeof content.__blended_addressbar_sample === 'function') {
       const sample = content.__blended_addressbar_sample;
       if (typeof sample === 'function') sample(true);
       return;
     }
-    content.__blended_addressbar_frame_inited = true;
 
     const MESSAGE_NAME = 'blended-addressbar:persistent-theme';
-    const PIXEL_SAMPLE_SIZE = 3;
+    const PIXEL_SAMPLE_WIDTH = 256;
+    const PIXEL_SAMPLE_HEIGHT = 8;
+    const { getDominantSampleColor } = BlendedAddressbarModule;
     const SAMPLE_TOP_Y = 3;
     let lastKey = '';
     let debounceTimer = 0;
+    let forceNextSample = false;
     let lastRescheduleAt = 0;
     let pixelCanvas = null;
     let pixelCtx = null;
@@ -26,8 +28,8 @@
 
       try {
         pixelCanvas = content.document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas');
-        pixelCanvas.width = PIXEL_SAMPLE_SIZE;
-        pixelCanvas.height = PIXEL_SAMPLE_SIZE;
+        pixelCanvas.width = PIXEL_SAMPLE_WIDTH;
+        pixelCanvas.height = PIXEL_SAMPLE_HEIGHT;
         pixelCtx = pixelCanvas.getContext('2d', { willReadFrequently: true });
         return !!pixelCtx;
       } catch {
@@ -103,36 +105,21 @@
         const height = content.innerHeight | 0;
         if (width <= 0 || height <= 0 || !ensureCanvas() || !pixelCtx.drawWindow) return null;
 
-        const half = Math.floor(PIXEL_SAMPLE_SIZE / 2);
-        const x = Math.max(0, Math.floor(width / 2) - half);
-        const y = Math.max(0, Math.min(SAMPLE_TOP_Y, height - PIXEL_SAMPLE_SIZE));
-        pixelCtx.clearRect(0, 0, PIXEL_SAMPLE_SIZE, PIXEL_SAMPLE_SIZE);
-        pixelCtx.drawWindow(
-          content,
-          x,
-          y,
-          PIXEL_SAMPLE_SIZE,
-          PIXEL_SAMPLE_SIZE,
-          'rgba(0, 0, 0, 0)'
-        );
-
-        const data = pixelCtx.getImageData(0, 0, PIXEL_SAMPLE_SIZE, PIXEL_SAMPLE_SIZE).data;
-        let r = 0;
-        let g = 0;
-        let b = 0;
-        let n = 0;
-
-        for (let i = 0; i < PIXEL_SAMPLE_SIZE * PIXEL_SAMPLE_SIZE; i++) {
-          const offset = i * 4;
-          if (data[offset + 3] === 0) continue;
-          r += data[offset];
-          g += data[offset + 1];
-          b += data[offset + 2];
-          n++;
+        const sampleWidth = Math.min(width, PIXEL_SAMPLE_WIDTH);
+        const sampleHeight = Math.min(height, PIXEL_SAMPLE_HEIGHT);
+        pixelCanvas.width = sampleWidth;
+        pixelCanvas.height = sampleHeight;
+        pixelCtx.save();
+        try {
+          pixelCtx.scale(sampleWidth / width, 1);
+          pixelCtx.drawWindow(content, content.scrollX, content.scrollY,
+            width, sampleHeight, 'rgba(0, 0, 0, 0)');
+        } finally {
+          pixelCtx.restore();
         }
-
-        if (!n) return null;
-        return `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+        const data = pixelCtx.getImageData(0, 0, sampleWidth, sampleHeight).data;
+        const color = getDominantSampleColor(data);
+        return color ? `rgb(${color.r}, ${color.g}, ${color.b})` : null;
       } catch {
         return null;
       }
@@ -214,11 +201,14 @@
     }
     content.__blended_addressbar_sample = sample;
 
-    function debouncedSample() {
+    function debouncedSample(force = false) {
+      forceNextSample ||= force === true;
       if (debounceTimer) return;
       debounceTimer = content.setTimeout(() => {
         debounceTimer = 0;
-        sample(false);
+        const force = forceNextSample;
+        forceNextSample = false;
+        sample(force);
       }, 250);
     }
 
@@ -279,9 +269,13 @@
       sample(true);
     }
 
+    // CSS media queries can repaint without mutating DOM or metadata. Force a
+    // message so chrome can also refresh its pixel fallback when needed.
+    content.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => debouncedSample(true));
     startObserving();
     content.addEventListener('load', rescheduleLoad, { capture: true });
     content.addEventListener('pageshow', rescheduleLoad, { capture: true });
+    content.__blended_addressbar_frame_inited = true;
   } catch (error) {
     try {
       console.error('[blended-addressbar frame] init failed:', error);

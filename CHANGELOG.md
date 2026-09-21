@@ -1,5 +1,70 @@
 # Changelog
 
+## 1.7.11 - 2026-09-21
+
+- Reduce the Minimal preset’s white inner highlight, black outer edge and soft shadow from 20% to 15% opacity.
+
+## 1.7.10 - 2026-09-21
+
+- Restore a full-field loading tint behind the moving URL-bar glow and progress line, for both native and split address fields.
+- Keep the underlying background and shadows intact; use the existing glow color and opacity settings, and remove the tint when loading ends.
+
+## 1.7.9 - 2026-09-21
+
+- Give single-tab dual-toolbar sidebars their own full-height column, with the native addressbar and bookmarks confined to the webpage width. Keep native browser/sidebar nodes and resizing intact.
+- Remove the extra sidebar highlight in single-tab mode so the shared frame does not produce a double border.
+- Track toolbar height, bookmark visibility and sidebar resizing. Preserve native compact toolbar autohide and restore normal layout when the sidebar closes or split view starts.
+
+## 1.7.8 - 2026-09-21
+
+- Give open browser sidebars the same passive frame treatment as split panes, with matching outer-corner clipping and the shared inner-highlight preset.
+- Keep divider-facing corners square and omit the thick active-pane accent. The highlight remains click-through.
+
+## 1.7.7 - 2026-09-21
+
+- Stop the collapsed shared toolbar containers from intercepting mouse events over split address fields and native split controls.
+- Keep the real URL editor interactive when opened. Validate physical pointer clicks and hover paths with hover-to-focus both enabled and disabled.
+
+## 1.7.6 - 2026-09-20
+
+- Refresh every attached page sampler on prefers-color-scheme changes, including inactive visible split panes. CSS-only dark/light switches no longer leave split address fields on the previous background.
+- Coalesce theme notifications and force a bridge update when needed for rendered-color fallbacks. Refresh native proxy styling on browser color-scheme changes without scrolling or polling.
+
+## 1.7.5 - 2026-09-20
+
+- Fix the persistent sampler’s shared-helper loading scope and retry incomplete initialization instead of leaving the sampler disabled.
+- Prefer confirmed top-edge pixel colors over site theme-color metadata, so sites such as zen-browser.app blend with their rendered background and follow page theme changes.
+
+## 1.7.4 - 2026-09-20
+
+- Animate the active split’s inset highlight with a smooth 260ms entrance and a faster 90ms exit; disable transitions for reduced motion.
+- Add opt-in Focus split pane on hover, with a 150ms dwell before selecting the pane. Keep click selection by default and suppress hover changes during URL editing, open menus, Glance, dragging and inactive windows.
+
+## 1.7.3 - 2026-09-20
+
+- Use Frame gap for both split directions and the gap beside an open sidebar. Default to Zen’s native element spacing while preserving explicitly saved values.
+- Remove the duplicate gap beside a right-hand sidebar and keep its outer edge inside the frame.
+- Keep resize handles usable when frame padding is disabled, and anchor split handles to the page area instead of including sidebar width on browsers supporting CSS anchor positioning.
+
+## 1.7.2 - 2026-09-20
+
+- Collapse the shared toolbar row and hide the bookmarks toolbar while dual-toolbar split address fields are active. Restore both on exit without changing Zen’s bookmark visibility preference.
+- Keep the native URL editor and site menus available above each pane while shared toolbar buttons are hidden.
+
+## 1.7.1 - 2026-09-20
+
+- Match split address fields to the native addressbar’s font, height, shape and background. Add native copy-URL and site-settings actions for each pane.
+- Hide the collapsed original addressbar in split view and anchor its real editor and suggestions over the selected pane, including keyboard activation. Keep its original DOM and restore normal placement outside split view.
+- Reposition the editor on pane/sidebar layout changes and constrain suggestions to the remaining window height.
+
+## 1.7.0 - 2026-09-19
+
+- Added compact address and reload/stop controls above each dual-toolbar split pane, with independent page colors and loading progress. The native toolbar and URL editor stay in place.
+- Changed URL bar glow to a moving highlight with a bright leading edge, smooth progress and completion. Existing page/focus colors remain configurable.
+- Added optional iridescent glow and reduced-motion support.
+- Sample the dominant color of the page’s top strip instead of averaging a small central patch or the whole line. Pixel sampling and foreground contrast stay separate for each pane.
+- Preserve native browser, notification, findbar and DevTools containers, shared clipping and square split-divider corners.
+
 ## 1.6.1 - 2026-09-13
 
 - Added a 0.5pt white inner highlight at 20% opacity to the Minimal frame shadow preset.

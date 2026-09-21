@@ -5,6 +5,12 @@
     "margin": "20px 0 12px 0"
   },
   {
+    "property": "uc.blended-addressbar.split-focus-on-hover",
+    "label": "Focus split pane on hover",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
     "property": "uc.blended-addressbar.frame-radius",
     "label": "Corner radius",
     "type": "string",
@@ -20,7 +26,7 @@
     "property": "uc.blended-addressbar.frame-gap",
     "label": "Frame gap",
     "type": "string",
-    "defaultValue": "5px"
+    "defaultValue": "var(--zen-element-separation)"
   },
   {
     "property": "uc.blended-addressbar.frame-padding.disabled",
@@ -115,6 +121,12 @@
     "label": "Use focus color",
     "type": "checkbox",
     "defaultValue": true
+  },
+  {
+    "property": "uc.loadbar.iridescent",
+    "label": "Iridescent URL bar glow",
+    "type": "checkbox",
+    "defaultValue": false
   },
   {
     "property": "uc.loadbar.height",

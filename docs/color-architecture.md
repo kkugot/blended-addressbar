@@ -6,11 +6,14 @@ This document describes the current adaptive color pipeline for Blended Addressb
 
 - `blended-bar.uc.js` runs in browser chrome. It owns browser lifecycle hooks, cache lookup orchestration, candidate arbitration, CSS variable writes, native Zen tinting, frame preferences, and loading bar preferences. It remains the single Zen script entry point and loads focused helper modules from `scripts/`.
 - `scripts/style-state.js` owns idempotent CSS custom property writes/removals.
+- `scripts/color-sampling.js` provides a shared alpha-weighted dominant-color calculation. It groups RGB pixels into 4-bit-per-channel buckets and averages only the winning bucket. The persistent frame samples the visible top 8px, downscaled to at most 256px wide; the chrome snapshot fallback applies the same algorithm to its top line.
+- `scripts/loadbar.js` owns the monotonic loading-progress calculation. Its estimate timer animates progress only; it never samples page colors.
+- `scripts/split-addressbars.js` owns the local address/reload controls. Browser events and frame-message routing stay in the chrome entry point.
 - `scripts/color-utils.js` owns color parsing, alpha visibility checks, contrast, and readable foreground selection.
 - `scripts/prefs.js` owns preference access and preference value normalization.
 - `scripts/pane-layout.js` owns split-pane/browser-frame corner radius observation and updates.
 - `scripts/theme-source-policy.js` owns color source policy metadata, confidence lookup, preferred semantic checks, and rendered-source checks.
-- `frame.js` runs in page content through a persistent frame listener. It watches page theme mutations, load, and pageshow events, then sends lightweight color samples back to chrome. Scroll does not trigger color updates.
+- `frame.js` runs in page content through a persistent frame listener. It and `color-sampling.js` load in the same message-manager global scope; initialization is marked complete only after setup succeeds. It watches page theme mutations, prefers-color-scheme changes, load, and pageshow events, then sends lightweight color samples back to chrome. Scroll does not trigger color updates.
 - `style.css` consumes chrome CSS variables such as `--zen-tab-header-background`, `--zen-tab-header-foreground`, `--blended-addressbar-frame-background`, and `--blended-addressbar-window-tint-background`.
 - `styles/header-chrome.css` consumes the header foreground variables for hidden-tabs and compact-mode chrome icon styling.
 - `styles/loadbar.css` consumes loadbar variables and preferences.
@@ -93,15 +96,21 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 
 | Source | Class | Rendered/trusted? | Confidence | Notes |
 | --- | --- | --- | --- | --- |
-| `theme-color` | preferred semantic | no | 7 | Preferred during normal active loads so semantic site color can stay stable. Ignored while Boost requires pixel-derived sources. |
+| `theme-color` | preferred semantic | no | 7 | Preferred semantic fallback during active loads; confirmed top-edge pixels can replace it. Ignored while Boost requires pixel-derived sources. |
 | `top-visible` | visual DOM | yes, but not pixel-derived | 6 | Top visible element from chrome-side DOM read or persistent-frame ancestor sampling. Ignored while Boost requires actual pixels. |
-| `pixel-top-edge` / `pixel` | visual pixel | yes | 6 | Persistent content or chrome snapshot of rendered top edge. |
+| `pixel-top-edge` / `pixel` | visual pixel | yes | 8 | Persistent content or chrome snapshot of rendered top edge. |
 | `dark-reader` | modifier-derived visual | yes, but not pixel-derived | 5 | Uses Dark Reader CSS variables. Treated as rendered because it reflects transformed page colors, but ignored while Boost requires actual pixels. |
 | `host-cache` | cache fallback | maybe | 4 | Rendered only when its `cachedSource` was rendered; Boost accepts it only when `cachedSource` was pixel-derived. |
 | `body` / `html` | weak semantic | no | 3 | Useful fallback, but prone to blink when later visual samples arrive. |
 | `document-canvas` | weak semantic | no | 2 | Last document-level fallback before chrome fallback. |
 | `sampler` | visual fallback | yes | 1 | Legacy periodic snapshot path. |
 | `chrome-contrast-fallback` / `toolbar-fallback` | chrome fallback | no | 1 / 0 | Keeps UI readable when no page signal is available. |
+
+## Split-pane colors
+
+Visible dual-toolbar split panes attach the existing persistent frame sampler. Pixel-derived messages update only the matching pane; if a frame produces a semantic fallback, a chrome snapshot supplies the pane’s rendered color. Snapshot requests are coalesced per browser and discarded when the document, URL or pane membership changes. Each attached frame observes prefers-color-scheme changes independently, including in inactive visible panes. These events force one debounced message even if semantic metadata stays unchanged, so chrome can refresh its rendered fallback. No scroll listener or color polling is added.
+
+Each pane commits its own background and readable foreground together. Its theme is cleared on URL changes and pixel caches are reused when available. The active toolbar keeps the existing arbitration policy. Per-pane controls occupy the native `browserstack` grid cell, with a margin reserving their row above the stack; browser elements keep their original parents. The native URL editor also keeps its parent: pane geometry supplies CSS coordinates while split mode is active. The collapsed original is hidden, and focus or Cmd/Ctrl+L reveals the real editor over the selected field. Resize and layout observers update its anchor; leaving split mode removes the override. Local copy and site-settings buttons select their browser before invoking the native action. A separate split-bars attribute collapses the shared toolbar wrapper and hides bookmarks while the rows exist, including while Glance is focused. The nav bar uses visibility rather than display removal so its native URL editor can remain visible and interactive. Collapsed wrapper containers ignore pointer events; the editor explicitly restores them while open so invisible toolbar boxes cannot cover pane controls. Toolbar and bookmark preferences are never changed.
 
 ## Cache Layers
 
@@ -125,7 +134,7 @@ Modifiers change which candidates are trusted and how quickly they can commit.
 | Loading | Marks active load state and schedules one early `fastOnly` update, then one settled update at load stop. The persistent frame handles follow-up `load`/`pageshow` samples. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
 | Tab switch | Coalesces updates, applies exact target cache first, then same-host retained color, then host fallback. Exact or retained cached tab colors are kept without immediately forcing a fresh persistent page sample only after the cache paint succeeds. Equivalent color keys are no-ops to avoid CSS rewrite blink. |
 | Zen Boost | Detected through `#zen-site-data-icon-button[boosting]` in `blended-bar.uc.js`, then folded into `createResolveContext` as `boostActive`, `requireRendered`, and `requirePixel`. Boost changes clear active page cache, request a persistent rendered sample, and require pixel-derived sources such as `pixel-top-edge`, `pixel`, `sampler`, or host cache entries from those sources. Computed-style sources such as `top-visible`, `body`, `html`, and `theme-color` are ignored while Boost is active. |
-| Dark Reader | Detected through `--darkreader-neutral-background` and `--darkreader-neutral-text`. Treated as rendered and allowed through Boost gates. |
+| Dark Reader | Detected through `--darkreader-neutral-background` and `--darkreader-neutral-text`. Treated as rendered for normal arbitration, but rejected when Boost requires actual pixels. |
 | Persistent frame | Sends top-edge pixel, theme-color, body/html, or ancestor top-visible samples when the page loads, mutates theme attributes/head metadata, or fires pageshow/load. It does not listen to scroll events. |
 | Foreground stability | Background and foreground are applied together. Early candidates can reuse a stable readable foreground to avoid addressbar text blinking before samples catch up. |
 | Native window tint | Applies a mixed page color to Zen background variables without replacing Zen's primary/text variables. |
@@ -208,7 +217,7 @@ The resolver can then be a small policy matrix instead of scattered booleans:
 ```js
 const COLOR_SOURCES = {
   'theme-color': { sourceClass: 'semantic', rendered: false, confidence: 7, preferred: true },
-  'pixel-top-edge': { sourceClass: 'visual', rendered: true, confidence: 6 },
+  'pixel-top-edge': { sourceClass: 'visual', rendered: true, confidence: 8 },
   'dark-reader': { sourceClass: 'visual', rendered: true, confidence: 5, modifier: true }
 };
 ```

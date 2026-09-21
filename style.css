@@ -2,7 +2,7 @@
 @import "styles/header-chrome.css";
 
 :root {
-    --blended-addressbar-frame-gap: 5px;
+    --blended-addressbar-frame-gap: var(--zen-element-separation);
     --blended-addressbar-pane-inner-highlight: inset 0 0 0 0px transparent;
     --blended-addressbar-frame-radius: 14px;
     --blended-addressbar-inner-radius: max(0px, calc(var(--blended-addressbar-frame-radius) - var(--blended-addressbar-frame-gap)));
@@ -11,8 +11,8 @@
         0 4px 16px rgba(0, 0, 0, 0.14),
         0 1px 4px rgba(0, 0, 0, 0.12);
     --blended-addressbar-frame-shadow-minimal:
-        0 0 0 0.5pt rgba(0, 0, 0, 0.20),
-        0 2px 8px rgba(0, 0, 0, 0.20);
+        0 0 0 0.5pt rgba(0, 0, 0, 0.15),
+        0 2px 8px rgba(0, 0, 0, 0.15);
     --blended-addressbar-frame-shadow-medium:
         0 5px 12px rgba(0, 0, 0, 0.10),
         0 1px 2px rgba(0, 0, 0, 0.10);
@@ -24,7 +24,7 @@
 
 :root[data-blended-addressbar-frame-shadow="minimal"] {
     --blended-addressbar-frame-shadow: var(--blended-addressbar-frame-shadow-minimal);
-    --blended-addressbar-pane-inner-highlight: inset 0 0 0 0.5pt rgba(255, 255, 255, 0.20);
+    --blended-addressbar-pane-inner-highlight: inset 0 0 0 0.5pt rgba(255, 255, 255, 0.15);
 }
 
 /* A separate layer keeps the highlight above page content and clear of loadbar pseudo-elements. */
@@ -42,7 +42,7 @@
             inset: 0;
             z-index: 5;
             border-radius: inherit;
-            box-shadow: inset 0 0 0 0.5pt rgba(255, 255, 255, 0.20);
+            box-shadow: inset 0 0 0 0.5pt rgba(255, 255, 255, 0.15);
             pointer-events: none;
         }
 
@@ -740,6 +740,7 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
         border-radius: inherit;
         corner-shape: inherit;
         box-shadow: var(--blended-addressbar-pane-inner-highlight);
+        transition: box-shadow 90ms ease-in;
         pointer-events: none;
     }
 }
@@ -749,5 +750,368 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
 
     > .browserContainer > .blended-addressbar-pane-highlight {
         box-shadow: inset 0 0 0 1.5pt var(--zen-active-split-outline-color, var(--zen-primary-color)), var(--blended-addressbar-pane-inner-highlight);
+        transition-duration: 260ms;
+        transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+}
+
+/* Share the native browserstack grid cell; the stack's margin reserves the row.
+   Browser, notification, findbar and DevTools nodes retain their native parents. */
+:root:not([zen-single-toolbar="true"]):not([inDOMFullscreen="true"]):not([inFullscreen="true"])
+#tabbrowser-tabpanels[zen-split-view="true"] > .browserSidebarContainer[zen-split="true"]:not(.zen-glance-overlay)
+> .browserContainer:has(> .blended-addressbar-pane-bar) {
+    --blended-addressbar-pane-bar-height: calc(var(--blended-addressbar-native-height, 36px) + 6px);
+
+    > .browserStack {
+        margin-block-start: var(--blended-addressbar-pane-bar-height) !important;
+        min-height: 0 !important;
+    }
+
+    > .blended-addressbar-pane-bar {
+        display: flex;
+    }
+
+    > .blended-addressbar-pane-highlight {
+        z-index: 4;
+    }
+}
+
+.blended-addressbar-pane-bar {
+    --blended-addressbar-dynamic-loadbar-color: var(--blended-addressbar-pane-foreground, var(--toolbar-color));
+    display: none;
+    grid-area: browserstack;
+    align-self: start;
+    position: relative;
+    z-index: 3;
+    box-sizing: border-box;
+    height: var(--blended-addressbar-pane-bar-height);
+    min-width: 0;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    color: var(--blended-addressbar-pane-foreground, var(--toolbar-color));
+    background: var(--blended-addressbar-pane-background, var(--zen-main-browser-background-toolbar));
+    border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+    -moz-window-dragging: no-drag;
+}
+
+:root[data-blended-addressbar-loadbar-focus-color="true"] .blended-addressbar-pane-bar {
+    --blended-addressbar-dynamic-loadbar-color: var(--zen-primary-color);
+}
+
+.blended-addressbar-pane-address,
+.blended-addressbar-pane-copy,
+.blended-addressbar-pane-site,
+.blended-addressbar-pane-reload {
+    appearance: none !important;
+    border: 0 !important;
+    border-radius: 5px;
+    background: transparent !important;
+    color: inherit !important;
+    font: var(--blended-addressbar-native-font, inherit) !important;
+    height: var(--blended-addressbar-native-height, 36px) !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    -moz-window-dragging: no-drag;
+
+    &:hover {
+        background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+    }
+
+    &:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: -2px;
+    }
+}
+
+.blended-addressbar-pane-address {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-align: start;
+    padding: 0 7px;
+    cursor: text;
+    direction: ltr;
+}
+
+.blended-addressbar-pane-host {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.blended-addressbar-pane-path {
+    flex: 0 100 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.7;
+}
+
+.blended-addressbar-pane-reload {
+    flex: 0 0 26px;
+    padding: 5px;
+    cursor: pointer;
+
+    &::before {
+        content: "";
+        display: block;
+        width: 16px;
+        height: 16px;
+        background: currentColor;
+        mask: url("chrome://global/skin/icons/reload.svg") center / 16px no-repeat;
+    }
+
+    &[data-loading="true"]::before {
+        mask: none;
+        width: 10px;
+        height: 10px;
+        margin: 3px;
+        border-radius: 1px;
+    }
+}
+
+/* Visual proxies share native typography and shape; only #urlbar edits text. */
+.blended-addressbar-pane-field {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    height: var(--blended-addressbar-native-height, 36px);
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: var(--blended-addressbar-native-radius, 8px);
+    background: var(--blended-addressbar-native-background, transparent);
+    border: var(--blended-addressbar-native-border, 0);
+    box-shadow: var(--blended-addressbar-native-shadow, none);
+
+    &:focus-within {
+        outline: 2px solid currentColor;
+        outline-offset: -2px;
+    }
+}
+
+.blended-addressbar-pane-copy,
+.blended-addressbar-pane-site {
+    flex: 0 0 28px;
+    width: 28px;
+    padding: 6px;
+    cursor: pointer;
+
+    &::before {
+        content: "";
+        display: block;
+        width: 16px;
+        height: 16px;
+        background: currentColor;
+        mask: var(--blended-addressbar-native-copy-icon) center / 16px no-repeat;
+    }
+}
+
+/* Keep the native editor in its original DOM/top layer, anchored to the pane. */
+:root[data-blended-split-editor="true"] #urlbar-container {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+:root[data-blended-split-editor="true"] #urlbar {
+    font: var(--blended-addressbar-native-font, inherit) !important;
+    --urlbar-width: var(--blended-addressbar-editor-width) !important;
+    --zen-urlbar-width: var(--blended-addressbar-editor-width) !important;
+    --zen-urlbar-top: var(--blended-addressbar-editor-top) !important;
+    position: fixed !important;
+    inset: auto !important;
+    left: var(--blended-addressbar-editor-left) !important;
+    top: var(--blended-addressbar-editor-top) !important;
+    width: var(--blended-addressbar-editor-width) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    translate: none !important;
+    transform: none !important;
+
+
+    #urlbar-results {
+        max-height: min(252px, var(--blended-addressbar-editor-results-height)) !important;
+        overflow-y: auto !important;
+    }
+}
+
+.blended-addressbar-pane-site::before {
+    mask-image: var(--blended-addressbar-native-site-icon);
+}
+
+/* Hide the shared rows without display:none on the native editor's ancestors. */
+:root[data-blended-split-bars] {
+    #zen-appcontent-navbar-wrapper {
+        pointer-events: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        margin-block: 0 !important;
+        padding-block: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    #zen-appcontent-navbar-container {
+        pointer-events: none !important;
+    }
+
+    #nav-bar {
+        visibility: hidden !important;
+    }
+
+    #urlbar {
+        visibility: visible !important;
+        pointer-events: auto !important;
+
+        &:not([focused]):not([breakout-extend]):not([open]):not(:focus-within) {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+    }
+
+    #PersonalToolbar {
+        display: none !important;
+    }
+}
+
+/* Compensate the panes' trailing margin inside the page area, not beyond the
+   right sidebar. Keep the sidebar splitter's own spacing and hit target. */
+:root:not([inDOMFullscreen="true"])
+#tabbrowser-tabbox[zen-split-view="true"][sidebar-panel-open][sidebar-positionend] {
+    margin-right: 0 !important;
+
+    > #tabbrowser-tabpanels {
+        margin-right: calc(-1 * var(--zen-split-row-gap)) !important;
+    }
+}
+
+/* One effective spacing value for the frame, splits and sidebar boundary. */
+:root:not([inDOMFullscreen="true"]) #tabbrowser-tabbox {
+    --zen-split-row-gap: var(--blended-addressbar-frame-gap) !important;
+    --zen-split-column-gap: var(--blended-addressbar-frame-gap) !important;
+    --blended-addressbar-resize-hit-size: max(6px, var(--blended-addressbar-frame-gap));
+
+    .zen-split-view-splitter[orient="vertical"] {
+        width: var(--blended-addressbar-resize-hit-size) !important;
+        margin-left: calc((var(--blended-addressbar-frame-gap) + var(--blended-addressbar-resize-hit-size)) / -2) !important;
+    }
+
+    .zen-split-view-splitter[orient="horizontal"] {
+        height: var(--blended-addressbar-resize-hit-size) !important;
+        margin-top: calc((var(--blended-addressbar-frame-gap) - var(--blended-addressbar-resize-hit-size)) / 2) !important;
+    }
+}
+
+:root:not([inDOMFullscreen="true"]) #tabbrowser-tabbox[sidebar-panel-open] {
+    column-gap: 0 !important;
+
+    > #sidebar-splitter {
+        box-sizing: border-box;
+        width: var(--blended-addressbar-resize-hit-size) !important;
+        min-width: var(--blended-addressbar-resize-hit-size) !important;
+        margin-inline: calc((var(--blended-addressbar-frame-gap) - var(--blended-addressbar-resize-hit-size)) / 2) !important;
+    }
+}
+
+/* Native split percentages describe the page area, not the adjacent sidebar. */
+@supports (width: anchor-size(--blended-split-panels width)) {
+    #tabbrowser-tabpanels[zen-split-view="true"] {
+        anchor-name: --blended-split-panels;
+    }
+
+    #tabbrowser-tabbox[zen-split-view="true"] > #zen-splitview-overlay-wrapper {
+        left: anchor(--blended-split-panels left) !important;
+        right: auto !important;
+        width: anchor-size(--blended-split-panels width) !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #tabbrowser-tabpanels .blended-addressbar-pane-highlight {
+        transition: none !important;
+    }
+}
+
+/* Frame the sidebar like a passive pane. */
+:root:not([inDOMFullscreen="true"]) #tabbrowser-tabbox > #sidebar-box[sidebar-panel-open]:not([hidden]) {
+    --blended-addressbar-sidebar-top-radius: 0px;
+    position: relative;
+    border-radius: var(--blended-addressbar-sidebar-top-radius) 0 0 var(--blended-addressbar-frame-radius) !important;
+    corner-shape: superellipse(var(--zen-squircle-value, 1.3));
+    overflow: hidden !important;
+    box-shadow: none !important;
+    outline: none !important;
+
+    &[sidebar-positionend] {
+        border-radius: 0 var(--blended-addressbar-sidebar-top-radius) var(--blended-addressbar-frame-radius) 0 !important;
+    }
+
+    &::after {
+        content: none;
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        border-radius: inherit;
+        corner-shape: inherit;
+        box-shadow: var(--blended-addressbar-pane-inner-highlight);
+        pointer-events: none;
+    }
+}
+
+:root:not([inDOMFullscreen="true"]) #tabbrowser-tabbox[zen-split-view="true"] > #sidebar-box[sidebar-panel-open]:not([hidden]) {
+    --blended-addressbar-sidebar-top-radius: var(--blended-addressbar-frame-radius);
+
+    &::after {
+        content: "";
+    }
+}
+
+/* In single-tab dual-toolbar mode, reserve toolbar space only in the page. */
+:root[data-blended-sidebar-column] {
+    #zen-appcontent-wrapper {
+        position: relative;
+    }
+
+    #zen-appcontent-navbar-wrapper {
+        height: 0 !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        pointer-events: none !important;
+    }
+
+    #zen-appcontent-navbar-container {
+        position: absolute !important;
+        left: var(--blended-addressbar-sidebar-page-left) !important;
+        top: 0 !important;
+        width: var(--blended-addressbar-sidebar-page-width) !important;
+        height: var(--blended-addressbar-sidebar-toolbar-height) !important;
+        background: var(--zen-tab-header-background, var(--zen-main-browser-background-toolbar));
+        pointer-events: auto !important;
+        z-index: 3;
+    }
+
+    #nav-bar {
+        position: relative !important;
+        width: 100% !important;
+    }
+
+    #tabbrowser-tabpanels > .browserSidebarContainer:not(.zen-glance-overlay) {
+        position: relative;
+
+        > .browserContainer {
+            position: absolute !important;
+            inset: var(--blended-addressbar-sidebar-toolbar-height) 0 0 !important;
+            height: auto !important;
+        }
     }
 }
