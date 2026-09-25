@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.13', () => {
+test('release metadata stays synchronized at version 1.7.14', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.13');
+  assert.equal(theme.version, '1.7.14');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.13/);
-  assert.match(marketplace, /Version: `1\.7\.13`/);
-  assert.match(marketplace, /"version": "1\.7\.13"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.14/);
+  assert.match(marketplace, /Version: `1\.7\.14`/);
+  assert.match(marketplace, /"version": "1\.7\.14"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.13 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.14 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -789,7 +789,7 @@ test('loadbar modes customize the native Zen loading progress element', () => {
   assert.match(edgeModeBlock, /&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[^}]*z-index:\s*3\s*!important/s);
   assert.match(edgeModeBlock, /#zen-appcontent-navbar-wrapper::after,\s*&\[zen-single-toolbar="true"\] #zen-tabbox-wrapper::after\s*\{[\s\S]*background:\s*linear-gradient\(\s*to bottom,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-strong-mix,\s*34%\),\s*transparent\) 0%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-medium-mix,\s*18%\),\s*transparent\) 36%,\s*color-mix\(in srgb,\s*var\(--blended-addressbar-dynamic-loadbar-color\) var\(--blended-addressbar-loadbar-glow-weak-mix,\s*7%\),\s*transparent\) 68%,\s*transparent 100%\s*\)\s*!important/s);
   assert.match(edgeModeBlock, /&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::before,\s*&:not\(:has\(\.tabbrowser-tab\[selected\]\[busy\]\)\) #zen-appcontent-navbar-wrapper::after,[^\{]*\{[^}]*width:\s*0\s*!important;[^}]*opacity:\s*0\s*!important/s);
-  assert.match(css, /radial-gradient\(ellipse 150px 32px at right bottom/);
+  assert.match(css, /radial-gradient\(ellipse 150px 32px at calc\(100% - 150px\)/);
   assert.match(css, /data-blended-loading/);
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /blended-addressbar-pane-address/);
@@ -1108,7 +1108,7 @@ test('unknown page colors use a translucent neutral header without native window
   assert.match(script, /setVar\(theme\.bg,\s*theme\.fg\)/);
   assert.match(script, /clearWindowTintBackground\(\)/);
   assert.match(script, /setStylePropertyIfChanged\(chromeDoc\.documentElement\.style,\s*'--blended-addressbar-frame-background',\s*'transparent',\s*'important'\)/);
-  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*requestPersistentFrameTheme\(browser,\s*true\);\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);\s*return;\s*\}/s);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*requestPersistentFrameTheme\(browser,\s*true\);\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);\s*void sampleRenderedTheme\(browser\);\s*return;\s*\}/s);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*'unknown-page',\s*expectedHref\)/);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason,\s*expectedHref\)/);
 });
@@ -1801,7 +1801,7 @@ test('loading samples are scheduled after paint and chrome reads a strip rather 
   assert.match(frame, /content\.requestAnimationFrame/);
   assert.match(frame, /content\.setTimeout\(run, 100\)/);
   assert.match(frame, /addEventListener\('DOMContentLoaded', sampleAfterPaint/);
-  assert.match(read('blended-bar.uc.js'), /const sampleHeight = Math\.max\(1, Math\.min\(8, Math\.floor\(rect\.height\)\)\)/);
+  assert.match(read('blended-bar.uc.js'), /let sampleHeight = Math\.max\(1, Math\.min\(8, Math\.floor\(rect\.height\)\)\)/);
 });
 
 test('rendered fallback also updates an ordinary loading tab without split bars', async () => {
@@ -1854,4 +1854,36 @@ test('paint-triggered samples coalesce and cancel the safety timer', () => {
   [...timers.values()][0]();
   assert.equal(samples, 2);
   assert.equal(frames.size, 0);
+});
+
+test('loading halo extends beyond the progress edge and ends in a bright tip', () => {
+  const css = read('styles/loadbar.css');
+  const start = css.indexOf('  :root[data-blended-addressbar-loadbar-mode="glow"]');
+  const halo = cssRuleBlock(css.slice(start), '&::before {');
+  assert.match(halo, /left: -150px !important/);
+  assert.match(halo, /width: calc\(var\(--blended-addressbar-loadbar-progress, 0%\) \+ 300px\) !important/);
+  assert.match(halo, /max-width: none !important/);
+  assert.match(halo, /at calc\(100% - 150px\) 100%/);
+  assert.match(css.slice(start), /var\(--blended-addressbar-glow-color\) 25%, white/);
+});
+
+
+test('normal full updates request rendered pixels independently of frame replies', () => {
+  const source = read('blended-bar.uc.js');
+  const fullUpdate = source.slice(source.indexOf('    if (!fastOnly) {', source.indexOf('  async function startSampling(')));
+  assert.match(fullUpdate, /requestPersistentFrameTheme\(browser[^;]+;\s*void sampleRenderedTheme\(browser\);\s*const pageTheme = await getBrowserPageTheme\(browser\)/);
+});
+
+
+test('rendered fallback captures the viewport when scroll offsets are unavailable', () => {
+  const source = read('blended-bar.uc.js');
+  assert.match(source, /const hasScrollPosition = Number\.isFinite\(scrollX\) && Number\.isFinite\(scrollY\)/);
+  assert.match(source, /wg\.drawSnapshot\(captureRect, hasScrollPosition \? 1 : 0\.5, 'transparent'\)/);
+  assert.match(source, /sampleHeight = Math\.min\(4, bitmap\.height\)/);
+});
+
+
+test('uncached loading pages request a rendered check before the early return', () => {
+  const source = read('blended-bar.uc.js');
+  assert.match(source, /applyHeaderOnlyTheme\(browser, getNeutralHeaderShade\(browser, 'loading-unknown'\), 'loading-unknown', expectedHref\);\s*void sampleRenderedTheme\(browser\);\s*return;/);
 });

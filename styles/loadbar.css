@@ -245,7 +245,15 @@
 
       &::before {
         top: 0 !important;
-        background: radial-gradient(ellipse 150px 32px at right bottom,
+        /* Leave a full glow radius beyond the leading edge, not a hard crop. */
+        left: -150px !important;
+        width: calc(var(--blended-addressbar-loadbar-progress, 0%) + 300px) !important;
+        max-width: none !important;
+        background:
+          radial-gradient(ellipse 14px 7px at calc(100% - 150px) 100%,
+            color-mix(in srgb, color-mix(in srgb, var(--blended-addressbar-glow-color) 25%, white)
+              var(--blended-addressbar-loadbar-glow-strong-mix, 34%), transparent), transparent),
+          radial-gradient(ellipse 150px 32px at calc(100% - 150px) 100%,
           color-mix(in srgb, var(--blended-addressbar-glow-color) var(--blended-addressbar-loadbar-glow-strong-mix, 34%), transparent),
           color-mix(in srgb, var(--blended-addressbar-glow-color) var(--blended-addressbar-loadbar-glow-medium-mix, 18%), transparent) 45%,
           transparent 100%) !important;
@@ -257,7 +265,7 @@
         background: linear-gradient(to right,
           color-mix(in srgb, var(--blended-addressbar-glow-color) 55%, transparent),
           var(--blended-addressbar-glow-color) 85%,
-          color-mix(in srgb, var(--blended-addressbar-glow-color) 65%, white)) !important;
+          color-mix(in srgb, var(--blended-addressbar-glow-color) 25%, white)) !important;
       }
     }
 

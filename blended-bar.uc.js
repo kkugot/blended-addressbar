@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.13
+// @version        1.7.14
 // ==/UserScript==
 
 (() => {
@@ -2841,8 +2841,8 @@
       return null;
     }
 
-    const sampleWidth = Math.max(1, Math.floor(rect.width));
-    const sampleHeight = Math.max(1, Math.min(8, Math.floor(rect.height)));
+    let sampleWidth = Math.max(1, Math.floor(rect.width));
+    let sampleHeight = Math.max(1, Math.min(8, Math.floor(rect.height)));
     const contentX = 0;
     const contentY = 0;
     const x = Math.max(0, Math.floor(rect.left + contentX));
@@ -2862,14 +2862,25 @@
       const wg = browser?.browsingContext?.currentWindowGlobal;
       if (wg && typeof wg.drawSnapshot === 'function') {
         const bc = browser?.browsingContext || null;
-        const scrollX = typeof bc?.top?.scrollX === 'number'
-          ? bc.top.scrollX
-          : (typeof bc?.scrollX === 'number' ? bc.scrollX : 0);
-        const scrollY = typeof bc?.top?.scrollY === 'number'
-          ? bc.top.scrollY
-          : (typeof bc?.scrollY === 'number' ? bc.scrollY : 0);
-        const rect = new DOMRect(contentX + scrollX, contentY + scrollY, sampleWidth, sampleHeight);
-        const bitmap = await wg.drawSnapshot(rect, 1, 'transparent');
+        const scrollX = bc?.top?.scrollX ?? bc?.scrollX;
+        const scrollY = bc?.top?.scrollY ?? bc?.scrollY;
+        const hasScrollPosition = Number.isFinite(scrollX) && Number.isFinite(scrollY);
+        const captureRect = hasScrollPosition
+          ? new DOMRect(contentX + scrollX, contentY + scrollY, sampleWidth, sampleHeight)
+          : null;
+        // Like Zia, use the rendered viewport when content scroll offsets are
+        // unavailable. Half scale retains enough rows to ignore a thin border.
+        const bitmap = await wg.drawSnapshot(captureRect, hasScrollPosition ? 1 : 0.5, 'transparent');
+        if (!bitmap.width || !bitmap.height) {
+          bitmap.close();
+          return null;
+        }
+        if (!hasScrollPosition) {
+          sampleWidth = bitmap.width;
+          sampleHeight = Math.min(4, bitmap.height);
+          sampleCanvas.width = sampleWidth;
+          sampleCanvas.height = sampleHeight;
+        }
         sampleCtx.clearRect(0, 0, sampleWidth, sampleHeight);
         sampleCtx.drawImage(bitmap, 0, 0);
         if (bitmap && typeof bitmap.close === 'function') bitmap.close();
@@ -3019,6 +3030,7 @@
     if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback) {
       requestPersistentFrameTheme(browser, true);
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown', expectedHref);
+      void sampleRenderedTheme(browser);
       return;
     }
 
@@ -3045,6 +3057,7 @@
 
     if (!fastOnly) {
       requestPersistentFrameTheme(browser, zenBoostActive || deferRememberedFallback || !cachedTheme);
+      void sampleRenderedTheme(browser);
       const pageTheme = await getBrowserPageTheme(browser);
       if (pageTheme?.bg) {
         applyResolvedTheme(browser, pageTheme, reason, expectedHref, {
