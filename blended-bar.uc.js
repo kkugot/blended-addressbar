@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.23
+// @version        1.7.24
 // ==/UserScript==
 
 (() => {
@@ -217,6 +217,7 @@
   }
 
   function getThemeColorTransition(theme, reason = '') {
+    if (!isLoadingThemeFor(gBrowser?.selectedBrowser || null)) return '0ms linear';
     const uncertainSources = new Set([
       'host-cache',
       'target-cache',
@@ -3022,25 +3023,23 @@
 
     const targetCachedTheme = getCachedTargetTheme(browser);
     const cachedTheme = targetCachedTheme;
-    const deferRememberedFallback = keepCachedTheme && !zenBoostActive;
+    const exactTabCache = themeCache.get(browser);
+    const hasExactTabTheme = exactTabCache?.href === expectedHref
+      && exactTabCache.theme?.bg
+      && exactTabCache.theme.source !== 'host-cache';
+    const deferRememberedFallback = keepCachedTheme && !zenBoostActive && !hasExactTabTheme;
     const retainedHostTheme = targetCachedTheme ? null : getSameHostRetainedTheme(expectedHref);
-    const targetCachedThemeApplied = !deferRememberedFallback && targetCachedTheme
-      ? applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {
+    if (!deferRememberedFallback && targetCachedTheme) {
+      applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {
         requireRendered: zenBoostActive
-      })
-      : false;
-    const retainedHostThemeApplied = !deferRememberedFallback && retainedHostTheme
-      ? applyResolvedTheme(browser, retainedHostTheme, 'same-host-retained', expectedHref, {
+      });
+    } else if (!deferRememberedFallback && retainedHostTheme) {
+      applyResolvedTheme(browser, retainedHostTheme, 'same-host-retained', expectedHref, {
         requireRendered: zenBoostActive
-      })
-      : false;
+      });
+    }
 
-    const hasStableCachedTabTheme = keepCachedTheme
-      && !zenBoostActive
-      && !deferRememberedFallback
-      && (targetCachedThemeApplied || retainedHostThemeApplied);
     const deferUnknownFallback = keepCachedTheme && !zenBoostActive;
-    if (hasStableCachedTabTheme) return;
 
     if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback) {
       if (!fastOnly) requestPersistentFrameTheme(browser, true);
@@ -3191,6 +3190,7 @@
     loadingThemeStartedAt = 0;
     loadingThemeBrowser = null;
     loadingThemeHref = '';
+    setStylePropertyIfChanged(chromeDoc.documentElement.style, '--blended-addressbar-color-transition', '0ms linear');
     if (!samplingEnabled) stopSampling();
   }
 
@@ -3604,6 +3604,7 @@
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
       setStylePropertyIfChanged(chromeDoc.documentElement.style, '--blended-addressbar-color-transition', '0ms linear');
+      resetThemeArbitration(getBrowserHref(gBrowser.selectedBrowser));
       scheduleSplitAddressbars();
       positionSplitEditor();
       ensureLoadProgress(gBrowser.selectedBrowser);

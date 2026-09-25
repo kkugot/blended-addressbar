@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.24 - 2026-09-25
+
+- Apply an exact loaded tab's cached color immediately on selection while refreshing it in the background. Animate color changes only during active page loading; loaded tabs switch without a fade or neutral-color gap.
+
 ## 1.7.23 - 2026-09-25
 
 - Switch the addressbar color instantly when selecting another tab; keep the existing 100–180ms transition for later color changes within that tab.
