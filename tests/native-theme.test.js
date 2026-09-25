@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.14', () => {
+test('release metadata stays synchronized at version 1.7.15', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.14');
+  assert.equal(theme.version, '1.7.15');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.14/);
-  assert.match(marketplace, /Version: `1\.7\.14`/);
-  assert.match(marketplace, /"version": "1\.7\.14"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.15/);
+  assert.match(marketplace, /Version: `1\.7\.15`/);
+  assert.match(marketplace, /"version": "1\.7\.15"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.14 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.15 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1886,4 +1886,15 @@ test('rendered fallback captures the viewport when scroll offsets are unavailabl
 test('uncached loading pages request a rendered check before the early return', () => {
   const source = read('blended-bar.uc.js');
   assert.match(source, /applyHeaderOnlyTheme\(browser, getNeutralHeaderShade\(browser, 'loading-unknown'\), 'loading-unknown', expectedHref\);\s*void sampleRenderedTheme\(browser\);\s*return;/);
+});
+
+
+test('loading background gradient continues across the unused field to its far edge', () => {
+  const css = read('styles/loadbar.css');
+  const start = css.indexOf('/* A separate full-field tint sits behind the moving glow and progress line. */');
+  const fill = css.slice(start, css.indexOf('::before {', start));
+  assert.match(fill, /background-image:\s*linear-gradient\(to right/);
+  assert.match(fill, /--blended-addressbar-loadbar-glow-medium-mix/);
+  assert.match(fill, /--blended-addressbar-loadbar-glow-weak-mix/);
+  assert.match(fill, /var\(--blended-addressbar-loadbar-fill\) 100%/);
 });

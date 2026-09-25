@@ -73,7 +73,7 @@ Corner shape follows Zen's `layout.css.corner-shape.enabled` setting and `--zen-
 - `uc.loadbar.roundedcorner`: enable right-side rounded corners for Progress bar, URL bar glow, and Window edge.
 - `uc.loadbar.shadow`: enable shadow for Progress bar and Window edge.
 
-URL bar glow adds a full-field tint behind its moving highlight and progress line while loading. It follows each browser’s loading progress, with an estimate when progress is unavailable and a short completion fade. It uses the existing focus color setting, or the local header foreground when that setting is off.
+URL bar glow adds a soft gradient across the whole field, a moving bright tip and a gently breathing progress line while loading. Reduced-motion settings disable the breathing animation. It follows each browser’s loading progress, with an estimate when progress is unavailable and a short completion fade. It uses the existing focus color setting, or the local header foreground when that setting is off.
 
 ## Feedback
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.15 - 2026-09-25
+
+- Extend the URL-bar tint across the full field with a soft fade towards its far end.
+- Let the progress line gently brighten and dim while loading; keep the movement disabled for reduced motion.
+
 ## 1.7.14 - 2026-09-25
 
 - Request a one-shot rendered snapshot on uncached loading pages and full active-tab updates even if the content frame never replies.
