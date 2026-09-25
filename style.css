@@ -6,7 +6,7 @@
     --blended-addressbar-pane-inner-highlight: inset 0 0 0 0px transparent;
     --blended-addressbar-frame-radius: 14px;
     --blended-addressbar-inner-radius: max(0px, calc(var(--blended-addressbar-frame-radius) - var(--blended-addressbar-frame-gap)));
-    --blended-addressbar-color-transition: 100ms linear;
+    --blended-addressbar-color-transition: 0ms linear;
     --blended-addressbar-frame-shadow-standard:
         0 4px 16px rgba(0, 0, 0, 0.14),
         0 1px 4px rgba(0, 0, 0, 0.12);
@@ -20,6 +20,10 @@
     --blended-addressbar-toolbar-separator-shadow: 0 -1px 0 0 inset rgba(128, 128, 128, 0.09);
     --blended-addressbar-bookmark-popup-radius: 8px;
     --blended-addressbar-bookmark-popup-border-color: color-mix(in srgb, MenuText 18%, transparent);
+}
+
+:root[data-blended-addressbar-color-loading] {
+    --blended-addressbar-color-transition: 120ms ease-out;
 }
 
 :root[data-blended-addressbar-frame-shadow="minimal"] {

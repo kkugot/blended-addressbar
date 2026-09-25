@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.24', () => {
+test('release metadata stays synchronized at version 1.7.25', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.24');
+  assert.equal(theme.version, '1.7.25');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.24/);
-  assert.match(marketplace, /Version: `1\.7\.24`/);
-  assert.match(marketplace, /"version": "1\.7\.24"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.25/);
+  assert.match(marketplace, /Version: `1\.7\.25`/);
+  assert.match(marketplace, /"version": "1\.7\.25"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.24 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.25 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -256,45 +256,17 @@ test('native theme debug metadata is cleared from one property list', () => {
   assert.equal(countOccurrences(script, "root.removeAttribute('data-blended-addressbar-native-theme-"), 0);
 });
 
-test('adaptive header background and foreground keep short confirmed transitions and calmer fallback transitions', () => {
-  const css = read('style.css');
+test('adaptive color fades are enabled only while the selected page is loading', () => {
+  const css = readStyleWithImports();
   const script = read('blended-bar.uc.js');
 
-  assert.match(css, /--blended-addressbar-color-transition:\s*100ms linear/);
-  assert.match(script, /const uncertainSources = new Set\(\[/);
-  assert.match(script, /\? '180ms ease-out'\s*: '100ms linear'/);
-  assert.match(css, /#zen-appcontent-navbar-wrapper\s*\{[\s\S]*transition:\s*background-color var\(--blended-addressbar-color-transition\),\s*color var\(--blended-addressbar-color-transition\)/);
-  assert.match(css, /transition:\s*color var\(--blended-addressbar-color-transition\),\s*fill var\(--blended-addressbar-color-transition\),\s*stroke var\(--blended-addressbar-color-transition\)/);
-  assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
-});
-
-test('tab switches and settled tabs update instantly while active loads can transition', () => {
-  const first = { loading: true }, second = { loading: false }, writes = [];
-  const context = {
-    gBrowser: { selectedBrowser: first },
-    lastColorTransitionBrowser: null,
-    isLoadingThemeFor: browser => !!browser?.loading,
-    chromeDoc: { documentElement: { style: {} } },
-    setStylePropertyIfChanged: (_style, name, value) => {
-      assert.equal(name, '--blended-addressbar-color-transition');
-      writes.push(value);
-    }
-  };
-  const script = read('blended-bar.uc.js');
-  vm.createContext(context);
-  vm.runInContext(script.slice(script.indexOf('  function getThemeColorTransition('), script.indexOf('  function setThemeDebugAttributes(')), context);
-
-  context.setThemeColorTransition({ source: 'pixel-top-edge' }, 'persistent-frame');
-  context.setThemeColorTransition({ source: 'pixel-top-edge' }, 'persistent-frame');
-  first.loading = false;
-  context.setThemeColorTransition({ source: 'pixel-top-edge' }, 'persistent-frame');
-  context.gBrowser.selectedBrowser = second;
-  context.setThemeColorTransition({ source: 'host-cache' }, 'target-cache');
-  context.setThemeColorTransition({ source: 'body' }, 'unknown-page');
-  second.loading = true;
-  context.setThemeColorTransition({ source: 'pixel-top-edge' }, 'persistent-frame');
-  context.setThemeColorTransition({ source: 'body' }, 'unknown-page');
-  assert.deepEqual(writes, ['0ms linear', '100ms linear', '0ms linear', '0ms linear', '0ms linear', '100ms linear', '180ms ease-out']);
+  assert.match(css, /--blended-addressbar-color-transition:\s*0ms linear/);
+  assert.match(css, /:root\[data-blended-addressbar-color-loading\]\s*\{\s*--blended-addressbar-color-transition:\s*120ms ease-out/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*--blended-addressbar-color-transition:\s*0ms linear !important/);
+  assert.match(script, /function startLoadingThemeTracking\([\s\S]*setAttribute\('data-blended-addressbar-color-loading'/);
+  assert.match(script, /function stopLoadingThemeTracking\([\s\S]*removeAttribute\('data-blended-addressbar-color-loading'/);
+  assert.match(script, /addEventListener\('TabSelect',[\s\S]*removeAttribute\('data-blended-addressbar-color-loading'/);
+  assert.doesNotMatch(script, /getThemeColorTransition|setThemeColorTransition|lastColorTransitionBrowser/);
 });
 
 test('switching to a loaded tab paints its exact cached color before refreshing it', async () => {
