@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.18 - 2026-09-25
+
+- Continue sampling paint-triggered color updates for three seconds after load so late-rendered page headers can replace an early fallback.
+
 ## 1.7.17 - 2026-09-25
 
 - Sample rendered page colors up to 30 times per second while the page is painting, down from 10, so the addressbar follows loading-time color changes sooner.
