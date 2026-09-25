@@ -15,6 +15,7 @@
     const PIXEL_SAMPLE_WIDTH = 256;
     const PIXEL_SAMPLE_HEIGHT = 8;
     const MIN_PAINT_SAMPLE_INTERVAL_MS = 32;
+    const POST_LOAD_PAINT_SAMPLE_WINDOW_MS = 3000;
     const { getDominantSampleColor } = BlendedAddressbarModule;
     const SAMPLE_TOP_Y = 3;
     let lastKey = '';
@@ -22,6 +23,7 @@
     let forceNextSample = false;
     let lastRescheduleAt = 0;
     let lastPaintSampleAt = 0;
+    let postLoadPaintSampleUntil = 0;
     let pixelCanvas = null;
     let pixelCtx = null;
 
@@ -279,8 +281,8 @@
     }
 
     function onPaint() {
-      if (content.document.readyState === 'complete') return;
       const now = Date.now();
+      if (content.document.readyState === 'complete' && now >= postLoadPaintSampleUntil) return;
       if (now - lastPaintSampleAt < MIN_PAINT_SAMPLE_INTERVAL_MS) return;
       lastPaintSampleAt = now;
       sample(false);
@@ -291,6 +293,7 @@
       if (now - lastRescheduleAt < 500) return;
 
       lastRescheduleAt = now;
+      postLoadPaintSampleUntil = now + POST_LOAD_PAINT_SAMPLE_WINDOW_MS;
       sampleAfterPaint();
       content.setTimeout(() => sample(true), 2000);
     }

@@ -108,7 +108,7 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 
 ## Loading-time rendered updates
 
-The persistent frame samples after two animation frames on initialization and DOMContentLoaded, with a 100ms safety timeout if animation frames are suspended. While the document is loading, MozAfterPaint triggers additional samples at most every 32ms (about 30 samples per second); load/pageshow keep the bounded late refresh. No loading poll or scroll listener is added.
+The persistent frame samples after two animation frames on initialization and DOMContentLoaded, with a 100ms safety timeout if animation frames are suspended. While the document is loading and for three seconds after load/pageshow, MozAfterPaint triggers additional samples at most every 32ms (about 30 samples per second), allowing late-rendered page headers to replace an early color. No loading poll or scroll listener is added.
 
 During loading, a newer pixel-derived candidate can replace an older pixel candidate at the same confidence. Lower-confidence semantic candidates still cannot displace confirmed rendered colors. If the frame cannot return pixels, both ordinary active tabs and visible split panes request a coalesced chrome snapshot of the top 8px. Full active-tab updates also request one snapshot independently of frame replies. When scroll offsets are unavailable, the snapshot captures the current viewport at half scale and reads its first four rows, rather than assuming a document offset of zero. Snapshot replies are guarded by request identity, document, URL and current visibility; newer frame messages invalidate older snapshots.
 

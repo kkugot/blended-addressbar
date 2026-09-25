@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.17', () => {
+test('release metadata stays synchronized at version 1.7.18', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.17');
+  assert.equal(theme.version, '1.7.18');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.17/);
-  assert.match(marketplace, /Version: `1\.7\.17`/);
-  assert.match(marketplace, /"version": "1\.7\.17"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.18/);
+  assert.match(marketplace, /Version: `1\.7\.18`/);
+  assert.match(marketplace, /"version": "1\.7\.18"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.17 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.18 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1900,9 +1900,11 @@ test('loading background gradient continues across the unused field to its far e
 });
 
 
-test('rendered loading colors refresh on paint events at most every 32ms', () => {
+test('rendered colors keep sampling page paints briefly after load', () => {
   const frame = read('frame.js');
   assert.match(frame, /MIN_PAINT_SAMPLE_INTERVAL_MS = 32/);
-  assert.match(frame, /function onPaint\(\)[\s\S]*document\.readyState === 'complete'[\s\S]*now - lastPaintSampleAt < MIN_PAINT_SAMPLE_INTERVAL_MS[\s\S]*sample\(false\)/);
+  assert.match(frame, /POST_LOAD_PAINT_SAMPLE_WINDOW_MS = 3000/);
+  assert.match(frame, /postLoadPaintSampleUntil = now \+ POST_LOAD_PAINT_SAMPLE_WINDOW_MS/);
+  assert.match(frame, /function onPaint\(\)[\s\S]*document\.readyState === 'complete' && now >= postLoadPaintSampleUntil[\s\S]*now - lastPaintSampleAt < MIN_PAINT_SAMPLE_INTERVAL_MS[\s\S]*sample\(false\)/);
   assert.match(frame, /addEventListener\('MozAfterPaint', onPaint, \{ capture: true \}\)/);
 });
