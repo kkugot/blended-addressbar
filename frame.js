@@ -202,6 +202,10 @@
     content.__blended_addressbar_sample = sample;
 
     function debouncedSample(force = false) {
+      if (content.document.readyState === 'loading') {
+        sampleAfterPaint();
+        return;
+      }
       forceNextSample ||= force === true;
       if (debounceTimer) return;
       debounceTimer = content.setTimeout(() => {
@@ -251,23 +255,43 @@
       }
     }
 
+    let paintFrame = 0;
+    let paintTimer = 0;
+
+    function sampleAfterPaint() {
+      if (paintTimer) return;
+      const run = () => {
+        if (!paintTimer) return;
+        content.clearTimeout(paintTimer);
+        content.cancelAnimationFrame?.(paintFrame);
+        paintTimer = 0;
+        paintFrame = 0;
+        sample(true);
+      };
+      paintTimer = content.setTimeout(run, 100);
+      if (typeof content.requestAnimationFrame === 'function') {
+        paintFrame = content.requestAnimationFrame(() => {
+          paintFrame = content.requestAnimationFrame(run);
+        });
+      }
+    }
+
     function rescheduleLoad() {
       const now = Date.now();
       if (now - lastRescheduleAt < 500) return;
 
       lastRescheduleAt = now;
-      content.setTimeout(() => sample(true), 300);
+      sampleAfterPaint();
       content.setTimeout(() => sample(true), 2000);
     }
 
     if (content.document.readyState === 'loading') {
-      content.document.addEventListener('DOMContentLoaded', () => sample(true), {
+      content.document.addEventListener('DOMContentLoaded', sampleAfterPaint, {
         capture: true,
         once: true
       });
-    } else {
-      sample(true);
     }
+    sampleAfterPaint();
 
     // CSS media queries can repaint without mutating DOM or metadata. Force a
     // message so chrome can also refresh its pixel fallback when needed.

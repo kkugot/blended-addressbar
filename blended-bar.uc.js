@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.12
+// @version        1.7.13
 // ==/UserScript==
 
 (() => {
@@ -680,7 +680,8 @@
         : { action: 'ignore', confidence, key };
     }
 
-    if (!replacingHostCache && appliedConfidence >= 0 && confidence <= appliedConfidence) {
+    if (!replacingHostCache && appliedConfidence >= 0
+      && (confidence < appliedConfidence || (confidence === appliedConfidence && !isPixelThemeSource(theme)))) {
       return { action: 'ignore', confidence, key };
     }
 
@@ -1556,12 +1557,13 @@
         if (data?.href && data.href !== href) return;
 
         const theme = getPersistentFrameTheme(data, browser);
+        renderedSampleRequests.delete(browser);
+        if (!isPixelThemeSource(theme)) void sampleRenderedTheme(browser);
         if (!theme?.bg) return;
 
         cacheTheme(browser, theme);
         if (splitAddressbars.bars.has(browser)) {
           if (isPixelThemeSource(theme)) splitAddressbars.applyTheme(browser, theme);
-          else void sampleSplitPane(browser);
         }
         if (browser === gBrowser?.selectedBrowser) {
           applyResolvedTheme(browser, theme, 'persistent-frame', href, {
@@ -2840,7 +2842,7 @@
     }
 
     const sampleWidth = Math.max(1, Math.floor(rect.width));
-    const sampleHeight = 1;
+    const sampleHeight = Math.max(1, Math.min(8, Math.floor(rect.height)));
     const contentX = 0;
     const contentY = 0;
     const x = Math.max(0, Math.floor(rect.left + contentX));
@@ -3258,7 +3260,7 @@
     removeStylePropertyIfChanged
   });
   const loadbarStates = new Map();
-  const paneSampleRequests = new Map();
+  const renderedSampleRequests = new Map();
   let loadbarTimer = 0;
   let splitRefreshTimer = 0;
   let splitObserver = null;
@@ -3379,28 +3381,34 @@
     renderLoadProgress();
   }
 
-  async function sampleSplitPane(browser) {
+  async function sampleRenderedTheme(browser) {
     if (addressbarEnhancementsDisposed) return;
-    if (!splitAddressbars.bars.has(browser) || !isPageThemeEligibleHref(getBrowserHref(browser))) return;
+    if ((browser !== gBrowser.selectedBrowser && !splitAddressbars.bars.has(browser))
+      || !isPageThemeEligibleHref(getBrowserHref(browser))) return;
     const href = getBrowserHref(browser);
     const documentGlobal = browser.browsingContext?.currentWindowGlobal;
-    const pending = paneSampleRequests.get(browser);
+    const pending = renderedSampleRequests.get(browser);
     if (pending?.documentGlobal === documentGlobal && pending.href === href) return;
     const request = { href, documentGlobal };
-    paneSampleRequests.set(browser, request);
+    renderedSampleRequests.set(browser, request);
     try {
       const result = await sampleTabPanelsPixel(browser);
-      if (paneSampleRequests.get(browser) !== request
+      if (renderedSampleRequests.get(browser) !== request
         || getBrowserHref(browser) !== href
         || browser.browsingContext?.currentWindowGlobal !== documentGlobal
-        || !splitAddressbars.bars.has(browser)) return;
+        || (browser !== gBrowser.selectedBrowser && !splitAddressbars.bars.has(browser))) return;
       const theme = getSampledTheme(result, browser);
       if (theme) {
+        theme.source = 'pixel-top-edge';
+        theme.bridge = 'chrome-snapshot';
         cacheTheme(browser, theme);
         splitAddressbars.applyTheme(browser, theme);
+        if (browser === gBrowser.selectedBrowser) {
+          applyResolvedTheme(browser, theme, 'rendered-fallback', href, { loading: isLoadingThemeFor(browser) });
+        }
       }
     } finally {
-      if (paneSampleRequests.get(browser) === request) paneSampleRequests.delete(browser);
+      if (renderedSampleRequests.get(browser) === request) renderedSampleRequests.delete(browser);
     }
   }
 
@@ -3430,7 +3438,7 @@
       const cached = getCachedTargetTheme(browser);
       if (cached && isPixelThemeSource(cached)) splitAddressbars.applyTheme(browser, cached);
       requestPersistentFrameTheme(browser);
-      void sampleSplitPane(browser);
+      void sampleRenderedTheme(browser);
     }
     for (const browser of splitAddressbars.bars.keys()) {
       if (!loadbarStates.has(browser) && gBrowser.getTabForBrowser(browser)?.hasAttribute('busy')) {
@@ -3541,7 +3549,7 @@
     chromeDoc.getElementById('urlbar')?.removeEventListener('focusin', positionSplitEditor);
     window.removeEventListener('resize', positionSplitEditor);
     loadbarStates.clear();
-    paneSampleRequests.clear();
+    renderedSampleRequests.clear();
     paintLoadProgress(chromeDoc.getElementById('urlbar'), null);
     splitAddressbars.cleanup();
     chromeDoc.documentElement.removeAttribute('data-blended-split-bars');
@@ -3580,7 +3588,7 @@
     gBrowser.tabContainer.addEventListener('TabAttrModified', scheduleSplitAddressbars);
     gBrowser.tabContainer.addEventListener('TabClose', (event) => {
       loadbarStates.delete(event.target?.linkedBrowser);
-      paneSampleRequests.delete(event.target?.linkedBrowser);
+      renderedSampleRequests.delete(event.target?.linkedBrowser);
       scheduleSplitAddressbars();
       detachPersistentThemeListener(event.target?.linkedBrowser || null);
     });
@@ -3667,7 +3675,7 @@
               trackLoadProgress(browserArg, 'stop');
               if (splitAddressbars.bars.has(browserArg)) {
                 requestPersistentFrameTheme(browserArg);
-                void sampleSplitPane(browserArg);
+                void sampleRenderedTheme(browserArg);
               }
             }
             splitAddressbars.update(browserArg);

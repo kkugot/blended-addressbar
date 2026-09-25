@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.12', () => {
+test('release metadata stays synchronized at version 1.7.13', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.12');
-  assert.equal(theme.updatedAt, '2026-09-21');
+  assert.equal(theme.version, '1.7.13');
+  assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.12/);
-  assert.match(marketplace, /Version: `1\.7\.12`/);
-  assert.match(marketplace, /"version": "1\.7\.12"/);
-  assert.match(marketplace, /"updatedAt": "2026-09-21"/);
-  assert.match(changelog, /## 1\.7\.12 - 2026-09-21/);
+  assert.match(script, /\/\/ @version\s+1\.7\.13/);
+  assert.match(marketplace, /Version: `1\.7\.13`/);
+  assert.match(marketplace, /"version": "1\.7\.13"/);
+  assert.match(marketplace, /"updatedAt": "2026-09-25"/);
+  assert.match(changelog, /## 1\.7\.13 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1446,7 +1446,7 @@ test('split layout reserves a local row and glow remains optional and accessible
   assert.match(css, /:focus-visible/);
   assert.match(css, /:where\(#urlbar[^}]+\.blended-addressbar-pane-field\)/);
   assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(script, /paneSampleRequests\.get\(browser\) !== request/);
+  assert.match(script, /renderedSampleRequests\.get\(browser\) !== request/);
   assert.match(script, /currentWindowGlobal !== documentGlobal/);
   assert.match(script, /if \(isPixelThemeSource\(theme\)\) splitAddressbars\.applyTheme/);
   assert.equal(prefs.find(pref => pref.property === 'uc.loadbar.iridescent').defaultValue, false);
@@ -1459,7 +1459,8 @@ test('pane sampling replaces in-flight requests after same-document navigation',
   const applied = [];
   const context = {
     addressbarEnhancementsDisposed: false,
-    paneSampleRequests: new Map(),
+    renderedSampleRequests: new Map(),
+    gBrowser: { selectedBrowser: null },
     splitAddressbars: { bars: new Map([[browser, {}]]), applyTheme: (_browser, theme) => applied.push(theme) },
     getBrowserHref: target => target.currentURI.spec,
     isPageThemeEligibleHref: () => true,
@@ -1468,19 +1469,22 @@ test('pane sampling replaces in-flight requests after same-document navigation',
     cacheTheme: () => {}
   };
   const script = read('blended-bar.uc.js');
-  const start = script.indexOf('  async function sampleSplitPane(');
+  const start = script.indexOf('  async function sampleRenderedTheme(');
   const end = script.indexOf('  function refreshSplitAddressbars(', start);
   vm.createContext(context);
   vm.runInContext(script.slice(start, end), context);
-  const oldSample = context.sampleSplitPane(browser);
+  const oldSample = context.sampleRenderedTheme(browser);
   browser.currentURI.spec = 'https://example.com/new';
-  const newSample = context.sampleSplitPane(browser);
+  const newSample = context.sampleRenderedTheme(browser);
   assert.equal(pending.length, 2);
   pending[0]({ href: 'https://example.com/old', bg: 'red' });
   pending[1]({ href: 'https://example.com/new', bg: 'blue' });
   await Promise.all([oldSample, newSample]);
-  assert.deepEqual(applied, [{ href: 'https://example.com/new', bg: 'blue' }]);
-  assert.equal(context.paneSampleRequests.size, 0);
+  assert.equal(applied.length, 1);
+  assert.equal(applied[0].href, 'https://example.com/new');
+  assert.equal(applied[0].bg, 'blue');
+  assert.equal(applied[0].source, 'pixel-top-edge');
+  assert.equal(context.renderedSampleRequests.size, 0);
 });
 
 test('native split editor placement fits the viewport and reserves room for its dropdown', () => {
@@ -1666,7 +1670,7 @@ test('content color-scheme changes force a sample even when DOM and semantic col
   const context = {
     BlendedAddressbarModule: { getDominantSampleColor: () => null },
     content: {
-      document: { readyState: 'loading', addEventListener() {} },
+      document: { readyState: 'interactive', addEventListener() {} },
       location: { href: 'https://example.com/' },
       matchMedia(query) {
         assert.equal(query, '(prefers-color-scheme: dark)');
@@ -1776,4 +1780,78 @@ test('focused native split editor replaces the selected proxy without collapsing
   assert.doesNotMatch(block, /display: none/);
   assert.match(css.slice(css.indexOf(selector), css.indexOf(selector) + 500), /\.browserSidebarContainer\.deck-selected/);
   assert.match(read('blended-bar.uc.js'), /'input-padding': getComputedStyle\(inputContainer\)\.padding/);
+});
+
+test('new rendered pixels can replace an early loading color at the same confidence', () => {
+  const policy = loadScriptModule('theme-source-policy.js');
+  const context = {
+    ...policy, getThemeKey: t => t.bg, themeApplyState: { applied: { source: 'pixel-top-edge', confidence: 8 } },
+    fallbackThemeStableDelayMs: 350, immediateThemeConfidenceMin: 4
+  };
+  const source = read('blended-bar.uc.js');
+  vm.createContext(context);
+  vm.runInContext(source.slice(source.indexOf('  function shouldApplyThemeCandidate('), source.indexOf('  function getThemeHostKey(')), context);
+  assert.equal(context.shouldApplyThemeCandidate({ bg: 'blue', source: 'pixel-top-edge' }, { loading: true }).action, 'apply');
+  assert.equal(context.shouldApplyThemeCandidate({ bg: 'white', source: 'body' }, { loading: true }).action, 'ignore');
+});
+
+test('loading samples are scheduled after paint and chrome reads a strip rather than one border pixel', () => {
+  const frame = read('frame.js');
+  assert.match(frame, /function sampleAfterPaint\(/);
+  assert.match(frame, /content\.requestAnimationFrame/);
+  assert.match(frame, /content\.setTimeout\(run, 100\)/);
+  assert.match(frame, /addEventListener\('DOMContentLoaded', sampleAfterPaint/);
+  assert.match(read('blended-bar.uc.js'), /const sampleHeight = Math\.max\(1, Math\.min\(8, Math\.floor\(rect\.height\)\)\)/);
+});
+
+test('rendered fallback also updates an ordinary loading tab without split bars', async () => {
+  const browser = { currentURI: { spec: 'https://example.com/' }, browsingContext: { currentWindowGlobal: {} } };
+  const applied = [];
+  const context = {
+    addressbarEnhancementsDisposed: false, renderedSampleRequests: new Map(),
+    gBrowser: { selectedBrowser: browser },
+    splitAddressbars: { bars: new Map(), applyTheme() {} },
+    getBrowserHref: b => b.currentURI.spec, isPageThemeEligibleHref: () => true,
+    sampleTabPanelsPixel: async () => ({ bg: 'rgb(7, 71, 166)' }),
+    getSampledTheme: result => ({ ...result, href: browser.currentURI.spec }),
+    cacheTheme() {}, isLoadingThemeFor: () => true,
+    applyResolvedTheme: (_browser, theme, reason, href, options) => applied.push({ theme, options })
+  };
+  const source = read('blended-bar.uc.js');
+  vm.createContext(context);
+  vm.runInContext(source.slice(source.indexOf('  async function sampleRenderedTheme('), source.indexOf('  function refreshSplitAddressbars(')), context);
+  await context.sampleRenderedTheme(browser);
+  assert.equal(applied.length, 1);
+  assert.equal(applied[0].theme.source, 'pixel-top-edge');
+  assert.equal(applied[0].options.loading, true);
+});
+
+test('paint-triggered samples coalesce and cancel the safety timer', () => {
+  let id = 0, samples = 0;
+  const timers = new Map(), frames = new Map();
+  const context = { sample: force => { assert.equal(force, true); samples++; }, content: {
+    setTimeout: (fn, delay) => { assert.equal(delay, 100); timers.set(++id, fn); return id; },
+    clearTimeout: key => timers.delete(key),
+    requestAnimationFrame: fn => { frames.set(++id, fn); return id; },
+    cancelAnimationFrame: key => frames.delete(key)
+  } };
+  const source = read('frame.js');
+  vm.createContext(context);
+  vm.runInContext(source.slice(source.indexOf('    let paintFrame ='), source.indexOf('    function rescheduleLoad()')), context);
+  context.sampleAfterPaint();
+  context.sampleAfterPaint();
+  assert.equal(timers.size, 1);
+  const fallback = [...timers.values()][0];
+  for (let i = 0; i < 2; i++) {
+    const [key, callback] = [...frames.entries()][0];
+    frames.delete(key); callback();
+  }
+  assert.equal(samples, 1);
+  assert.equal(timers.size, 0);
+  fallback();
+  assert.equal(samples, 1);
+  context.sampleAfterPaint();
+  [...timers.values()][0]();
+  assert.equal(samples, 2);
+  assert.equal(frames.size, 0);
 });

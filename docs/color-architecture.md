@@ -6,7 +6,7 @@ This document describes the current adaptive color pipeline for Blended Addressb
 
 - `blended-bar.uc.js` runs in browser chrome. It owns browser lifecycle hooks, cache lookup orchestration, candidate arbitration, CSS variable writes, native Zen tinting, frame preferences, and loading bar preferences. It remains the single Zen script entry point and loads focused helper modules from `scripts/`.
 - `scripts/style-state.js` owns idempotent CSS custom property writes/removals.
-- `scripts/color-sampling.js` provides a shared alpha-weighted dominant-color calculation. It groups RGB pixels into 4-bit-per-channel buckets and averages only the winning bucket. The persistent frame samples the visible top 8px, downscaled to at most 256px wide; the chrome snapshot fallback applies the same algorithm to its top line.
+- `scripts/color-sampling.js` provides a shared alpha-weighted dominant-color calculation. It groups RGB pixels into 4-bit-per-channel buckets and averages only the winning bucket. The persistent frame samples the visible top 8px, downscaled to at most 256px wide; the chrome snapshot fallback applies the same algorithm to an 8px strip.
 - `scripts/loadbar.js` owns the monotonic loading-progress calculation. Its estimate timer animates progress only; it never samples page colors.
 - `scripts/split-addressbars.js` owns the local address/reload controls. Browser events and frame-message routing stay in the chrome entry point.
 - `scripts/color-utils.js` owns color parsing, alpha visibility checks, contrast, and readable foreground selection.
@@ -105,6 +105,12 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 | `document-canvas` | weak semantic | no | 2 | Last document-level fallback before chrome fallback. |
 | `sampler` | visual fallback | yes | 1 | Legacy periodic snapshot path. |
 | `chrome-contrast-fallback` / `toolbar-fallback` | chrome fallback | no | 1 / 0 | Keeps UI readable when no page signal is available. |
+
+## Loading-time rendered updates
+
+The persistent frame coalesces initial and loading-time DOM signals through two animation frames, with a 100ms timeout if paint callbacks are suspended. DOMContentLoaded and load/pageshow request the same paint-aligned sample. The existing bounded late-load refresh remains; no loading poll or scroll listener is added.
+
+During loading, a newer pixel-derived candidate can replace an older pixel candidate at the same confidence. Lower-confidence semantic candidates still cannot displace confirmed rendered colors. If the frame cannot return pixels, both ordinary active tabs and visible split panes request a coalesced chrome snapshot of the top 8px. Snapshot replies are guarded by request identity, document, URL and current visibility; newer frame messages invalidate older snapshots.
 
 ## Split-pane colors
 
