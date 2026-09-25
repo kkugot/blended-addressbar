@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.16 - 2026-09-25
+
+- Extend the loading-field gradient to the far edge and add a gentle progress-line pulse. Respect reduced motion.
+
+
 ## 1.7.15 - 2026-09-25
 
 - Extend the URL-bar tint across the full field with a soft fade towards its far end.
