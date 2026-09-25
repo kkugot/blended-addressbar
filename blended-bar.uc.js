@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.20
+// @version        1.7.21
 // ==/UserScript==
 
 (() => {
@@ -72,6 +72,7 @@
   let themeCache = new WeakMap();
   let pageThemeCache = new Map();
   let persistentThemeListeners = new WeakMap();
+  let persistentFrameScriptUrlsPromise = null;
   let themeRequestSeq = 0;
   let servicesModule = null;
   let lastThemeKey = null;
@@ -1603,19 +1604,28 @@
       if (key) pageThemeCache.delete(key);
     }
 
-    try {
-      messageManager.loadFrameScript(`${scriptModuleBaseUrl}color-sampling.js`, false, true);
-      messageManager.loadFrameScript(themeFrameScriptUrl, false, true);
-      return true;
-    } catch (error) {
-      if (DEBUG_THEME) {
-        console.info('[blended-addressbar:urlbar] Persistent frame bridge load failed', {
-          error: error?.message || String(error),
-          href: getBrowserHref(browser)
-        });
-      }
-      return false;
+    if (!persistentFrameScriptUrlsPromise) {
+      persistentFrameScriptUrlsPromise = Promise.all(
+        [`${scriptModuleBaseUrl}color-sampling.js`, themeFrameScriptUrl].map(async url => {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`Unable to load frame script: ${url}`);
+          return `data:application/javascript;charset=utf-8,${encodeURIComponent(await response.text())}`;
+        })
+      ).catch(error => {
+        persistentFrameScriptUrlsPromise = null;
+        throw error;
+      });
     }
+
+    const expectedHref = getBrowserHref(browser);
+    void persistentFrameScriptUrlsPromise.then(([helperUrl, frameUrl]) => {
+      if (getBrowserHref(browser) !== expectedHref) return;
+      const currentManager = getBrowserMessageManager(browser);
+      if (!currentManager?.loadFrameScript) return;
+      currentManager.loadFrameScript(helperUrl, false, true);
+      currentManager.loadFrameScript(frameUrl, false, true);
+    }).catch(error => console.error('[blended-addressbar:urlbar] Persistent frame bridge load failed:', error));
+    return true;
   }
 
   function getThemeFrameScript(requestId) {

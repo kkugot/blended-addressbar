@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.21 - 2026-09-25
+
+- Load the persistent color sampler into Zen's content process through cached data URLs. Direct Sine chrome URLs did not initialize the helper there, leaving slow pages on the fallback color until loading finished.
+
 ## 1.7.20 - 2026-09-25
 
 - Attach the content sampler when the new top-level page commits, so an early request cannot remain bound to the previous document until loading finishes.

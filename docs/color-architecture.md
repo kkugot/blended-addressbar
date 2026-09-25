@@ -13,7 +13,7 @@ This document describes the current adaptive color pipeline for Blended Addressb
 - `scripts/prefs.js` owns preference access and preference value normalization.
 - `scripts/pane-layout.js` owns split-pane/browser-frame corner radius observation and updates.
 - `scripts/theme-source-policy.js` owns color source policy metadata, confidence lookup, preferred semantic checks, and rendered-source checks.
-- `frame.js` runs in page content through a persistent frame listener. It and `color-sampling.js` load in the same message-manager global scope; initialization is marked complete only after setup succeeds. It watches page theme mutations, prefers-color-scheme changes, load, and pageshow events, then sends lightweight color samples back to chrome. Scroll does not trigger color updates.
+- `frame.js` runs in page content through a persistent frame listener. Chrome fetches it and `color-sampling.js` once from Sine, then loads both as data URLs into the same message-manager global scope; direct Sine chrome URLs did not initialize the helper in Zen's remote content process. Initialization is marked complete only after setup succeeds. It watches page theme mutations, prefers-color-scheme changes, load, and pageshow events, then sends lightweight color samples back to chrome. Scroll does not trigger color updates.
 - `style.css` consumes chrome CSS variables such as `--zen-tab-header-background`, `--zen-tab-header-foreground`, `--blended-addressbar-frame-background`, and `--blended-addressbar-window-tint-background`.
 - `styles/header-chrome.css` consumes the header foreground variables for hidden-tabs and compact-mode chrome icon styling.
 - `styles/loadbar.css` consumes loadbar variables and preferences.
