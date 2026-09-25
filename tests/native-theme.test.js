@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.19', () => {
+test('release metadata stays synchronized at version 1.7.20', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.19');
+  assert.equal(theme.version, '1.7.20');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.19/);
-  assert.match(marketplace, /Version: `1\.7\.19`/);
-  assert.match(marketplace, /"version": "1\.7\.19"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.20/);
+  assert.match(marketplace, /Version: `1\.7\.20`/);
+  assert.match(marketplace, /"version": "1\.7\.20"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.19 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.20 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1108,7 +1108,7 @@ test('unknown page colors use a translucent neutral header without native window
   assert.match(script, /setVar\(theme\.bg,\s*theme\.fg\)/);
   assert.match(script, /clearWindowTintBackground\(\)/);
   assert.match(script, /setStylePropertyIfChanged\(chromeDoc\.documentElement\.style,\s*'--blended-addressbar-frame-background',\s*'transparent',\s*'important'\)/);
-  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*requestPersistentFrameTheme\(browser,\s*true\);\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);\s*void sampleRenderedTheme\(browser\);\s*return;\s*\}/s);
+  assert.match(script, /if \(isLoadingThemeFor\(browser\) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback\) \{\s*if \(!fastOnly\) requestPersistentFrameTheme\(browser,\s*true\);\s*applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'loading-unknown'\),\s*'loading-unknown',\s*expectedHref\);\s*if \(!fastOnly\) void sampleRenderedTheme\(browser\);\s*return;\s*\}/s);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*'unknown-page',\s*expectedHref\)/);
   assert.match(script, /applyHeaderOnlyTheme\(browser,\s*getNeutralHeaderShade\(browser,\s*'unknown-page'\),\s*reason,\s*expectedHref\)/);
 });
@@ -1653,9 +1653,9 @@ test('persistent sampler shares its helper scope and recovers from incomplete in
   vm.runInContext(read('frame.js'), context);
   assert.equal(typeof context.content.__blended_addressbar_sample, 'function');
   assert.equal(context.content.__blended_addressbar_frame_inited, true);
-  assert.equal(listeners, 2);
+  assert.equal(listeners, 3);
   vm.runInContext(read('frame.js'), context);
-  assert.equal(listeners, 2);
+  assert.equal(listeners, 3);
 });
 
 test('confirmed top-edge pixels outrank metadata colors that do not match the page', () => {
@@ -1872,8 +1872,6 @@ test('normal full updates request rendered pixels independently of frame replies
   const source = read('blended-bar.uc.js');
   const fullUpdate = source.slice(source.indexOf('    if (!fastOnly) {', source.indexOf('  async function startSampling(')));
   assert.match(fullUpdate, /requestPersistentFrameTheme\(browser[^;]+;\s*void sampleRenderedTheme\(browser\);\s*const pageTheme = await getBrowserPageTheme\(browser\)/);
-  const startSampling = source.slice(source.indexOf('  async function startSampling('), source.indexOf('  function enterPostLoadSampling('));
-  assert.match(startSampling, /if \(fastOnly && isLoadingThemeFor\(browser\)\) \{\s*requestPersistentFrameTheme\(browser\);\s*void sampleRenderedTheme\(browser\);/);
 });
 
 
@@ -1885,9 +1883,13 @@ test('rendered fallback captures the viewport when scroll offsets are unavailabl
 });
 
 
-test('uncached loading pages request a rendered check before the early return', () => {
+test('new top-level locations attach the content sampler before the delayed active update', () => {
   const source = read('blended-bar.uc.js');
-  assert.match(source, /applyHeaderOnlyTheme\(browser, getNeutralHeaderShade\(browser, 'loading-unknown'\), 'loading-unknown', expectedHref\);\s*void sampleRenderedTheme\(browser\);\s*return;/);
+  const locationChange = source.slice(source.indexOf('      onLocationChange(browserArg,'), source.indexOf('      onStateChange(browserArg,'));
+  const tracking = locationChange.indexOf('startLoadingThemeTracking(browserArg);');
+  const attachment = locationChange.indexOf('requestPersistentFrameTheme(browserArg);', tracking);
+  const scheduled = locationChange.indexOf('scheduleActiveUpdates(', tracking);
+  assert.ok(tracking >= 0 && attachment > tracking && scheduled > attachment);
 });
 
 
