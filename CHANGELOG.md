@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.17 - 2026-09-25
+
+- Sample rendered page colors up to 30 times per second while the page is painting, down from 10, so the addressbar follows loading-time color changes sooner.
+
 ## 1.7.16 - 2026-09-25
 
 - Extend the loading-field gradient to the far edge and add a gentle progress-line pulse. Respect reduced motion.
