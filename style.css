@@ -791,6 +791,7 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
     padding: 3px 6px;
     color: var(--blended-addressbar-pane-foreground, var(--toolbar-color));
     background: var(--blended-addressbar-pane-background, var(--zen-main-browser-background-toolbar));
+    transition: background-color var(--blended-addressbar-color-transition), color var(--blended-addressbar-color-transition);
     border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
     -moz-window-dragging: no-drag;
 }
@@ -1043,6 +1044,10 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
 }
 
 @media (prefers-reduced-motion: reduce) {
+    :root {
+        --blended-addressbar-color-transition: 0ms linear !important;
+    }
+
     #tabbrowser-tabpanels .blended-addressbar-pane-highlight {
         transition: none !important;
     }
@@ -1102,6 +1107,7 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
         width: var(--blended-addressbar-sidebar-page-width) !important;
         height: var(--blended-addressbar-sidebar-toolbar-height) !important;
         background: var(--zen-tab-header-background, var(--zen-main-browser-background-toolbar));
+        transition: background-color var(--blended-addressbar-color-transition), color var(--blended-addressbar-color-transition);
         pointer-events: auto !important;
         z-index: 3;
     }
