@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.14 - 2026-09-25
+
+- Request a one-shot rendered snapshot on uncached loading pages and full active-tab updates even if the content frame never replies.
+- Follow Zia’s viewport-snapshot approach when scroll offsets are unavailable, using half scale and a top strip instead of assuming document coordinates are zero.
+
+- Extend the loading halo beyond the progress edge so it fades naturally instead of ending at a hard crop.
+- Add a brighter tip and a small leading glow core while preserving the selected color, opacity control and clipping at the address field boundary.
+
 ## 1.7.13 - 2026-09-25
 
 - Sample after paint during initial loading and DOM theme changes, with a coalesced 100ms safety fallback instead of waiting for page completion.

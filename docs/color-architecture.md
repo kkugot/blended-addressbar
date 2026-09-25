@@ -110,7 +110,7 @@ Source metadata is centralized in `scripts/theme-source-policy.js`; ordering dec
 
 The persistent frame coalesces initial and loading-time DOM signals through two animation frames, with a 100ms timeout if paint callbacks are suspended. DOMContentLoaded and load/pageshow request the same paint-aligned sample. The existing bounded late-load refresh remains; no loading poll or scroll listener is added.
 
-During loading, a newer pixel-derived candidate can replace an older pixel candidate at the same confidence. Lower-confidence semantic candidates still cannot displace confirmed rendered colors. If the frame cannot return pixels, both ordinary active tabs and visible split panes request a coalesced chrome snapshot of the top 8px. Snapshot replies are guarded by request identity, document, URL and current visibility; newer frame messages invalidate older snapshots.
+During loading, a newer pixel-derived candidate can replace an older pixel candidate at the same confidence. Lower-confidence semantic candidates still cannot displace confirmed rendered colors. If the frame cannot return pixels, both ordinary active tabs and visible split panes request a coalesced chrome snapshot of the top 8px. Full active-tab updates also request one snapshot independently of frame replies. When scroll offsets are unavailable, the snapshot captures the current viewport at half scale and reads its first four rows, rather than assuming a document offset of zero. Snapshot replies are guarded by request identity, document, URL and current visibility; newer frame messages invalidate older snapshots.
 
 ## Split-pane colors
 
