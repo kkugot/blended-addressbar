@@ -28,7 +28,7 @@ flowchart TD
   Event["Browser event"] --> Kind{"Event kind"}
 
   Kind -->|init, tab select, resize, color-scheme change| Schedule["scheduleActiveUpdate"]
-  Kind -->|location change or load start| Loading["startLoadingThemeTracking + one early fastOnly update"]
+  Kind -->|location change or load start| Loading["startLoadingThemeTracking + early fastOnly update + persistent rendered sampler"]
   Kind -->|load stop| Settled["stop loading tracking + one settled full update"]
   Kind -->|persistent frame message| Persistent["apply persistent frame candidate"]
   Kind -->|Zen Boost attribute change| Boost["clear active cache + request rendered sample"]
@@ -137,7 +137,7 @@ Modifiers change which candidates are trusted and how quickly they can commit.
 
 | Modifier | Current behavior |
 | --- | --- |
-| Loading | Marks active load state and schedules one early `fastOnly` update, then one settled update at load stop. The persistent frame handles follow-up `load`/`pageshow` samples. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
+| Loading | Marks active load state and schedules one early `fastOnly` update that starts persistent frame and rendered-pixel sampling even when a cached or retained color exists, then one settled update at load stop. The persistent frame handles follow-up paint and `load`/`pageshow` samples. Neutral loading color is used only when no cache or retained color exists. Weak semantic fast colors are skipped during active loading, except preferred `theme-color`. |
 | Tab switch | Coalesces updates, applies exact target cache first, then same-host retained color, then host fallback. Exact or retained cached tab colors are kept without immediately forcing a fresh persistent page sample only after the cache paint succeeds. Equivalent color keys are no-ops to avoid CSS rewrite blink. |
 | Zen Boost | Detected through `#zen-site-data-icon-button[boosting]` in `blended-bar.uc.js`, then folded into `createResolveContext` as `boostActive`, `requireRendered`, and `requirePixel`. Boost changes clear active page cache, request a persistent rendered sample, and require pixel-derived sources such as `pixel-top-edge`, `pixel`, `sampler`, or host cache entries from those sources. Computed-style sources such as `top-visible`, `body`, `html`, and `theme-color` are ignored while Boost is active. |
 | Dark Reader | Detected through `--darkreader-neutral-background` and `--darkreader-neutral-text`. Treated as rendered for normal arbitration, but rejected when Boost requires actual pixels. |

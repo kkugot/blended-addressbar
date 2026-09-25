@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.18
+// @version        1.7.19
 // ==/UserScript==
 
 (() => {
@@ -3001,6 +3001,10 @@
       return;
     }
     attachPersistentThemeListener(browser);
+    if (fastOnly && isLoadingThemeFor(browser)) {
+      requestPersistentFrameTheme(browser);
+      void sampleRenderedTheme(browser);
+    }
 
     const zenBoostActive = isZenBoostActive();
     if (zenBoostActive) requestPersistentFrameTheme(browser, true);
@@ -3028,9 +3032,9 @@
     if (hasStableCachedTabTheme) return;
 
     if (isLoadingThemeFor(browser) && !cachedTheme && !retainedHostTheme && !deferUnknownFallback) {
-      requestPersistentFrameTheme(browser, true);
+      if (!fastOnly) requestPersistentFrameTheme(browser, true);
       applyHeaderOnlyTheme(browser, getNeutralHeaderShade(browser, 'loading-unknown'), 'loading-unknown', expectedHref);
-      void sampleRenderedTheme(browser);
+      if (!fastOnly) void sampleRenderedTheme(browser);
       return;
     }
 

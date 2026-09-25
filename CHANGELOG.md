@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.19 - 2026-09-25
+
+- Start content and rendered-pixel sampling on early fast-only loading updates, including cached pages, so visible header changes can reach the addressbar before load finishes.
+
 ## 1.7.18 - 2026-09-25
 
 - Continue sampling paint-triggered color updates for three seconds after load so late-rendered page headers can replace an early fallback.

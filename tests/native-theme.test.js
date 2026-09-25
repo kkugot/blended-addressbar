@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.18', () => {
+test('release metadata stays synchronized at version 1.7.19', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.18');
+  assert.equal(theme.version, '1.7.19');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.18/);
-  assert.match(marketplace, /Version: `1\.7\.18`/);
-  assert.match(marketplace, /"version": "1\.7\.18"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.19/);
+  assert.match(marketplace, /Version: `1\.7\.19`/);
+  assert.match(marketplace, /"version": "1\.7\.19"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.18 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.19 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1872,6 +1872,8 @@ test('normal full updates request rendered pixels independently of frame replies
   const source = read('blended-bar.uc.js');
   const fullUpdate = source.slice(source.indexOf('    if (!fastOnly) {', source.indexOf('  async function startSampling(')));
   assert.match(fullUpdate, /requestPersistentFrameTheme\(browser[^;]+;\s*void sampleRenderedTheme\(browser\);\s*const pageTheme = await getBrowserPageTheme\(browser\)/);
+  const startSampling = source.slice(source.indexOf('  async function startSampling('), source.indexOf('  function enterPostLoadSampling('));
+  assert.match(startSampling, /if \(fastOnly && isLoadingThemeFor\(browser\)\) \{\s*requestPersistentFrameTheme\(browser\);\s*void sampleRenderedTheme\(browser\);/);
 });
 
 
