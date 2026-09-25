@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.13 - 2026-09-25
+
+- Sample after paint during initial loading and DOM theme changes, with a coalesced 100ms safety fallback instead of waiting for page completion.
+- Allow a newer rendered pixel color to replace an early loading color at equal confidence. Keep weaker semantic candidates guarded.
+- Use the rendered snapshot fallback for ordinary active tabs as well as split panes, and sample an 8px strip so a thin top border does not dominate. Discard stale snapshots when a newer frame sample arrives.
+
 ## 1.7.12 - 2026-09-21
 
 - Hide the selected split’s visual address proxy while the native editor owns focus, preventing overlapping URLs and icons without changing row geometry.
