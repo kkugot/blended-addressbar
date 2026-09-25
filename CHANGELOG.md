@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.23 - 2026-09-25
+
+- Switch the addressbar color instantly when selecting another tab; keep the existing 100–180ms transition for later color changes within that tab.
+
 ## 1.7.22 - 2026-09-25
 
 - Smooth page-color changes in split addressbars and the single-tab sidebar column with the existing 100–180ms transition. Disable color transitions for reduced motion.

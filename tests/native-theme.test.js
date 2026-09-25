@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.22', () => {
+test('release metadata stays synchronized at version 1.7.23', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.22');
+  assert.equal(theme.version, '1.7.23');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.22/);
-  assert.match(marketplace, /Version: `1\.7\.22`/);
-  assert.match(marketplace, /"version": "1\.7\.22"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.23/);
+  assert.match(marketplace, /Version: `1\.7\.23`/);
+  assert.match(marketplace, /"version": "1\.7\.23"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.22 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.23 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -263,10 +263,32 @@ test('adaptive header background and foreground keep short confirmed transitions
   assert.match(css, /--blended-addressbar-color-transition:\s*100ms linear/);
   assert.match(script, /const uncertainSources = new Set\(\[/);
   assert.match(script, /\? '180ms ease-out'\s*: '100ms linear'/);
-  assert.match(script, /setStylePropertyIfChanged\(\s*chromeDoc\.documentElement\.style,\s*'--blended-addressbar-color-transition',\s*getThemeColorTransition\(theme,\s*reason\)\s*\)/);
   assert.match(css, /#zen-appcontent-navbar-wrapper\s*\{[\s\S]*transition:\s*background-color var\(--blended-addressbar-color-transition\),\s*color var\(--blended-addressbar-color-transition\)/);
   assert.match(css, /transition:\s*color var\(--blended-addressbar-color-transition\),\s*fill var\(--blended-addressbar-color-transition\),\s*stroke var\(--blended-addressbar-color-transition\)/);
   assert.doesNotMatch(css, /\.tabbrowser-tab[\s\S]{0,160}transition:/);
+});
+
+test('tab switches apply their first color without fading while in-tab updates still transition', () => {
+  const first = {}, second = {}, writes = [];
+  const context = {
+    gBrowser: { selectedBrowser: first },
+    lastColorTransitionBrowser: null,
+    chromeDoc: { documentElement: { style: {} } },
+    setStylePropertyIfChanged: (_style, name, value) => {
+      assert.equal(name, '--blended-addressbar-color-transition');
+      writes.push(value);
+    }
+  };
+  const script = read('blended-bar.uc.js');
+  vm.createContext(context);
+  vm.runInContext(script.slice(script.indexOf('  function getThemeColorTransition('), script.indexOf('  function setThemeDebugAttributes(')), context);
+
+  context.setThemeColorTransition({ source: 'pixel-top-edge' }, 'persistent-frame');
+  context.setThemeColorTransition({ source: 'pixel-top-edge' }, 'persistent-frame');
+  context.gBrowser.selectedBrowser = second;
+  context.setThemeColorTransition({ source: 'host-cache' }, 'target-cache');
+  context.setThemeColorTransition({ source: 'body' }, 'unknown-page');
+  assert.deepEqual(writes, ['0ms linear', '100ms linear', '0ms linear', '180ms ease-out']);
 });
 
 test('interactive navigation controls stay outside the browser window drag region', () => {
