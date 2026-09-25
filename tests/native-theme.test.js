@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.20', () => {
+test('release metadata stays synchronized at version 1.7.21', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.20');
+  assert.equal(theme.version, '1.7.21');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.20/);
-  assert.match(marketplace, /Version: `1\.7\.20`/);
-  assert.match(marketplace, /"version": "1\.7\.20"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.21/);
+  assert.match(marketplace, /Version: `1\.7\.21`/);
+  assert.match(marketplace, /"version": "1\.7\.21"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.20 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.21 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -901,7 +901,6 @@ test('persistent frame bridge samples rendered page pixels and observes theme mu
   assert.match(script, /function attachPersistentThemeListener\(browser\)/);
   assert.match(script, /function detachPersistentThemeListener\(browser\)/);
   assert.match(script, /function requestPersistentFrameTheme\(browser,\s*forceFresh = false\)/);
-  assert.match(script, /messageManager\.loadFrameScript\(themeFrameScriptUrl,\s*false,\s*true\)/);
   assert.match(script, /requestPersistentFrameTheme\(browser,\s*zenBoostActive \|\| deferRememberedFallback \|\| !cachedTheme\)/);
   assert.match(script, /gBrowser\.tabContainer\.addEventListener\('TabClose'/);
 
@@ -1634,10 +1633,41 @@ test('hover focus is opt-in, delayed, cancellable and does not steal URL editing
   assert.equal(selected, 1);
 });
 
+test('persistent frame bridge loads its scripts into content through data URLs', async () => {
+  const browser = { currentURI: { spec: 'https://example.com/' } };
+  const loaded = [];
+  const fetched = [];
+  const context = {
+    persistentFrameScriptUrlsPromise: null,
+    scriptModuleBaseUrl: 'chrome://sine/content/blended-addressbar/scripts/',
+    themeFrameScriptUrl: 'chrome://sine/content/blended-addressbar/frame.js',
+    getBrowserMessageManager: () => ({
+      loadFrameScript: (url, delayed, global) => loaded.push({ url, delayed, global }),
+      addMessageListener() {}
+    }),
+    attachPersistentThemeListener() {},
+    getBrowserHref: target => target.currentURI.spec,
+    fetch: async url => {
+      fetched.push(url);
+      return { ok: true, text: async () => url.endsWith('color-sampling.js') ? 'helper source' : 'frame source' };
+    },
+    encodeURIComponent,
+    DEBUG_THEME: false,
+    console
+  };
+  const script = read('blended-bar.uc.js');
+  vm.createContext(context);
+  vm.runInContext(script.slice(script.indexOf('  function requestPersistentFrameTheme('), script.indexOf('  function getThemeFrameScript(')), context);
+
+  assert.equal(context.requestPersistentFrameTheme(browser), true);
+  await new Promise(setImmediate);
+  assert.equal(fetched.length, 2);
+  assert.deepEqual(loaded.map(({ url }) => decodeURIComponent(url.split(',')[1])), ['helper source', 'frame source']);
+  assert.ok(loaded.every(({ url, delayed, global }) => url.startsWith('data:application/javascript;charset=utf-8,') && delayed === false && global === true));
+});
+
 test('persistent sampler shares its helper scope and recovers from incomplete initialization', () => {
   const script = read('blended-bar.uc.js');
-  assert.match(script, /loadFrameScript\(`\$\{scriptModuleBaseUrl\}color-sampling\.js`, false, true\)/);
-  assert.match(script, /loadFrameScript\(themeFrameScriptUrl, false, true\)/);
   let listeners = 0;
   const context = { content: {
     __blended_addressbar_frame_inited: true,
