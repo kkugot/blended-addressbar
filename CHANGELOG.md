@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.22 - 2026-09-25
+
+- Smooth page-color changes in split addressbars and the single-tab sidebar column with the existing 100–180ms transition. Disable color transitions for reduced motion.
+
 ## 1.7.21 - 2026-09-25
 
 - Load the persistent color sampler into Zen's content process through cached data URLs. Direct Sine chrome URLs did not initialize the helper there, leaving slow pages on the fallback color until loading finished.

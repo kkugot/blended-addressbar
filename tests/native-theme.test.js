@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.21', () => {
+test('release metadata stays synchronized at version 1.7.22', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.21');
+  assert.equal(theme.version, '1.7.22');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.21/);
-  assert.match(marketplace, /Version: `1\.7\.21`/);
-  assert.match(marketplace, /"version": "1\.7\.21"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.22/);
+  assert.match(marketplace, /Version: `1\.7\.22`/);
+  assert.match(marketplace, /"version": "1\.7\.22"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.21 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.22 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
