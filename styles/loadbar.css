@@ -274,7 +274,11 @@
     .blended-addressbar-pane-field[data-blended-loading] {
       --blended-addressbar-loadbar-fill: color-mix(in srgb,
         var(--blended-addressbar-glow-color) var(--blended-addressbar-loadbar-glow-weak-mix, 7%), transparent);
-      background-image: linear-gradient(var(--blended-addressbar-loadbar-fill), var(--blended-addressbar-loadbar-fill)) !important;
+      background-image:
+        linear-gradient(to right,
+          color-mix(in srgb, var(--blended-addressbar-glow-color) var(--blended-addressbar-loadbar-glow-medium-mix, 18%), transparent) 0%,
+          var(--blended-addressbar-loadbar-fill) 55%,
+          var(--blended-addressbar-loadbar-fill) 100%) !important;
     }
 
     #urlbar[data-blended-loading]:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::before,
@@ -285,6 +289,11 @@
     #urlbar[data-blended-loading]:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after,
     .blended-addressbar-pane-field[data-blended-loading]::after {
       opacity: var(--blended-addressbar-loadbar-opacity, 1) !important;
+    }
+
+    #urlbar[data-blended-loading]:not([zen-floating-urlbar="true"]):not([breakout-extend]) > .urlbar-background::after,
+    .blended-addressbar-pane-field[data-blended-loading]::after {
+      animation: blended-addressbar-line-breathe 1.8s ease-in-out infinite alternate;
     }
 
     &[data-blended-addressbar-loadbar-iridescent="true"] {
@@ -299,6 +308,11 @@
         animation: blended-addressbar-iridescent 1.8s ease-in-out infinite alternate;
       }
     }
+  }
+
+  @keyframes blended-addressbar-line-breathe {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.16); }
   }
 
   @keyframes blended-addressbar-iridescent {
