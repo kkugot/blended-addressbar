@@ -14,6 +14,7 @@
     const MESSAGE_NAME = 'blended-addressbar:persistent-theme';
     const PIXEL_SAMPLE_WIDTH = 256;
     const PIXEL_SAMPLE_HEIGHT = 8;
+    const MIN_PAINT_SAMPLE_INTERVAL_MS = 32;
     const { getDominantSampleColor } = BlendedAddressbarModule;
     const SAMPLE_TOP_Y = 3;
     let lastKey = '';
@@ -280,7 +281,7 @@
     function onPaint() {
       if (content.document.readyState === 'complete') return;
       const now = Date.now();
-      if (now - lastPaintSampleAt < 100) return;
+      if (now - lastPaintSampleAt < MIN_PAINT_SAMPLE_INTERVAL_MS) return;
       lastPaintSampleAt = now;
       sample(false);
     }
