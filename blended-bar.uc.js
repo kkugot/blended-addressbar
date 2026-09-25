@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.22
+// @version        1.7.23
 // ==/UserScript==
 
 (() => {
@@ -77,6 +77,7 @@
   let servicesModule = null;
   let lastThemeKey = null;
   let lastAppliedTheme = null;
+  let lastColorTransitionBrowser = null;
   let nativeZenThemeOriginals = null;
   const themeApplyState = {
     href: '',
@@ -236,10 +237,13 @@
   }
 
   function setThemeColorTransition(theme, reason = '') {
+    const browser = gBrowser?.selectedBrowser || null;
+    const firstColorForTab = !!browser && browser !== lastColorTransitionBrowser;
+    lastColorTransitionBrowser = browser;
     setStylePropertyIfChanged(
       chromeDoc.documentElement.style,
       '--blended-addressbar-color-transition',
-      getThemeColorTransition(theme, reason)
+      firstColorForTab ? '0ms linear' : getThemeColorTransition(theme, reason)
     );
   }
 
@@ -329,6 +333,7 @@
     lastAppliedTheme = null;
     lastThemeKey = null;
     lastCss = null;
+    setThemeColorTransition(null, reason);
     clearTabHeaderTheme();
     restoreNativeZenTheme();
     clearWindowTintBackground();
@@ -3598,6 +3603,7 @@
     observeSplitAddressbars();
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
+      setStylePropertyIfChanged(chromeDoc.documentElement.style, '--blended-addressbar-color-transition', '0ms linear');
       scheduleSplitAddressbars();
       positionSplitEditor();
       ensureLoadProgress(gBrowser.selectedBrowser);
