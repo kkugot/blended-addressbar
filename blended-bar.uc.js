@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.24
+// @version        1.7.25
 // ==/UserScript==
 
 (() => {
@@ -77,7 +77,6 @@
   let servicesModule = null;
   let lastThemeKey = null;
   let lastAppliedTheme = null;
-  let lastColorTransitionBrowser = null;
   let nativeZenThemeOriginals = null;
   const themeApplyState = {
     href: '',
@@ -216,38 +215,6 @@
     removeStylePropertyIfChanged(rootStyle, '--zen-tab-header-foreground');
   }
 
-  function getThemeColorTransition(theme, reason = '') {
-    if (!isLoadingThemeFor(gBrowser?.selectedBrowser || null)) return '0ms linear';
-    const uncertainSources = new Set([
-      'host-cache',
-      'target-cache',
-      'same-host-retained',
-      'unknown-page',
-      'loading-unknown',
-      'toolbar-fallback'
-    ]);
-    const source = uncertainSources.has(reason) ? reason : (theme?.source || reason || '');
-    return source === 'host-cache'
-      || source === 'target-cache'
-      || source === 'same-host-retained'
-      || source === 'unknown-page'
-      || source === 'loading-unknown'
-      || source === 'toolbar-fallback'
-      ? '180ms ease-out'
-      : '100ms linear';
-  }
-
-  function setThemeColorTransition(theme, reason = '') {
-    const browser = gBrowser?.selectedBrowser || null;
-    const firstColorForTab = !!browser && browser !== lastColorTransitionBrowser;
-    lastColorTransitionBrowser = browser;
-    setStylePropertyIfChanged(
-      chromeDoc.documentElement.style,
-      '--blended-addressbar-color-transition',
-      firstColorForTab ? '0ms linear' : getThemeColorTransition(theme, reason)
-    );
-  }
-
   function setThemeDebugAttributes(reason = '', theme = null, href = '') {
     if (!DEBUG_THEME) return;
 
@@ -334,7 +301,6 @@
     lastAppliedTheme = null;
     lastThemeKey = null;
     lastCss = null;
-    setThemeColorTransition(null, reason);
     clearTabHeaderTheme();
     restoreNativeZenTheme();
     clearWindowTintBackground();
@@ -369,7 +335,6 @@
     lastAppliedTheme = theme;
     lastThemeKey = key;
     lastCss = theme.bg;
-    setThemeColorTransition(theme, reason);
     setVar(theme.bg, theme.fg);
     setPageLoadbarColors(theme);
     setThemeDebugAttributes(reason, theme, href);
@@ -397,7 +362,6 @@
     lastAppliedTheme = theme;
     lastThemeKey = key;
     lastCss = theme.bg;
-    setThemeColorTransition(theme, reason);
     setVar(theme.bg, theme.fg);
     setPageLoadbarColors(theme);
     setThemeDebugAttributes(reason, theme, href);
@@ -409,7 +373,6 @@
     if (!theme) return;
 
     lastAppliedTheme = theme;
-    setThemeColorTransition(theme, reason);
     setVar(theme.bg, theme.fg);
     applyNativeZenTheme(theme, reason);
     setPageLoadbarColors(theme);
@@ -3190,7 +3153,7 @@
     loadingThemeStartedAt = 0;
     loadingThemeBrowser = null;
     loadingThemeHref = '';
-    setStylePropertyIfChanged(chromeDoc.documentElement.style, '--blended-addressbar-color-transition', '0ms linear');
+    chromeDoc.documentElement.removeAttribute('data-blended-addressbar-color-loading');
     if (!samplingEnabled) stopSampling();
   }
 
@@ -3207,6 +3170,7 @@
     loadingThemeBrowser = browser;
     loadingThemeHref = href;
     loadingThemeStartedAt = Date.now();
+    chromeDoc.documentElement.setAttribute('data-blended-addressbar-color-loading', 'true');
   }
 
   function clearScheduledThemeUpdates() {
@@ -3603,7 +3567,7 @@
     observeSplitAddressbars();
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
-      setStylePropertyIfChanged(chromeDoc.documentElement.style, '--blended-addressbar-color-transition', '0ms linear');
+      chromeDoc.documentElement.removeAttribute('data-blended-addressbar-color-loading');
       resetThemeArbitration(getBrowserHref(gBrowser.selectedBrowser));
       scheduleSplitAddressbars();
       positionSplitEditor();

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.25 - 2026-09-25
+
+- Limit adaptive addressbar color transitions to active page loading. Loaded tabs and tab switches update instantly; reduced motion remains instant.
+
 ## 1.7.24 - 2026-09-25
 
 - Apply an exact loaded tab's cached color immediately on selection while refreshing it in the background. Animate color changes only during active page loading; loaded tabs switch without a fade or neutral-color gap.
