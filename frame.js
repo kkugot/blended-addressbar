@@ -20,6 +20,7 @@
     let debounceTimer = 0;
     let forceNextSample = false;
     let lastRescheduleAt = 0;
+    let lastPaintSampleAt = 0;
     let pixelCanvas = null;
     let pixelCtx = null;
 
@@ -276,6 +277,14 @@
       }
     }
 
+    function onPaint() {
+      if (content.document.readyState === 'complete') return;
+      const now = Date.now();
+      if (now - lastPaintSampleAt < 100) return;
+      lastPaintSampleAt = now;
+      sample(false);
+    }
+
     function rescheduleLoad() {
       const now = Date.now();
       if (now - lastRescheduleAt < 500) return;
@@ -297,6 +306,7 @@
     // message so chrome can also refresh its pixel fallback when needed.
     content.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => debouncedSample(true));
     startObserving();
+    content.addEventListener('MozAfterPaint', onPaint, { capture: true });
     content.addEventListener('load', rescheduleLoad, { capture: true });
     content.addEventListener('pageshow', rescheduleLoad, { capture: true });
     content.__blended_addressbar_frame_inited = true;

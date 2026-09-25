@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.15', () => {
+test('release metadata stays synchronized at version 1.7.16', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.15');
+  assert.equal(theme.version, '1.7.16');
   assert.equal(theme.updatedAt, '2026-09-25');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.15/);
-  assert.match(marketplace, /Version: `1\.7\.15`/);
-  assert.match(marketplace, /"version": "1\.7\.15"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.16/);
+  assert.match(marketplace, /Version: `1\.7\.16`/);
+  assert.match(marketplace, /"version": "1\.7\.16"/);
   assert.match(marketplace, /"updatedAt": "2026-09-25"/);
-  assert.match(changelog, /## 1\.7\.15 - 2026-09-25/);
+  assert.match(changelog, /## 1\.7\.16 - 2026-09-25/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1897,4 +1897,11 @@ test('loading background gradient continues across the unused field to its far e
   assert.match(fill, /--blended-addressbar-loadbar-glow-medium-mix/);
   assert.match(fill, /--blended-addressbar-loadbar-glow-weak-mix/);
   assert.match(fill, /var\(--blended-addressbar-loadbar-fill\) 100%/);
+});
+
+
+test('rendered loading colors refresh on throttled paint events only while loading', () => {
+  const frame = read('frame.js');
+  assert.match(frame, /function onPaint\(\)[\s\S]*document\.readyState === 'complete'[\s\S]*now - lastPaintSampleAt < 100[\s\S]*sample\(false\)/);
+  assert.match(frame, /addEventListener\('MozAfterPaint', onPaint, \{ capture: true \}\)/);
 });
