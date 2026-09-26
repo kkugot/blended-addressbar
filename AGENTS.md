@@ -9,12 +9,13 @@ The mod has no build step. Zen loads the source files directly.
 ## Runtime map
 
 - `theme.json` registers `blended-bar.uc.js`, `style.css`, and `preferences.json` with Sine.
-- `blended-bar.uc.js` is the only chrome script entry point. It owns browser events, color arbitration, caches, preference effects, and CSS variable updates.
+- `blended-bar.uc.js` is the browser chrome script entry point. It owns browser events, color arbitration, caches, preference effects, and CSS variable updates.
+- `hover-settings.uc.js` loads only on `about:preferences*` and exposes the split hover preference on Zen's Tabs and browsing page.
 - `frame.js` runs in page content. It samples page colors and reports theme changes through the message manager.
 - `scripts/*.js` are focused chrome helpers. `blended-bar.uc.js` loads them with `Services.scriptloader` from `chrome://sine/content/blended-addressbar/scripts/`.
 - Each helper exports one `BlendedAddressbarModule`. Keep this contract compatible with the chrome script loader and Node tests.
 - `style.css` is the chrome stylesheet entry point. It imports `styles/loadbar.css` and `styles/header-chrome.css`.
-- `preferences.json` defines the Sine settings UI.
+- `preferences.json` defines the Sine settings UI, including the same split hover preference.
 - `tests/native-theme.test.js` is the Node regression suite.
 - `docs/color-architecture.md` describes the adaptive color pipeline and source policy.
 

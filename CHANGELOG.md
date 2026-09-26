@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.26 - 2026-09-26
+
+- Expose Focus split pane on hover on Zen's Tabs and browsing page. The Zen and Sine checkboxes use the same live, default-off preference.
+
 ## 1.7.25 - 2026-09-25
 
 - Limit adaptive addressbar color transitions to active page loading. Loaded tabs and tab switches update instantly; reduced motion remains instant.
