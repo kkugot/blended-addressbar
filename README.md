@@ -35,7 +35,7 @@ These rows share the page’s clipping boundary and reserve the native field hei
 
 ## Preferences
 
-Change these settings in Sine. Focus split pane on hover is also available on Zen's **Tabs and browsing** page. The preference names below also identify them in `about:config`.
+Change these settings in Sine. The preference names below also identify them in `about:config`.
 
 ### Window tint
 
@@ -45,8 +45,6 @@ Change these settings in Sine. Focus split pane on hover is also available on Ze
 Page colors are always remembered in memory while browsing. They are not saved across browser restarts.
 
 ### Split focus
-
-- `uc.blended-addressbar.split-focus-on-hover`: select the split pane under the pointer after 150ms without clicking; disabled by default. The Sine and Zen settings control the same preference. Works in both toolbar layouts. URL editing, open menus, Glance and dragging suspend hover switching.
 
 The active pane’s inset highlight appears over 260ms and disappears over 90ms. System reduced-motion settings disable these transitions.
 

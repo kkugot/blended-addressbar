@@ -5,12 +5,6 @@
     "margin": "20px 0 12px 0"
   },
   {
-    "property": "uc.blended-addressbar.split-focus-on-hover",
-    "label": "Focus split pane on hover",
-    "type": "checkbox",
-    "defaultValue": false
-  },
-  {
     "property": "uc.blended-addressbar.frame-radius",
     "label": "Corner radius",
     "type": "string",

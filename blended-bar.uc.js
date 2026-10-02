@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.26
+// @version        1.7.27
 // ==/UserScript==
 
 (() => {
@@ -3445,62 +3445,7 @@
     if (!splitRefreshTimer) splitRefreshTimer = setTimeout(refreshSplitAddressbars, 0);
   }
 
-  let splitHoverTimer = 0;
-  let splitHoverPane = null;
-
-  function cancelSplitHover() {
-    if (splitHoverTimer) clearTimeout(splitHoverTimer);
-    splitHoverTimer = 0;
-    splitHoverPane = null;
-  }
-
-  function canHoverSplit() {
-    const root = chromeDoc.documentElement;
-    return !addressbarEnhancementsDisposed
-      && readBoolPref(`${addressbarPrefBranch}split-focus-on-hover`, false)
-      && chromeDoc.hasFocus()
-      && gBrowser.tabpanels.getAttribute('zen-split-view') === 'true'
-      && !root.hasAttribute('customizing')
-      && root.getAttribute('inDOMFullscreen') !== 'true'
-      && !gURLBar.focused && !gURLBar.view.isOpen
-      && !chromeDoc.querySelector('panel[panelopen="true"], menupopup[open="true"]')
-      && !window.gZenGlanceManager?.getFocusedTab?.();
-  }
-
-  function onSplitHover(event) {
-    if (event.buttons || !canHoverSplit()) {
-      cancelSplitHover();
-      return;
-    }
-    const pane = event.target?.closest?.('.browserSidebarContainer[zen-split="true"]:not(.zen-glance-overlay)');
-    const browser = pane?.querySelector(':scope > .browserContainer > .browserStack > browser');
-    if (!browser || browser === gBrowser.selectedBrowser || pane.parentNode !== gBrowser.tabpanels) {
-      cancelSplitHover();
-      return;
-    }
-    if (pane === splitHoverPane) return;
-    cancelSplitHover();
-    splitHoverPane = pane;
-    splitHoverTimer = setTimeout(() => {
-      cancelSplitHover();
-      if (!canHoverSplit() || !pane.isConnected || !pane.matches(':hover')
-        || pane.getAttribute('zen-split') !== 'true') return;
-      const tab = gBrowser.getTabForBrowser(browser);
-      if (tab && !tab.closing) gBrowser.selectedTab = tab;
-    }, 150);
-  }
-
-  function onSplitHoverExit(event) {
-    if (!event.relatedTarget) cancelSplitHover();
-  }
-
   function observeSplitAddressbars() {
-    window.addEventListener('mousemove', onSplitHover, true);
-    window.addEventListener('mouseout', onSplitHoverExit, true);
-    window.addEventListener('mousedown', cancelSplitHover, true);
-    window.addEventListener('keydown', cancelSplitHover, true);
-    window.addEventListener('dragstart', cancelSplitHover, true);
-    window.addEventListener('blur', cancelSplitHover);
     splitObserver = new MutationObserver(records => {
       if (records.some(record => !record.target.closest?.('.blended-addressbar-pane-bar'))) scheduleSplitAddressbars();
     });
@@ -3525,13 +3470,6 @@
 
   function cleanupAddressbarEnhancements() {
     if (addressbarEnhancementsDisposed) return;
-    cancelSplitHover();
-    window.removeEventListener('mousemove', onSplitHover, true);
-    window.removeEventListener('mouseout', onSplitHoverExit, true);
-    window.removeEventListener('mousedown', cancelSplitHover, true);
-    window.removeEventListener('keydown', cancelSplitHover, true);
-    window.removeEventListener('dragstart', cancelSplitHover, true);
-    window.removeEventListener('blur', cancelSplitHover);
     clearInterval(loadbarTimer);
     clearTimeout(splitRefreshTimer);
     splitObserver?.disconnect();

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.27 - 2026-10-02
+
+- Remove automatic pane selection under the mouse cursor and its settings. This feature belongs to Alt-click Split View.
+- Restore the original marketplace preview.
+
 ## 1.7.26 - 2026-09-26
 
 - Expose Focus split pane on hover on Zen's Tabs and browsing page. The Zen and Sine checkboxes use the same live, default-off preference.

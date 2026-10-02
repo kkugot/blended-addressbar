@@ -64,21 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.26', () => {
+test('release metadata stays synchronized at version 1.7.27', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.26');
-  assert.equal(theme.updatedAt, '2026-09-26');
-  assert.deepEqual(theme.scripts['hover-settings.uc.js'].include, ['about:preferences*']);
+  assert.equal(theme.version, '1.7.27');
+  assert.equal(theme.updatedAt, '2026-10-02');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.26/);
-  assert.match(marketplace, /Version: `1\.7\.26`/);
-  assert.match(marketplace, /"version": "1\.7\.26"/);
-  assert.match(marketplace, /"updatedAt": "2026-09-26"/);
-  assert.match(changelog, /## 1\.7\.26 - 2026-09-26/);
+  assert.match(script, /\/\/ @version\s+1\.7\.27/);
+  assert.match(marketplace, /Version: `1\.7\.27`/);
+  assert.match(marketplace, /"version": "1\.7\.27"/);
+  assert.match(marketplace, /"updatedAt": "2026-10-02"/);
+  assert.match(changelog, /## 1\.7\.27 - 2026-10-02/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1598,57 +1597,6 @@ test('split focus highlight enters slowly, exits quickly and respects reduced mo
   assert.match(css, /transition: box-shadow 90ms ease-in/);
   assert.match(css, /transition-duration: 260ms/);
   assert.match(css, /prefers-reduced-motion: reduce[\s\S]*\.blended-addressbar-pane-highlight[^}]*transition: none !important/);
-  const pref = JSON.parse(read('preferences.json')).find(p => p.property === 'uc.blended-addressbar.split-focus-on-hover');
-  assert.equal(pref?.defaultValue, false);
-});
-
-test('hover focus is opt-in, delayed, cancellable and does not steal URL editing focus', () => {
-  let enabled = false, nextTimer = 0, selected = 0;
-  const timers = new Map();
-  const browser = {}, tab = {};
-  const panels = { getAttribute: () => 'true' };
-  const pane = { parentNode: panels, isConnected: true, matches: () => true,
-    getAttribute: () => 'true', querySelector: () => browser };
-  const event = { buttons: 0, target: { closest: () => pane } };
-  const context = {
-    addressbarEnhancementsDisposed: false, addressbarPrefBranch: 'uc.blended-addressbar.',
-    window: { gZenGlanceManager: { getFocusedTab: () => null } },
-    readBoolPref: () => enabled,
-    chromeDoc: { hasFocus: () => true, documentElement: { hasAttribute: () => false, getAttribute: () => null }, querySelector: () => null },
-    gURLBar: { focused: false, view: { isOpen: false } },
-    gBrowser: { tabpanels: panels, selectedBrowser: {}, getTabForBrowser: () => tab,
-      set selectedTab(value) { assert.equal(value, tab); selected++; } },
-    setTimeout: (callback, delay) => { assert.equal(delay, 150); timers.set(++nextTimer, callback); return nextTimer; },
-    clearTimeout: id => timers.delete(id)
-  };
-  const source = read('blended-bar.uc.js');
-  vm.createContext(context);
-  vm.runInContext(source.slice(source.indexOf('  let splitHoverTimer'), source.indexOf('  function observeSplitAddressbars()')), context);
-  context.onSplitHover(event);
-  assert.equal(timers.size, 0);
-  enabled = true;
-  context.onSplitHover(event);
-  context.onSplitHover(event);
-  assert.equal(timers.size, 1);
-  assert.equal(selected, 0);
-  [...timers.values()][0]();
-  assert.equal(selected, 1);
-  context.onSplitHover(event);
-  context.onSplitHover({ ...event, buttons: 1 });
-  assert.equal(timers.size, 0);
-  context.onSplitHover(event);
-  context.gURLBar.focused = true;
-  [...timers.values()][0]();
-  assert.equal(selected, 1);
-  context.gURLBar.focused = false;
-  context.window.gZenGlanceManager.getFocusedTab = () => tab;
-  context.onSplitHover(event);
-  assert.equal(timers.size, 0);
-  context.window.gZenGlanceManager.getFocusedTab = () => null;
-  context.onSplitHover(event);
-  enabled = false;
-  [...timers.values()][0]();
-  assert.equal(selected, 1);
 });
 
 test('persistent frame bridge loads its scripts into content through data URLs', async () => {
