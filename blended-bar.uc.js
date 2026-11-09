@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.29
+// @version        1.7.30
 // ==/UserScript==
 
 (() => {
@@ -154,6 +154,24 @@
     readBoolPref: (name, fallback) => readBoolPref(name, fallback),
     removeStylePropertyIfChanged,
     setStylePropertyIfChanged
+  });
+
+  const {
+    cleanupWindowControlsPlacement,
+    observeWindowControlsPlacement
+  } = loadBlendedAddressbarModule('window-controls.js', {
+    chromeDoc,
+    isMacOS: window.AppConstants?.platform === 'macosx',
+    readBoolPref: (name, fallback) => readBoolPref(name, fallback),
+    getWindowButtons: () => {
+      try {
+        // Zen caches this element and moves it on every layout update.
+        return window.gZenVerticalTabsManager?.actualWindowButtons
+          || chromeDoc.querySelector('.titlebar-buttonbox-container');
+      } catch {
+        return null;
+      }
+    }
   });
 
   const {
@@ -3503,6 +3521,7 @@
     observeLoadbarPrefs();
     observeNativeZenThemePrefs();
     observeSplitAddressbars();
+    observeWindowControlsPlacement(getPrefs());
 
     gBrowser.tabContainer.addEventListener('TabSelect', () => {
       chromeDoc.documentElement.removeAttribute('data-blended-addressbar-color-loading');
@@ -3554,6 +3573,7 @@
           if (viewportResizeObserver) viewportResizeObserver.disconnect();
           cleanupAddressbarEnhancements();
           cleanupPaneCornerRadii();
+          cleanupWindowControlsPlacement();
           if (zenBoostMutationObserver) zenBoostMutationObserver.disconnect();
           stopLoadingThemeTracking();
           clearPendingThemeCandidate();

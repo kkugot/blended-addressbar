@@ -506,6 +506,24 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
     }
 }
 
+/* macOS window controls moved from the addressbar row into that reserved
+   strip by scripts/window-controls.js. The strip lines up with the
+   addressbar row: the toolbox starts --zen-compact-float / 2 below the top. */
+#blended-addressbar-sidebar-window-controls {
+    display: none;
+}
+
+:root[data-blended-sidebar-window-controls="true"] #navigator-toolbox #blended-addressbar-sidebar-window-controls {
+    display: flex;
+    position: absolute;
+    inset-inline: 0;
+    top: calc(var(--zen-compact-float, 0px) / -2);
+    height: var(--zen-toolbar-height);
+    align-items: center;
+    z-index: 1;
+    -moz-window-dragging: drag;
+}
+
 /* Single-toolbar mode keeps Zen's sidebar addressbar native. */
 :root[zen-single-toolbar="true"]:not([customizing]) #zen-appcontent-navbar-wrapper:has(#PersonalToolbar[collapsed]) {
     min-height: 0 !important;

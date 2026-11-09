@@ -3,7 +3,7 @@
 ## Ready
 
 - Name: `Blended Addressbar` (18 characters).
-- Version: `1.7.29`.
+- Version: `1.7.30`.
 - Description: `A page-aware addressbar that blends Zen chrome with the active website.` (71 characters).
 - Metadata: `theme.json`.
 - Preferences: `preferences.json`.
@@ -30,9 +30,9 @@
   "readme": "https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/README.md",
   "image": "https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/marketplace-preview.png",
   "author": "Kostiantyn Kugot",
-  "version": "1.7.29",
+  "version": "1.7.30",
   "ai": "partial",
-  "updatedAt": "2026-11-09T10:50:00Z",
+  "updatedAt": "2026-11-09T10:59:00Z",
   "style": {
     "chrome": "style.css",
     "content": ""

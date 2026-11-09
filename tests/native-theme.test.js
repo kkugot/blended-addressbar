@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.29', () => {
+test('release metadata stays synchronized at version 1.7.30', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.29');
-  assert.equal(theme.updatedAt, '2026-11-09T10:50:00Z');
+  assert.equal(theme.version, '1.7.30');
+  assert.equal(theme.updatedAt, '2026-11-09T10:59:00Z');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.29/);
-  assert.match(marketplace, /Version: `1\.7\.29`/);
-  assert.match(marketplace, /"version": "1\.7\.29"/);
-  assert.match(marketplace, /"updatedAt": "2026-11-09T10:50:00Z"/);
-  assert.match(changelog, /## 1\.7\.29 - 2026-11-09/);
+  assert.match(script, /\/\/ @version\s+1\.7\.30/);
+  assert.match(marketplace, /Version: `1\.7\.30`/);
+  assert.match(marketplace, /"version": "1\.7\.30"/);
+  assert.match(marketplace, /"updatedAt": "2026-11-09T10:59:00Z"/);
+  assert.match(changelog, /## 1\.7\.30 - 2026-11-09/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -413,6 +413,206 @@ test('remove frame rounding overrides the effective radius without erasing its c
   assert.match(script, /const framePrefNames = Object\.freeze\(new Set\(\[[\s\S]*frameRadiusDisabledPref/);
   assert.match(script, /const radius = readBoolPref\(frameRadiusDisabledPref,\s*false\)\s*\?\s*'0px'\s*:\s*normalizeCssLength\(readStringPref\(frameRadiusPref,\s*'14px'\),\s*'14px'\)/);
   assert.match(readme, /uc\.blended-addressbar\.frame-radius\.disabled`: remove browser frame rounding without changing the configured radius/);
+});
+
+function createWindowControlsDom() {
+  class FakeElement {
+    constructor(id = '') {
+      this.id = id;
+      this.children = [];
+      this.parentNode = null;
+      this.attributes = new Map();
+    }
+    get isConnected() {
+      let node = this;
+      while (node.parentNode) node = node.parentNode;
+      return node === doc.documentElement;
+    }
+    get nextSibling() {
+      const siblings = this.parentNode?.children || [];
+      return siblings[siblings.indexOf(this) + 1] || null;
+    }
+    remove() {
+      if (!this.parentNode) return;
+      this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1);
+      this.parentNode = null;
+    }
+    insertBefore(child, ref) {
+      child.remove();
+      child.parentNode = this;
+      const index = ref ? this.children.indexOf(ref) : -1;
+      if (index < 0) this.children.push(child);
+      else this.children.splice(index, 0, child);
+      return child;
+    }
+    appendChild(child) { return this.insertBefore(child, null); }
+    prepend(child) { return this.insertBefore(child, this.children[0] || null); }
+    setAttribute(name, value) { this.attributes.set(name, String(value)); }
+    getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
+    hasAttribute(name) { return this.attributes.has(name); }
+    removeAttribute(name) { this.attributes.delete(name); }
+  }
+
+  const find = (node, id) => {
+    if (node.id === id) return node;
+    for (const child of node.children) {
+      const match = find(child, id);
+      if (match) return match;
+    }
+    return null;
+  };
+  const doc = {
+    documentElement: new FakeElement('main-window'),
+    getElementById: (id) => find(doc.documentElement, id),
+    createElement: () => new FakeElement()
+  };
+  const toolbox = doc.documentElement.appendChild(new FakeElement('navigator-toolbox'));
+  const titlebar = toolbox.appendChild(new FakeElement('titlebar'));
+  titlebar.appendChild(new FakeElement('TabsToolbar'));
+  const navBar = doc.documentElement.appendChild(new FakeElement('nav-bar'));
+  const topButtons = navBar.appendChild(new FakeElement('zen-sidebar-top-buttons'));
+  const buttons = navBar.appendChild(new FakeElement('window-controls'));
+  const backButton = navBar.appendChild(new FakeElement('back-button'));
+  doc.documentElement.setAttribute('zen-compact-mode', 'true');
+  return { doc, titlebar, navBar, topButtons, buttons, backButton };
+}
+
+test('window controls move into the full-height compact sidebar on macOS and back', () => {
+  const { doc, titlebar, navBar, topButtons, buttons, backButton } = createWindowControlsDom();
+  const prefs = {
+    'zen.view.compact.hide-tabbar': true,
+    'zen.view.compact.hide-toolbar': false
+  };
+  const prefObservers = [];
+  const mutationCallbacks = [];
+  class FakeMutationObserver {
+    constructor(callback) { this.callback = callback; }
+    observe() { mutationCallbacks.push(this.callback); }
+    disconnect() {
+      // A real observer stops watching every target it observed.
+      for (let index = mutationCallbacks.indexOf(this.callback); index >= 0; index = mutationCallbacks.indexOf(this.callback)) {
+        mutationCallbacks.splice(index, 1);
+      }
+    }
+  }
+  const prefService = {
+    addObserver: (name, observer) => prefObservers.push({ name, observer }),
+    removeObserver: (name, observer) => {
+      const index = prefObservers.findIndex((entry) => entry.name === name && entry.observer === observer);
+      if (index >= 0) prefObservers.splice(index, 1);
+    }
+  };
+  const setPref = (name, value) => {
+    prefs[name] = value;
+    for (const entry of prefObservers.filter((item) => item.name === name)) {
+      entry.observer.observe(null, 'nsPref:changed', name);
+    }
+  };
+  const windowControls = loadScriptModule('window-controls.js', {
+    chromeDoc: doc,
+    isMacOS: true,
+    readBoolPref: (name, fallback) => (name in prefs ? prefs[name] : fallback),
+    getWindowButtons: () => buttons,
+    MutationObserver: FakeMutationObserver
+  });
+  const host = () => doc.getElementById('blended-addressbar-sidebar-window-controls');
+
+  windowControls.observeWindowControlsPlacement(prefService);
+  assert.equal(buttons.parentNode, host());
+  assert.equal(host().parentNode, titlebar);
+  assert.equal(titlebar.children[0], host());
+  assert.equal(doc.documentElement.getAttribute('data-blended-sidebar-window-controls'), 'true');
+  assert.deepEqual(
+    prefObservers.map((entry) => entry.name).sort(),
+    [
+      'uc.blended-addressbar.compact-sidebar-over-toolbar.disabled',
+      'uc.blended-addressbar.compact-sidebar-window-controls.disabled',
+      'zen.view.compact.hide-tabbar',
+      'zen.view.compact.hide-toolbar'
+    ]
+  );
+
+  // Zen's layout update appends the cached element to #nav-bar again.
+  navBar.appendChild(buttons);
+  for (const callback of [...mutationCallbacks]) callback([]);
+  assert.equal(buttons.parentNode, host());
+
+  // The off switch returns the controls to where Zen last put them.
+  setPref('uc.blended-addressbar.compact-sidebar-window-controls.disabled', true);
+  assert.equal(buttons.parentNode, navBar);
+  assert.deepEqual(navBar.children, [topButtons, backButton, buttons]);
+  assert.equal(doc.documentElement.hasAttribute('data-blended-sidebar-window-controls'), false);
+
+  setPref('uc.blended-addressbar.compact-sidebar-window-controls.disabled', false);
+  assert.equal(buttons.parentNode, host());
+
+  // The sidebar stays below the addressbar: leave the controls there.
+  setPref('uc.blended-addressbar.compact-sidebar-over-toolbar.disabled', true);
+  assert.equal(buttons.parentNode, navBar);
+  setPref('uc.blended-addressbar.compact-sidebar-over-toolbar.disabled', false);
+
+  // Both toolbar and sidebar auto-hide: the toolbar shows the controls.
+  setPref('zen.view.compact.hide-toolbar', true);
+  assert.equal(buttons.parentNode, navBar);
+  setPref('zen.view.compact.hide-toolbar', false);
+
+  for (const [name, value] of [['zen-single-toolbar', 'true'], ['zen-right-side', 'true'], ['customizing', 'true'], ['inFullscreen', 'true']]) {
+    windowControls.updateWindowControlsPlacement();
+    assert.equal(buttons.parentNode, host(), `hosted before ${name}`);
+    doc.documentElement.setAttribute(name, value);
+    for (const callback of [...mutationCallbacks]) callback([]);
+    assert.equal(buttons.parentNode, navBar, `restored for ${name}`);
+    doc.documentElement.removeAttribute(name);
+  }
+
+  windowControls.updateWindowControlsPlacement();
+  assert.equal(buttons.parentNode, host());
+  windowControls.cleanupWindowControlsPlacement();
+  assert.equal(buttons.parentNode, navBar);
+  assert.equal(host(), null);
+  assert.equal(prefObservers.length, 0);
+  assert.equal(mutationCallbacks.length, 0);
+  assert.equal(doc.documentElement.hasAttribute('data-blended-sidebar-window-controls'), false);
+});
+
+test('window controls stay in the addressbar outside macOS', () => {
+  const { doc, navBar, buttons } = createWindowControlsDom();
+  const windowControls = loadScriptModule('window-controls.js', {
+    chromeDoc: doc,
+    isMacOS: false,
+    readBoolPref: (name, fallback) => (name === 'zen.view.compact.hide-tabbar' ? true : fallback),
+    getWindowButtons: () => buttons
+  });
+
+  windowControls.observeWindowControlsPlacement(null);
+  assert.equal(windowControls.shouldHostInSidebar(), false);
+  assert.equal(buttons.parentNode, navBar);
+  assert.equal(doc.getElementById('blended-addressbar-sidebar-window-controls'), null);
+});
+
+test('window controls placement is wired, styled and configurable', () => {
+  const script = read('blended-bar.uc.js');
+  const css = read('style.css');
+  const readme = read('README.md');
+  const preferences = JSON.parse(read('preferences.json'));
+  const property = 'uc.blended-addressbar.compact-sidebar-window-controls.disabled';
+
+  assert.match(script, /loadBlendedAddressbarModule\('window-controls\.js',\s*\{[\s\S]*?isMacOS:\s*window\.AppConstants\?\.platform === 'macosx'[\s\S]*?gZenVerticalTabsManager\?\.actualWindowButtons/);
+  assert.match(script, /observeWindowControlsPlacement\(getPrefs\(\)\);/);
+  assert.match(script, /cleanupWindowControlsPlacement\(\);/);
+  assert.deepEqual(preferences.find((pref) => pref.property === property), {
+    property,
+    label: 'Keep window controls in the addressbar',
+    type: 'checkbox',
+    defaultValue: false
+  });
+  assert.match(readme, new RegExp(property.replace(/\./g, '\\.')));
+  assert.match(cssRuleBlock(css, '#blended-addressbar-sidebar-window-controls {'), /display:\s*none/);
+  const activeBlock = cssRuleBlock(css, ':root[data-blended-sidebar-window-controls="true"] #navigator-toolbox #blended-addressbar-sidebar-window-controls {');
+  assert.match(activeBlock, /position:\s*absolute/);
+  assert.match(activeBlock, /top:\s*calc\(var\(--zen-compact-float,\s*0px\) \/ -2\)/);
+  assert.match(activeBlock, /height:\s*var\(--zen-toolbar-height\)/);
+  assert.match(activeBlock, /-moz-window-dragging:\s*drag/);
 });
 
 test('dual-toolbar compact sidebar covers the addressbar row unless disabled', () => {

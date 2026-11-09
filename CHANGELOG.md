@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.30 - 2026-11-09
+
+- On macOS, move the window controls out of the addressbar row and into the top of the full-height compact sidebar in dual-toolbar layouts. They appear only while the sidebar is shown. Turn this off with **Keep window controls in the addressbar**.
+
 ## 1.7.29 - 2026-11-09
 
 - Color addressbar page-action icons, such as Translate, with the page-aware foreground again in dual-toolbar layouts. Zen 1.24's urlbar container lost its `#urlbar-input-container` id, so these icons kept Zen's theme color and looked faded on light pages.

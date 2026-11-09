@@ -45,6 +45,12 @@
     "defaultValue": false
   },
   {
+    "property": "uc.blended-addressbar.compact-sidebar-window-controls.disabled",
+    "label": "Keep window controls in the addressbar",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
     "property": "uc.blended-addressbar.frame-shadow",
     "label": "Frame shadow",
     "type": "dropdown",
