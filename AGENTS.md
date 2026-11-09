@@ -59,6 +59,7 @@ Read `docs/color-architecture.md` before changing candidate collection, arbitrat
 - For a new preference, update `preferences.json`, runtime or CSS handling, `README.md`, and regression coverage.
 - Normalize free-form preference values through `scripts/prefs.js` before applying them.
 - For each user-visible fix or release, update `CHANGELOG.md` and bump the version in `theme.json` and `blended-bar.uc.js`.
+- Set `updatedAt` in `theme.json` to the release time as a UTC timestamp, such as `2026-11-09T10:50:00Z`. Sine updates an installed mod only when this value is later than the installed one, compared with `new Date()`, so a date-only value blocks a second release on the same day. `CHANGELOG.md` headings keep the date only.
 - Keep the version, date, description, manifest data, and Sine entry in `MARKETPLACE.md` synchronized with `theme.json`.
 - Update the release metadata assertion in `tests/native-theme.test.js` when the version or release date changes.
 - Documentation-only maintenance does not require a version bump.

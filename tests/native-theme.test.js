@@ -71,12 +71,12 @@ test('release metadata stays synchronized at version 1.7.29', () => {
   const changelog = read('CHANGELOG.md');
 
   assert.equal(theme.version, '1.7.29');
-  assert.equal(theme.updatedAt, '2026-11-09');
+  assert.equal(theme.updatedAt, '2026-11-09T10:50:00Z');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/marketplace-preview.png');
   assert.match(script, /\/\/ @version\s+1\.7\.29/);
   assert.match(marketplace, /Version: `1\.7\.29`/);
   assert.match(marketplace, /"version": "1\.7\.29"/);
-  assert.match(marketplace, /"updatedAt": "2026-11-09"/);
+  assert.match(marketplace, /"updatedAt": "2026-11-09T10:50:00Z"/);
   assert.match(changelog, /## 1\.7\.29 - 2026-11-09/);
 });
 
