@@ -2,7 +2,7 @@
 
 Blended Addressbar is a Zen Browser mod that adds a compact, page-aware browser frame to Zen's Only Sidebar, Sidebar and Top Toolbar, and Collapsed Sidebar layouts. Dual-toolbar layouts also blend the addressbar with the active page.
 
-![Blended Addressbar preview](https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png)
+![Blended Addressbar preview](https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/marketplace-preview.png)
 
 ## Features
 
@@ -18,7 +18,7 @@ Blended Addressbar is a Zen Browser mod that adds a compact, page-aware browser 
 ## Installation
 
 1. Install [Sine](https://github.com/CosmoCreeper/Sine#installation) and restart Zen.
-2. In Sine settings, install the mod from the repository `kkugot/blended-addressbar`.
+2. In Sine settings, install the mod from the repository `redpicsel/blended-addressbar`.
 3. Enable **Blended Addressbar** and open its settings to adjust the frame, window tint, and loading indicator.
 
 ## Compatibility
@@ -79,9 +79,11 @@ URL bar glow adds a soft gradient across the whole field, a moving bright tip an
 
 ## License
 
-[MIT](https://github.com/kkugot/blended-addressbar/blob/main/LICENSE).
+[MIT](https://github.com/redpicsel/blended-addressbar/blob/main/LICENSE).
 
 ## Credits
+
+This repository is a fork of [kkugot/blended-addressbar](https://github.com/kkugot/blended-addressbar) by Kostiantyn Kugot.
 
 The sampler adapts ideas from [caezium/zen-page-tint](https://github.com/caezium/zen-page-tint), especially the `requestAnimationFrame` scheduling pattern, persistent content sampler, and bounded page-color cache.
 

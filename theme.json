@@ -29,8 +29,8 @@
     "content": ""
   },
   "preferences": "preferences.json",
-  "readme": "https://raw.githubusercontent.com/kkugot/blended-addressbar/main/README.md",
-  "image": "https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png",
+  "readme": "https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/README.md",
+  "image": "https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/marketplace-preview.png",
   "createdAt": "2026-01-29",
-  "homepage": "https://github.com/kkugot/blended-addressbar"
+  "homepage": "https://github.com/redpicsel/blended-addressbar"
 }
