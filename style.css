@@ -279,9 +279,19 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }
 
-        #urlbar:not([zen-floating-urlbar="true"]) .urlbar-input-box,
-        #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input {
+        #urlbar:not([zen-floating-urlbar="true"]) .urlbar-input-box {
             color: var(--zen-tab-header-foreground, inherit);
+            transition: color var(--blended-addressbar-color-transition);
+            --input-color: var(--zen-tab-header-foreground, currentColor);
+        }
+
+        /* Sine loads this file as a user sheet, so Zen's author rule
+           `#urlbar:not([breakout-extend]) .urlbar-input { color: var(--toolbar-field-text-color) }`
+           beats a normal declaration here and paints Zen's theme text color
+           (light in dark mode) on light pages. Without a page color, keep Zen's
+           own field text color. The focused rule below still wins. */
+        #urlbar:not([zen-floating-urlbar="true"]) #urlbar-input {
+            color: var(--zen-tab-header-foreground, var(--toolbar-field-text-color, inherit)) !important;
             transition: color var(--blended-addressbar-color-transition);
             --input-color: var(--zen-tab-header-foreground, currentColor);
         }
