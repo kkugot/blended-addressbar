@@ -58,6 +58,7 @@ Corner shape follows Zen's `layout.css.corner-shape.enabled` setting and `--zen-
 - `uc.blended-addressbar.frame-padding.disabled`: remove the browser frame padding and the visible split/sidebar gaps. Resize handles retain a small invisible hit area.
 - `uc.blended-addressbar.addressbar-bookmarks-separator.disabled`: remove the separator between the addressbar and visible bookmarks bar; in Only Sidebar, remove the bookmarks bar's bottom separator.
 - `uc.blended-addressbar.single-toolbar.bookmarks-always-visible`: keep bookmarks visible in Only Sidebar instead of revealing them on top-edge hover; disabled by default.
+- `uc.blended-addressbar.compact-sidebar-over-toolbar.disabled`: in compact mode with only the sidebar hidden, keep Zen's floating sidebar below the addressbar. By default it spans the full window height and covers the addressbar row; on macOS its content starts below the window controls. Disabled by default.
 - `uc.blended-addressbar.frame-shadow`: choose the browser frame shadow preset: standard, minimal, or medium. Minimal adds a 0.5pt white inner highlight and a black outer shadow, both at 15% opacity, with a 0.5pt outer edge.
 
 ### Loading indicator

@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.28', () => {
+test('release metadata stays synchronized at version 1.7.29', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.28');
+  assert.equal(theme.version, '1.7.29');
   assert.equal(theme.updatedAt, '2026-11-09');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/redpicsel/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.28/);
-  assert.match(marketplace, /Version: `1\.7\.28`/);
-  assert.match(marketplace, /"version": "1\.7\.28"/);
+  assert.match(script, /\/\/ @version\s+1\.7\.29/);
+  assert.match(marketplace, /Version: `1\.7\.29`/);
+  assert.match(marketplace, /"version": "1\.7\.29"/);
   assert.match(marketplace, /"updatedAt": "2026-11-09"/);
-  assert.match(changelog, /## 1\.7\.28 - 2026-11-09/);
+  assert.match(changelog, /## 1\.7\.29 - 2026-11-09/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -413,6 +413,33 @@ test('remove frame rounding overrides the effective radius without erasing its c
   assert.match(script, /const framePrefNames = Object\.freeze\(new Set\(\[[\s\S]*frameRadiusDisabledPref/);
   assert.match(script, /const radius = readBoolPref\(frameRadiusDisabledPref,\s*false\)\s*\?\s*'0px'\s*:\s*normalizeCssLength\(readStringPref\(frameRadiusPref,\s*'14px'\),\s*'14px'\)/);
   assert.match(readme, /uc\.blended-addressbar\.frame-radius\.disabled`: remove browser frame rounding without changing the configured radius/);
+});
+
+test('dual-toolbar compact sidebar covers the addressbar row unless disabled', () => {
+  const css = read('style.css');
+  const readme = read('README.md');
+  const preferences = JSON.parse(read('preferences.json'));
+  const property = 'uc.blended-addressbar.compact-sidebar-over-toolbar.disabled';
+  const start = css.indexOf('/* Dual-toolbar compact sidebar:');
+  const end = css.indexOf('/* Single-toolbar mode keeps Zen\'s sidebar addressbar native. */', start);
+
+  assert.notEqual(start, -1, 'missing compact sidebar styles');
+  assert.notEqual(end, -1, 'missing end of compact sidebar styles');
+  const block = css.slice(start, end);
+
+  assert.deepEqual(preferences.find((pref) => pref.property === property), {
+    property,
+    label: 'Keep compact sidebar below the addressbar',
+    type: 'checkbox',
+    defaultValue: false
+  });
+  assert.match(readme, new RegExp(property.replace(/\./g, '\\.')));
+  assert.match(block, /@media not -moz-pref\("uc\.blended-addressbar\.compact-sidebar-over-toolbar\.disabled"\)/);
+  // Only the floating sidebar with a visible toolbar: hide-tabbar on, hide-toolbar off.
+  assert.match(block, /@media -moz-pref\("zen\.view\.compact\.hide-tabbar"\)/);
+  assert.match(block, /@media not -moz-pref\("zen\.view\.compact\.hide-toolbar"\)/);
+  assert.match(block, /:root\[zen-compact-mode="true"\]:not\(\[zen-single-toolbar="true"\]\)[^{]*#navigator-toolbox:not\(\[animate="true"\]\)\s*\{[^}]*margin-top:\s*0\s*!important[^}]*height:\s*calc\(100% - var\(--zen-compact-float\)\)\s*!important/s);
+  assert.match(block, /@media \(-moz-platform: macos\)\s*\{[^{]*:not\(\[zen-right-side="true"\]\)[^{]*#titlebar\s*\{[^}]*padding-top:\s*var\(--zen-toolbar-height\)\s*!important/s);
 });
 
 test('single-toolbar mode frames page content while leaving the sidebar addressbar native', () => {
@@ -1137,6 +1164,10 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/s);
   assert.match(inputBoxBlock, /--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
   assert.match(inputBoxBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)/);
+  // The native field and split-pane fields share one slightly smaller URL text size.
+  assert.match(cssRuleBlock(css, ':root {'), /--blended-addressbar-url-font-size:\s*calc\(1em - 1px\)/);
+  assert.match(inputBoxBlock, /font-size:\s*var\(--blended-addressbar-url-font-size\)/);
+  assert.match(cssRuleBlock(css, '.blended-addressbar-pane-address {'), /font-size:\s*var\(--blended-addressbar-url-font-size\)\s*!important/);
   // Sine loads mods as user sheets; Zen's `#urlbar:not([breakout-extend]) .urlbar-input`
   // color rule wins over normal user declarations, so the input text needs !important.
   const inputBlock = cssRuleBlock(css, '#urlbar:not([zen-floating-urlbar="true"]) #urlbar-input {');
@@ -1147,8 +1178,10 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\[breakout\]\[breakout-extend\]\s*>\s*\.urlbar-input-container\s*\{[^}]*height:\s*calc\(var\(--urlbar-container-height\) - 10px\)\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input::selection\s*\{[^}]*background-color:\s*SelectedItem\s*!important[^}]*color:\s*SelectedItemText\s*!important/s);
   assert.match(css, /--blended-addressbar-header-muted-foreground:\s*color-mix\(in srgb,\s*var\(--zen-tab-header-foreground,\s*currentColor\)\s*42%,\s*transparent\)/);
-  const urlbarIconSelector = cssSelectorPrelude(css, '#urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container');
-  const urlbarIconBlock = cssRuleBlock(css, '#urlbar:not([zen-floating-urlbar="true"]) #urlbar-input-container :is(#identity-box');
+  // Zen 1.24's <moz-urlbar> container has only the .urlbar-input-container class, no id.
+  const urlbarIconSelector = cssSelectorPrelude(css, '#urlbar:not([zen-floating-urlbar="true"]) :is(#urlbar-input-container, .urlbar-input-container)');
+  const urlbarIconBlock = cssRuleBlock(css, '#urlbar:not([zen-floating-urlbar="true"]) :is(#urlbar-input-container, .urlbar-input-container) :is(#identity-box');
+  assert.doesNotMatch(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\) #urlbar-input-container :is\(/);
   const unscopedChromeIconSelector = cssSelectorPrelude(css, '#navigator-toolbox:not([tabs-hidden]) :is(');
   const unscopedChromeIconBlock = cssRuleBlock(css, '#navigator-toolbox:not([tabs-hidden]) :is(');
   const zenSiteDataButtonBlock = cssRuleBlock(css, '#navigator-toolbox:not([tabs-hidden]) #zen-site-data-icon-button.identity-box-button');
