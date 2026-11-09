@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.29 - 2026-11-09
+
+- Color addressbar page-action icons, such as Translate, with the page-aware foreground again in dual-toolbar layouts. Zen 1.24's urlbar container lost its `#urlbar-input-container` id, so these icons kept Zen's theme color and looked faded on light pages.
+- Shrink addressbar URL text by 1px in dual-toolbar layouts. Split-pane address fields use the same size.
+- Let the floating compact-mode sidebar span the full window height and cover the addressbar row in dual-toolbar layouts. On macOS, sidebar content starts below the window controls. Turn this off with **Keep compact sidebar below the addressbar**.
+
 ## 1.7.28 - 2026-11-09
 
 - Keep addressbar text readable on light pages in dual-toolbar layouts. Zen 1.24 colors the unfocused URL text with its own theme color, which overrode the page-aware foreground and left light text on white pages.

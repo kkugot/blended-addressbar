@@ -39,6 +39,12 @@
     "defaultValue": false
   },
   {
+    "property": "uc.blended-addressbar.compact-sidebar-over-toolbar.disabled",
+    "label": "Keep compact sidebar below the addressbar",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
     "property": "uc.blended-addressbar.frame-shadow",
     "label": "Frame shadow",
     "type": "dropdown",
