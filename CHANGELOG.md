@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.28 - 2026-11-09
+
+- Keep addressbar text readable on light pages in dual-toolbar layouts. Zen 1.24 colors the unfocused URL text with its own theme color, which overrode the page-aware foreground and left light text on white pages.
+
 ## 1.7.27 - 2026-10-02
 
 - Remove automatic pane selection under the mouse cursor and its settings. This feature belongs to Alt-click Split View.
