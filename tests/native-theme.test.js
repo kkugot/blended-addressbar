@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.27', () => {
+test('release metadata stays synchronized at version 1.7.28', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.27');
-  assert.equal(theme.updatedAt, '2026-10-02');
+  assert.equal(theme.version, '1.7.28');
+  assert.equal(theme.updatedAt, '2026-11-23');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.27/);
-  assert.match(marketplace, /Version: `1\.7\.27`/);
-  assert.match(marketplace, /"version": "1\.7\.27"/);
-  assert.match(marketplace, /"updatedAt": "2026-10-02"/);
-  assert.match(changelog, /## 1\.7\.27 - 2026-10-02/);
+  assert.match(script, /\/\/ @version\s+1\.7\.28/);
+  assert.match(marketplace, /Version: `1\.7\.28`/);
+  assert.match(marketplace, /"version": "1\.7\.28"/);
+  assert.match(marketplace, /"updatedAt": "2026-11-23"/);
+  assert.match(changelog, /## 1\.7\.28 - 2026-11-23/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -1136,7 +1136,8 @@ test('adaptive foreground feeds only Zen omnibox input text color', () => {
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\s*\{[^}]*--toolbar-field-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\s*\{[^}]*--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/s);
   assert.match(inputBoxBlock, /--input-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
-  assert.match(inputBoxBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)/);
+  assert.match(inputBoxBlock, /--toolbar-field-text-color:\s*var\(--zen-tab-header-foreground,\s*currentColor\)/);
+  assert.doesNotMatch(inputBoxBlock, /color:\s*var\(--zen-tab-header-foreground,\s*inherit\)\s*!important/);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\):is\(\[focused\],\s*\[open\],\s*\[breakout-extend="true"\]\) #urlbar-input\s*\{[^}]*color:\s*FieldText\s*!important[^}]*--input-color:\s*FieldText/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\[breakout\]\[breakout-extend\]\s*\{[^}]*top:\s*2px\s*!important/s);
   assert.match(css, /#urlbar:not\(\[zen-floating-urlbar="true"\]\)\[breakout\]\[breakout-extend\]\s*>\s*\.urlbar-input-container\s*\{[^}]*height:\s*calc\(var\(--urlbar-container-height\) - 10px\)\s*!important/s);

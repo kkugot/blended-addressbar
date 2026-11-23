@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.28 - 2026-11-23
+
+- Restore adaptive URL text contrast when Zen applies its own address bar colors.
+
 ## 1.7.27 - 2026-10-02
 
 - Remove automatic pane selection under the mouse cursor and its settings. This feature belongs to Alt-click Split View.

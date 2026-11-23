@@ -284,6 +284,7 @@ menupopup[placespopup="true"] :is(menu, menuitem, .bookmark-item):is([disabled],
             color: var(--zen-tab-header-foreground, inherit);
             transition: color var(--blended-addressbar-color-transition);
             --input-color: var(--zen-tab-header-foreground, currentColor);
+            --toolbar-field-text-color: var(--zen-tab-header-foreground, currentColor);
         }
 
         #urlbar:not([zen-floating-urlbar="true"]):is([focused], [open], [breakout-extend="true"]) .urlbar-input-box,
