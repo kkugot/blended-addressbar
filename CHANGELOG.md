@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.0 - 2026-11-23
+
+- Reuse cached page colors across URLs in the same first path segment, or fall back to the most recently used color from the same origin. Fresh page colors replace these temporary colors.
+
 ## 1.7.28 - 2026-11-23
 
 - Restore adaptive URL text contrast when Zen applies its own address bar colors.

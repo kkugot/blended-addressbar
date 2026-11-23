@@ -42,7 +42,7 @@ Change these settings in Sine. The preference names below also identify them in 
 - `uc.blended-addressbar.window-tint.enabled`: tint the browser window with active page colors while preserving Zen's existing icon and text colors.
 - `uc.blended-addressbar.window-tint.strength`: tint strength as a percentage from `0` to `100`; defaults to `25`.
 
-Page colors are always remembered in memory while browsing. They are not saved across browser restarts.
+Page colors are remembered in memory while browsing. A page can temporarily use a cached color from the same first path segment, or the most recently used color from the same origin, until a fresh sample arrives. Colors are not saved across browser restarts.
 
 ### Split focus
 

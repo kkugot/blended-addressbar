@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Blended Addressbar
 // @description    Adaptive header color for Zen URL bar
-// @version        1.7.28
+// @version        1.8.0
 // ==/UserScript==
 
 (() => {
@@ -680,7 +680,8 @@
   function getThemePageKey(href) {
     try {
       const url = new URL(String(href || ''));
-      if (/^(https?|file):$/i.test(url.protocol)) return `${url.origin}${url.pathname}`;
+      if (/^https?:$/i.test(url.protocol)) return `${url.origin}/${url.pathname.split('/').find(Boolean) || ''}`;
+      if (url.protocol === 'file:') return `${url.origin}${url.pathname}`;
     } catch {}
 
     return String(href || '');
@@ -718,16 +719,33 @@
 
   function getCachedPageTheme(browser) {
     const href = getBrowserHref(browser);
-    const key = getThemePageKey(href);
+    let key = getThemePageKey(href);
     if (!key) return null;
+
+    if (!pageThemeCache.has(key)) {
+      try {
+        const url = new URL(href);
+        if (/^https?:$/i.test(url.protocol)) {
+          const prefix = `${url.origin}/`;
+          for (const candidateKey of pageThemeCache.keys()) {
+            if (candidateKey.startsWith(prefix)) key = candidateKey;
+          }
+        }
+      } catch {}
+    }
 
     const entry = pageThemeCache.get(key);
     if (!entry?.theme?.bg) return null;
 
     pageThemeCache.delete(key);
     pageThemeCache.set(key, entry);
+    let samePage = false;
+    try {
+      samePage = new URL(entry.theme.href).pathname === new URL(href).pathname;
+    } catch {}
     return {
       ...entry.theme,
+      ...(samePage ? {} : { source: 'host-cache', cachedSource: entry.theme.source }),
       href,
       cachedAt: entry.savedAt
     };
@@ -2990,7 +3008,7 @@
     const hasExactTabTheme = exactTabCache?.href === expectedHref
       && exactTabCache.theme?.bg
       && exactTabCache.theme.source !== 'host-cache';
-    const deferRememberedFallback = keepCachedTheme && !zenBoostActive && !hasExactTabTheme;
+    const deferRememberedFallback = keepCachedTheme && !zenBoostActive && !hasExactTabTheme && !targetCachedTheme;
     const retainedHostTheme = targetCachedTheme ? null : getSameHostRetainedTheme(expectedHref);
     if (!deferRememberedFallback && targetCachedTheme) {
       applyResolvedTheme(browser, targetCachedTheme, 'target-cache', expectedHref, {

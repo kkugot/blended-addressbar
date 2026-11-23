@@ -64,20 +64,20 @@ function countOccurrences(value, needle) {
   return value.split(needle).length - 1;
 }
 
-test('release metadata stays synchronized at version 1.7.28', () => {
+test('release metadata stays synchronized at version 1.8.0', () => {
   const theme = JSON.parse(read('theme.json'));
   const script = read('blended-bar.uc.js');
   const marketplace = read('MARKETPLACE.md');
   const changelog = read('CHANGELOG.md');
 
-  assert.equal(theme.version, '1.7.28');
+  assert.equal(theme.version, '1.8.0');
   assert.equal(theme.updatedAt, '2026-11-23');
   assert.equal(theme.image, 'https://raw.githubusercontent.com/kkugot/blended-addressbar/main/marketplace-preview.png');
-  assert.match(script, /\/\/ @version\s+1\.7\.28/);
-  assert.match(marketplace, /Version: `1\.7\.28`/);
-  assert.match(marketplace, /"version": "1\.7\.28"/);
+  assert.match(script, /\/\/ @version\s+1\.8\.0/);
+  assert.match(marketplace, /Version: `1\.8\.0`/);
+  assert.match(marketplace, /"version": "1\.8\.0"/);
   assert.match(marketplace, /"updatedAt": "2026-11-23"/);
-  assert.match(changelog, /## 1\.7\.28 - 2026-11-23/);
+  assert.match(changelog, /## 1\.8\.0 - 2026-11-23/);
 });
 
 test('browser window tint bridges page colors through native Zen window theme variables', () => {
@@ -638,7 +638,7 @@ test('page color caching is in-memory only and has no long-lived site color pref
   assert.doesNotMatch(prefs, /uc\.blended-addressbar\.clear-cache-request/);
   assert.doesNotMatch(prefs, /Clear cached page colors/);
   assert.doesNotMatch(readme, /uc\.blended-addressbar\.remember-page-colors/);
-  assert.match(readme, /Page colors are always remembered in memory while browsing/);
+  assert.match(readme, /Page colors are remembered in memory while browsing/);
   assert.doesNotMatch(readme, /uc\.blended-addressbar\.remember-site-colors-longer/);
   assert.doesNotMatch(readme, /remembered site colors across browser restarts/);
   assert.doesNotMatch(readme, /uc\.blended-addressbar\.clear-cache-request/);
@@ -648,7 +648,7 @@ test('page color caching is in-memory only and has no long-lived site color pref
   assert.doesNotMatch(architecture, /selector-rule/);
 });
 
-test('exact tab colors paint immediately while broader remembered colors remain fallbacks', () => {
+test('cached tab and section colors paint before refreshing while uncached fallback waits', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /const targetCachedTheme = getCachedTargetTheme\(browser\)/);
@@ -656,7 +656,7 @@ test('exact tab colors paint immediately while broader remembered colors remain 
   assert.doesNotMatch(script, /hostCachedTheme/);
   assert.doesNotMatch(script, /cachedThemeIsHost/);
   assert.match(script, /const hasExactTabTheme = exactTabCache\?\.href === expectedHref/);
-  assert.match(script, /const deferRememberedFallback = keepCachedTheme\s+&& !zenBoostActive && !hasExactTabTheme/);
+  assert.match(script, /const deferRememberedFallback = keepCachedTheme\s+&& !zenBoostActive && !hasExactTabTheme && !targetCachedTheme/);
   assert.match(script, /if \(!deferRememberedFallback && targetCachedTheme\) \{\s*applyResolvedTheme\(browser, targetCachedTheme, 'target-cache'/);
   assert.doesNotMatch(script, /if \(cachedTheme\) \{\s*applyResolvedTheme\(browser,\s*cachedTheme,\s*'cache',\s*expectedHref\);\s*\}\s*const fastTheme = getBrowserPageThemeFromChrome\(browser\)/s);
   assert.match(script, /const rememberedFallbackTheme = targetCachedTheme \|\| retainedHostTheme/);
@@ -898,13 +898,12 @@ test('pane radius updates skip unchanged per-pane style writes', () => {
   assert.doesNotMatch(script, /pane\.style\.setProperty\('--blended-addressbar-split-radius-top-left'/);
 });
 
-test('page theme cache uses bounded origin-path LRU entries before host fallback', () => {
+test('page theme cache uses bounded first-path-segment LRU entries before host fallback', () => {
   const script = read('blended-bar.uc.js');
 
   assert.match(script, /const pageThemeCacheMaxEntries = 500/);
   assert.match(script, /let pageThemeCache = new Map\(\)/);
   assert.match(script, /function getThemePageKey\(href\)/);
-  assert.match(script, /return `\$\{url\.origin\}\$\{url\.pathname\}`/);
   assert.match(script, /function cachePageTheme\(theme,\s*href\)/);
   assert.match(script, /while \(pageThemeCache\.size > pageThemeCacheMaxEntries\)/);
   assert.match(script, /pageThemeCache\.delete\(pageThemeCache\.keys\(\)\.next\(\)\.value\)/);
@@ -913,6 +912,81 @@ test('page theme cache uses bounded origin-path LRU entries before host fallback
   assert.match(script, /function getCachedTargetTheme\(browser\)/);
   assert.doesNotMatch(script, /getCachedHostTheme\(browser\)/);
   assert.match(script, /pageThemeCache = new Map\(\)/);
+});
+
+test('shared section colors are replaceable fallbacks while exact page colors keep their source', () => {
+  const script = read('blended-bar.uc.js');
+  const context = { URL, Date, Map, pageThemeCache: new Map(), pageThemeCacheMaxEntries: 500,
+    getBrowserHref: browser => browser.href,
+    isPageThemeEligibleHref: () => true,
+    getThemeSourceConfidence: () => 8 };
+  vm.createContext(context);
+  vm.runInContext(script.slice(script.indexOf('  function getThemePageKey('), script.indexOf('  function cacheTheme(')), context);
+  const key = context.getThemePageKey;
+  assert.equal(key('https://example.com/docs/a?q=1'), 'https://example.com/docs');
+  assert.equal(key('https://example.com/docs/b'), 'https://example.com/docs');
+  assert.notEqual(key('https://example.com/other/a'), key('https://example.com/docs/a'));
+  assert.notEqual(key('https://other.example/docs/a'), key('https://example.com/docs/a'));
+  assert.equal(key('https://example.com/'), 'https://example.com/');
+  assert.notEqual(key('file:///one/a'), key('file:///one/b'));
+  const first = 'https://example.com/docs/a';
+  context.cachePageTheme({ bg: '#fff', fg: '#000', source: 'pixel-top-edge' }, first);
+  assert.equal(context.getCachedPageTheme({ href: `${first}?q=2` }).source, 'pixel-top-edge');
+  const fallback = context.getCachedPageTheme({ href: 'https://example.com/docs/b' });
+  assert.equal(fallback.source, 'host-cache');
+  assert.equal(fallback.cachedSource, 'pixel-top-edge');
+  assert.equal(fallback.href, 'https://example.com/docs/b');
+});
+
+test('section cache misses use the most recently used same-origin color as a replaceable fallback', () => {
+  const script = read('blended-bar.uc.js');
+  const context = { URL, Date, Map, pageThemeCache: new Map(), pageThemeCacheMaxEntries: 500,
+    getBrowserHref: browser => browser.href,
+    isPageThemeEligibleHref: () => true,
+    getThemeSourceConfidence: () => 8 };
+  vm.createContext(context);
+  vm.runInContext(script.slice(script.indexOf('  function getThemePageKey('), script.indexOf('  function cacheTheme(')), context);
+  context.cachePageTheme({ bg: '#111', source: 'pixel-top-edge' }, 'https://example.com/news/a');
+  context.cachePageTheme({ bg: '#eee', source: 'pixel-top-edge' }, 'https://example.com/docs/a');
+  context.cachePageTheme({ bg: '#999', source: 'pixel-top-edge' }, 'https://other.example/docs/a');
+  const fallback = context.getCachedPageTheme({ href: 'https://example.com/shop/a' });
+  assert.equal(fallback.bg, '#eee');
+  assert.equal(fallback.source, 'host-cache');
+  assert.equal(fallback.cachedSource, 'pixel-top-edge');
+  assert.equal(fallback.href, 'https://example.com/shop/a');
+  assert.equal(context.getCachedPageTheme({ href: 'https://example.com/news/b' }).bg, '#111');
+  assert.equal(context.getCachedPageTheme({ href: 'https://example.com/new/a' }).bg, '#111');
+  assert.equal(context.getCachedPageTheme({ href: 'http://example.com/shop/a' }), null);
+  assert.equal(context.getCachedPageTheme({ href: 'https://example.com:8443/shop/a' }), null);
+  assert.equal(context.getCachedPageTheme({ href: 'https://unrelated.example/shop/a' }), null);
+  assert.equal(context.getCachedPageTheme({ href: 'https://example.com.evil/shop/a' }), null);
+  assert.equal(context.getCachedPageTheme({ href: 'file:///other/a' }), null);
+});
+
+test('a cached domain fallback paints before fresh sampling on tab selection', async () => {
+  const href = 'https://example.com/shop/a';
+  const browser = { currentURI: { spec: href } };
+  const theme = { bg: '#fff', fg: '#000', href, source: 'host-cache', cachedSource: 'pixel-top-edge' };
+  const events = [];
+  const context = {
+    gBrowser: { selectedBrowser: browser }, themeCache: new WeakMap(),
+    stopSampling() {}, getBrowserHref: target => target.currentURI.spec,
+    isPageThemeEligibleHref: () => true, attachPersistentThemeListener() {}, isZenBoostActive: () => false,
+    getCachedTargetTheme: () => theme, getSameHostRetainedTheme: () => null,
+    applyResolvedTheme: (_browser, _theme, reason) => { events.push(`apply:${reason}`); return true; },
+    isLoadingThemeFor: () => false, getBrowserPageThemeFromChrome: () => null,
+    requestPersistentFrameTheme: () => events.push('request'), sampleRenderedTheme: () => events.push('snapshot'),
+    getBrowserPageTheme: async () => null, scheduleDelayedThemeFallback: () => events.push('deferred'),
+    samplingIntervalMs: 120, samplingEnabled: false, DEBUG: false
+  };
+  vm.createContext(context);
+  const script = read('blended-bar.uc.js');
+  vm.runInContext(script.slice(script.indexOf('  async function startSampling('), script.indexOf('  function enterPostLoadSampling(')), context);
+  await context.startSampling(browser, { keepCachedTheme: true, reason: 'tab-select' });
+  assert.ok(events.indexOf('apply:target-cache') >= 0);
+  assert.ok(events.indexOf('apply:target-cache') < events.indexOf('request'));
+  assert.ok(events.includes('snapshot'));
+  assert.ok(!events.includes('deferred'));
 });
 
 test('active page theme updates are coalesced before sampling work runs', () => {
@@ -1790,6 +1864,11 @@ test('new rendered pixels can replace an early loading color at the same confide
   vm.runInContext(source.slice(source.indexOf('  function shouldApplyThemeCandidate('), source.indexOf('  function getThemeHostKey(')), context);
   assert.equal(context.shouldApplyThemeCandidate({ bg: 'blue', source: 'pixel-top-edge' }, { loading: true }).action, 'apply');
   assert.equal(context.shouldApplyThemeCandidate({ bg: 'white', source: 'body' }, { loading: true }).action, 'ignore');
+  context.themeApplyState.applied = { source: 'host-cache', confidence: 4 };
+  assert.equal(context.shouldApplyThemeCandidate({ bg: 'black', source: 'body' }, { loading: true, deferNonVisual: true }).action, 'defer');
+  assert.equal(context.shouldApplyThemeCandidate({ bg: 'black', source: 'pixel-top-edge' }, { loading: true }).action, 'apply');
+  assert.equal(context.shouldApplyThemeCandidate({ bg: 'black', source: 'host-cache', cachedSource: 'body' }, { requirePixel: true }).action, 'ignore');
+  assert.equal(context.shouldApplyThemeCandidate({ bg: 'black', source: 'host-cache', cachedSource: 'pixel-top-edge' }, { requirePixel: true }).action, 'apply');
 });
 
 test('loading samples are scheduled after paint and chrome reads a strip rather than one border pixel', () => {

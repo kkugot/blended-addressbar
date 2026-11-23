@@ -121,14 +121,14 @@ Each pane commits its own background and readable foreground together. Its theme
 ## Cache Layers
 
 - `themeCache`: per-browser `WeakMap` for the current exact tab and href.
-- `pageThemeCache`: bounded in-memory cache by origin and pathname. This is the preferred tab-switch fallback after exact tab cache.
+- `pageThemeCache`: bounded in-memory cache by origin and first path segment for HTTP(S), and by full path for local files. If the section is missing, the most recently used entry from the same origin is used. A different page's color is a replaceable host-cache fallback, not an exact rendered sample. A hit refreshes the entry's LRU position.
 - Same-host retention: if the next tab has the same host as the last applied theme, the previous theme can be retained briefly instead of flashing neutral while an unloaded tab restores.
 
-On tab switch, an exact color cached for the selected browser and URL applies immediately, then a fresh sample can correct it. Broader page and same-host colors remain delayed fallbacks. Cache precedence is:
+On tab switch, a cached tab, section, or origin color is applied before requesting a fresh sample. A retained color from the previous tab without a cache hit remains a delayed fallback. Cache precedence is:
 
 ```mermaid
 flowchart LR
-  Exact["exact tab/href cache"] --> Page["origin + pathname cache"] --> SameHost["same-host retained color"] --> Host["host cache"] --> Neutral["neutral fallback"]
+  Exact["exact tab/href cache"] --> Page["origin + first path segment cache"] --> Origin["most recent color from origin"] --> SameHost["same-host retained color"] --> Neutral["neutral fallback"]
 ```
 
 ## Modifiers And Special Cases
